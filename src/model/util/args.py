@@ -256,57 +256,60 @@ def define_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def get_args() -> argparse.Namespace:
-    """
-    Parse the arguments for the model.
+class ModelTrainerArgumentParser:
+    def __init__(self):
+        self._parser = define_parser()
+        self._args = self._parser.parse_args()
 
-    :param known_args_only: If ``True``, only known arguments are parsed.
-        Defaults to ``True``.
-    :return: specified arguments in the command line
-    """
-    parser = define_parser()
-    args = parser.parse_args()
+    def get_args(self) -> argparse.Namespace:
+        """
+        Parse the arguments for the model.
 
-    if args.image_height is None and args.image_width is None:
-        parser.error("Both image_height and image_width cannot be None")
+        :param known_args_only: If ``True``, only known arguments are parsed.
+            Defaults to ``True``.
+        :return: specified arguments in the command line
+        """
 
-    args.image_height = args.image_height or args.image_width
-    args.image_width = args.image_width or args.image_height
+        if self._args.image_height is None and self._args.image_width is None:
+            self._parser.error("Both image_height and image_width cannot be None")
 
-    args.image_shape = np.array(
-        (args.image_height, args.image_width)
-    )
+        self._args.image_height = self._args.image_height or self._args.image_width
+        self._args.image_width = self._args.image_width or self._args.image_height
 
-    if (
-        not args.tanh_loss
-        and not args.unif_loss
-        and not args.variance_loss
-    ):
-        warnings.warn(f"No loss function specified. Using tanh loss by default")
-        args.tanh_loss = 5.0
+        self._args.image_shape = np.array(
+            (self._args.image_height, self._args.image_width)
+        )
 
-    return args
+        if (
+            not self._args.tanh_loss
+            and not self._args.unif_loss
+            and not self._args.variance_loss
+        ):
+            warnings.warn(f"No loss function specified. Using tanh loss by default")
+            self._args.tanh_loss = 5.0
 
-def save_args(args: argparse.Namespace, directory_path: Path) -> None:
-    """
-    Save the arguments in the specified directory as
-        - a text file called 'args.txt'
-        - a pickle file called 'args.pickle'
-    :param directory_path: The path to the directory where the
-        arguments should be saved
-    """
-    # If the specified directory does not exist, create it
-    if not directory_path.exists():
-        directory_path.mkdir(parents=True, exist_ok=True)
-    # Save the args in a text file
-    with (directory_path / "args.txt").open(mode="w") as f:
-        for arg in vars(args):
-            val = getattr(args, arg)
-            if isinstance(val, str):
-                # Add quotation marks to indicate that
-                # the argument is of string type
-                val = f'"{val}"'
-            f.write(f"{arg}: {val}\n")
-    # Pickle the args for possible reuse
-    with (directory_path / "args.pickle").open(mode="wb") as f:
-        pickle.dump(args, f)
+        return self._args
+
+    def save_args(self, directory_path: Path) -> None:
+        """
+        Save the arguments in the specified directory as
+            - a text file called 'args.txt'
+            - a pickle file called 'args.pickle'
+        :param directory_path: The path to the directory where the
+            arguments should be saved
+        """
+        # If the specified directory does not exist, create it
+        if not directory_path.exists():
+            directory_path.mkdir(parents=True, exist_ok=True)
+        # Save the args in a text file
+        with (directory_path / "args.txt").open(mode="w") as f:
+            for arg in vars(self._args):
+                val = getattr(self._args, arg)
+                if isinstance(val, str):
+                    # Add quotation marks to indicate that
+                    # the argument is of string type
+                    val = f'"{val}"'
+                f.write(f"{arg}: {val}\n")
+        # Pickle the args for possible reuse
+        with (directory_path / "args.pickle").open(mode="wb") as f:
+            pickle.dump(self._args, f)

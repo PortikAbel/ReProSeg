@@ -1,12 +1,18 @@
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim
 import torch.utils.data
 from tqdm import tqdm
 
+import argparse
+from model.model import ReProSeg
+from model.util.log import Log
 
 def train(
-    net,
+    args: argparse.Namespace,
+    log: Log,
+    net: nn.DataParallel[ReProSeg],
     train_loader,
     optimizer_net,
     optimizer_classifier,
@@ -14,10 +20,6 @@ def train(
     scheduler_classifier,
     criterion,
     epoch,
-    args,
-    device,
-    log,
-    tensorboard_writer=None,
     pretrain=False,
     finetune=False,
     progress_prefix: str = "Train Epoch",
@@ -53,7 +55,7 @@ def train(
     for _, param in net.named_parameters():
         if param.requires_grad:
             count_param += 1
-    print("Number of parameters that require gradient: ", count_param, flush=True)
+    log.debug(f"Number of parameters that require gradient: {count_param}")
 
     align_pf_weight = (epoch / args.epochs_pretrain) * 1.0
     t_weight = args.tanh_loss
@@ -67,15 +69,17 @@ def train(
         var_weigth = 2.0
         cl_weight = 2.0
 
-    print(
-        f"Align weight: {align_pf_weight}, "
-        f"U_tanh weight: {t_weight}, "
-        f"Uniformity weight: {unif_weight}, "
-        f"Variance weight: {var_weigth}",
-        f"Class weight: {cl_weight}",
-        flush=True,
+    log.log_values(
+        "log_loss_weights",
+        epoch,
+        align_pf_weight,
+        t_weight,
+        unif_weight,
+        var_weigth,
+        cl_weight,
     )
-    print("Pretrain?", pretrain, "Finetune?", finetune, flush=True)
+    log.debug(f"Pretrain - {"ON" if pretrain else "OFF"}")
+    log.debug(f"Finetune - {"ON" if finetune else "OFF"}")
 
     lrs_net = []
     lrs_class = []
@@ -84,7 +88,7 @@ def train(
     )
     # Iterate through the data set to update leaves, prototypes and network
     for i, (xs1, xs2, ys) in train_iter:
-        xs1, xs2, ys = xs1.to(device), xs2.to(device), ys.to(device)
+        xs1, xs2, ys = xs1.to(args.device), xs2.to(args.device), ys.to(args.device)
 
         # Reset the gradients
         optimizer_classifier.zero_grad(set_to_none=True)
@@ -95,6 +99,7 @@ def train(
         prototype_activations[i, :, :] = pooled
 
         loss, acc = calculate_loss(
+            log,
             proto_features,
             pooled,
             out,
@@ -109,7 +114,6 @@ def train(
             finetune,
             criterion,
             train_iter,
-            tensorboard_writer,
             len(train_iter) * (epoch - 1) + i,
             print=True,
             EPS=1e-8,
@@ -168,6 +172,7 @@ def train(
 
 
 def calculate_loss(
+    log: Log,
     proto_features,
     pooled,
     out,
@@ -182,7 +187,6 @@ def calculate_loss(
     finetune,
     criterion,
     train_iter,
-    tensorboard_writer=None,
     iteration=0,
     print=True,
     EPS=1e-10,
@@ -244,22 +248,11 @@ def calculate_loss(
                     ),
                     refresh=False,
                 )
-                if tensorboard_writer:
-                    tensorboard_writer.add_scalar(
-                        "Loss/pretrain/L", loss.item(), iteration
-                    )
-                    tensorboard_writer.add_scalar(
-                        "Loss/pretrain/LA", a_loss_pf.item(), iteration
-                    )
-                    tensorboard_writer.add_scalar(
-                        "Loss/pretrain/LT", tanh_loss.item(), iteration
-                    )
-                    tensorboard_writer.add_scalar(
-                        "Loss/pretrain/LU", uni_loss.item(), iteration
-                    )
-                    tensorboard_writer.add_scalar(
-                        "Loss/pretrain/LV", var_loss.item(), iteration
-                    )
+                log.tb_scalar("Loss/pretrain/L", loss.item(), iteration)
+                log.tb_scalar("Loss/pretrain/LA", a_loss_pf.item(), iteration)
+                log.tb_scalar("Loss/pretrain/LT", tanh_loss.item(), iteration)
+                log.tb_scalar("Loss/pretrain/LU", uni_loss.item(), iteration)
+                log.tb_scalar("Loss/pretrain/LV", var_loss.item(), iteration)
             else:
                 train_iter.set_postfix_str(
                     (
@@ -274,26 +267,11 @@ def calculate_loss(
                     ),
                     refresh=False,
                 )
-                if tensorboard_writer:
-                    tensorboard_writer.add_scalar(
-                        "Loss/train/L", loss.item(), iteration
-                    )
-                    tensorboard_writer.add_scalar(
-                        "Loss/train/LA", a_loss_pf.item(), iteration
-                    )
-                    tensorboard_writer.add_scalar(
-                        "Loss/train/LC", class_loss.item(), iteration
-                    )
-                    tensorboard_writer.add_scalar(
-                        "Loss/train/LT", tanh_loss.item(), iteration
-                    )
-                    tensorboard_writer.add_scalar(
-                        "Loss/train/LU", uni_loss.item(), iteration
-                    )
-                    tensorboard_writer.add_scalar(
-                        "Loss/train/LV", var_loss.item(), iteration
-                    )
-                    tensorboard_writer.add_scalar("Acc/train", acc, iteration)
+                log.tb_scalar("Loss/train/L", loss.item(), iteration)
+                log.tb_scalar("Loss/train/LA", a_loss_pf.item(), iteration)
+                log.tb_scalar("Loss/train/LT", tanh_loss.item(), iteration)
+                log.tb_scalar("Loss/train/LU", uni_loss.item(), iteration)
+                log.tb_scalar("Loss/train/LV", var_loss.item(), iteration)
 
     return loss, acc
 

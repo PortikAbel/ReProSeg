@@ -1,20 +1,18 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.tensorboard import SummaryWriter
 
-from train.test_step import eval
+import argparse
+
 from data.dataloaders import get_dataloaders
 from model.model import ReProSeg, get_network
-from model.util.args import get_args
-from train.train_step import train
 from model.util.func import init_weights_xavier
+from model.util.log import Log
+from train.train_step import train
+from train.test_step import eval
 
 
-def train_model(log, args=None):
-    args = args or get_args()
-
-    tensorboard_writer = SummaryWriter(log_dir=args.log_dir)
+def train_model(log: Log, args: argparse.Namespace):
 
     # Log which device was actually used
     log.info(
@@ -36,14 +34,15 @@ def train_model(log, args=None):
         pool_layer,
         classification_layer,
         num_prototypes,
-    ) = get_network(len(classes), args)
+    ) = get_network(args, log, len(classes))
 
     # Create a ReProSeg model
     net = ReProSeg(
+        args=args,
+        log=log,
         num_classes=len(classes),
         num_prototypes=num_prototypes,
         feature_net=feature_net,
-        args=args,
         add_on_layers=add_on_layers,
         pool_layer=pool_layer,
         classification_layer=classification_layer,
@@ -60,7 +59,7 @@ def train_model(log, args=None):
             epoch = 0
             checkpoint = torch.load(args.pretrained_net_state_dict_dir, map_location=args.device)
             net.load_state_dict(checkpoint["model_state_dict"], strict=True)
-            print("Pretrained network loaded", flush=True)
+            log.info("Pretrained network loaded")
             net.module._multiplier.requires_grad = False
             try:
                 optimizer_net.load_state_dict(checkpoint["optimizer_net_state_dict"])
@@ -75,22 +74,13 @@ def train_model(log, args=None):
                 .float()
                 .item()
                 > 0.8 * (num_prototypes * len(classes))
-            ):  # assume that the linear classification layer is not yet trained
-                # (e.g. when loading a pretrained backbone only)
-                print(
-                    "We assume that the classification layer is not yet trained. "
-                    "We re-initialize it...",
-                    flush=True,
-                )
+            ):  # assume that the linear classification layer is not yet trained (e.g. when loading a pretrained backbone only)
+                log.warning("We assume that the classification layer is not yet trained. We re-initialize it...")
                 torch.nn.init.normal_(
                     net.module._classification.weight, mean=1.0, std=0.1
                 )
                 torch.nn.init.constant_(net.module._multiplier, val=2.0)
-                print(
-                    "Classification layer initialized with mean",
-                    torch.mean(net.module._classification.weight).item(),
-                    flush=True,
-                )
+                log.info(f"Classification layer initialized with mean {torch.mean(net.module._classification.weight).item()}")
                 if args.bias:
                     torch.nn.init.constant_(net.module._classification.bias, val=0.0)
             else:
@@ -107,17 +97,13 @@ def train_model(log, args=None):
             torch.nn.init.constant_(net.module._multiplier, val=2.0)
             net.module._multiplier.requires_grad = False
 
-            print(
-                "Classification layer initialized with mean",
-                torch.mean(net.module._classification.weight).item(),
-                flush=True,
-            )
+            log.info(f"Classification layer initialized with mean {torch.mean(net.module._classification.weight).item()}")
 
     # Define classification loss function and scheduler
     criterion = nn.NLLLoss(reduction="mean").to(args.device)
     scheduler_net = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer_net,
-        T_max=len(train_loader_pretraining) * args.epochs_pretrain,
+        T_max=len(train_loader) * args.epochs_pretrain,
         eta_min=args.lr_block / 100.0,
         last_epoch=-1,
     )
@@ -129,7 +115,7 @@ def train_model(log, args=None):
         proto_features, _, _ = net(xs1)
         wshape = np.array(proto_features.shape)[-2:]
         args.wshape = wshape  # needed for calculating image patch size
-        print("Output shape: ", proto_features.shape, flush=True)
+        log.debug("Output shape: {proto_features.shape}")
 
     if net.module._num_classes == 2:
         # Create a csv log for storing the test accuracy,
@@ -146,12 +132,11 @@ def train_model(log, args=None):
             "mean_train_acc",
             "mean_train_loss_during_epoch",
         )
-        print(
+        log.warning(
             "Your dataset only has two classes. "
             "Is the number of samples per class similar? "
             "If the data is imbalanced, we recommend to use "
-            "the --weighted_loss flag to account for the imbalance.",
-            flush=True,
+            "the --weighted_loss flag to account for the imbalance."
         )
     else:
         # Create a csv log for storing the test accuracy (top 1 and top 5),
@@ -168,32 +153,32 @@ def train_model(log, args=None):
             "mean_train_acc",
             "mean_train_loss_during_epoch",
         )
+    log.create_log(
+        "log_loss_weights"
+        "Align",
+        "Tanh",
+        "Uniformity",
+        "Variance",
+        "Classification",
+    )
 
     # PRETRAINING PROTOTYPES PHASE
     for epoch in range(1, args.epochs_pretrain + 1):
-        print(
-            "\nPretrain Epoch",
-            epoch,
-            "with batch size",
-            train_loader_pretraining.batch_size,
-            flush=True,
-        )
+        log.info(f"Pretrain Epoch {epoch} with batch size {train_loader.batch_size}")
 
         # Pretrain prototypes
         net.module.pretrain()
         train_info = train(
+            args,
+            log,
             net,
-            train_loader_pretraining,
+            train_loader,
             optimizer_net,
             optimizer_classifier,
             scheduler_net,
             None,
             criterion,
             epoch,
-            args,
-            args.device,
-            log,
-            tensorboard_writer,
             pretrain=True,
             finetune=False,
         )
@@ -224,9 +209,9 @@ def train_model(log, args=None):
 
     if args.pretrained_net_state_dict_dir is None:
         net.eval()
-        torch.save(
+        log.model_checkpoint(
             get_checkpoint(with_optimizer_classifier_state_dict=False),
-            args.log_dir / "checkpoints" / "net_pretrained",
+            "net_pretrained",
         )
         net.train()
 
@@ -282,7 +267,7 @@ def train_model(log, args=None):
             net.module.unfreeze()
             frozen = False
 
-        print("\n Epoch", epoch, "frozen:", frozen, flush=True)
+        log.info(f"Epoch {epoch} frozen: {frozen}")
         if (epoch == args.epochs or epoch % 30 == 0) and args.epochs > 1:
             # SET SMALL WEIGHTS TO ZERO
             with torch.no_grad():
@@ -293,13 +278,15 @@ def train_model(log, args=None):
                 cls_w = net.module._classification.weight[
                     net.module._classification.weight.nonzero(as_tuple=True)
                 ]
-                print(f"Classifier weights: {cls_w}\n{cls_w.shape}", flush=True)
+                log.debug(f"Classifier weights:\n{cls_w}\n{cls_w.shape}")
                 if args.bias:
                     cls_b = net.module._classification.bias
-                    print(f"Classifier bias: {cls_b}", flush=True)
+                    log.debug(f"Classifier bias: {cls_b}", flush=True)
                 torch.set_printoptions(profile="default")
 
         train_info = train(
+            args,
+            log,
             net,
             train_loader,
             optimizer_net,
@@ -308,17 +295,13 @@ def train_model(log, args=None):
             scheduler_classifier,
             criterion,
             epoch,
-            args,
-            args.device,
-            log,
-            tensorboard_writer,
             pretrain=False,
             finetune=finetune,
         )
         lrs_net += train_info["lrs_net"]
         lrs_classifier += train_info["lrs_class"]
         # Evaluate model
-        eval_info = eval(net, test_loader, epoch, args.device, log)
+        eval_info = eval(args, log, net, test_loader, epoch)
         log.log_values(
             "log_epoch_overview",
             epoch,
@@ -331,51 +314,28 @@ def train_model(log, args=None):
             train_info["train_accuracy"],
             train_info["loss"],
         )
-        tensorboard_writer.add_scalar(
-            "Acc/eval-epochs", eval_info["top1_accuracy"], epoch
-        )
-        tensorboard_writer.add_scalar(
-            "Acc/train-epochs", train_info["train_accuracy"], epoch
-        )
-        tensorboard_writer.add_scalar("Loss/train-epochs", train_info["loss"], epoch)
-        tensorboard_writer.add_scalar(
-            "Num non-zero prototypes", eval_info["almost_nonzeros"], epoch
-        )
+        log.tb_scalar("Acc/eval-epochs", eval_info["top1_accuracy"], epoch)
+        log.tb_scalar("Acc/train-epochs", train_info["train_accuracy"], epoch)
+        log.tb_scalar("Loss/train-epochs", train_info["loss"], epoch)
+        log.tb_scalar("Num non-zero prototypes", eval_info["almost_nonzeros"], epoch)
 
         with torch.no_grad():
             net.eval()
-            torch.save(
-                get_checkpoint(),
-                args.log_dir / "checkpoints" / "net_trained",
-            )
+            log.model_checkpoint(get_checkpoint(), "net_trained")
 
             if epoch % 30 == 0:
                 net.eval()
-                torch.save(
-                    get_checkpoint(),
-                    args.log_dir / "checkpoints" / f"net_trained_{epoch}",
-                )
+                log.model_checkpoint(get_checkpoint(), f"net_trained_{epoch}")
 
     net.eval()
-    torch.save(
-        get_checkpoint(),
-        args.log_dir / "checkpoints" / "net_trained_last",
-    )
+    log.model_checkpoint(get_checkpoint(), "net_trained_last")
 
-    print("classifier weights: ", net.module._classification.weight, flush=True)
-    print(
-        "Classifier weights nonzero: ",
-        net.module._classification.weight[
-            net.module._classification.weight.nonzero(as_tuple=True)
-        ],
-        (
-            net.module._classification.weight[
-                net.module._classification.weight.nonzero(as_tuple=True)
-            ]
-        ).shape,
-        flush=True,
-    )
-    print("Classifier bias: ", net.module._classification.bias, flush=True)
+    nonzero_weights = net.module._classification.weight[
+        net.module._classification.weight.nonzero(as_tuple=True)
+    ]
+    log.debug(f"Classifier weights:\n{net.module._classification.weight}")
+    log.debug(f"Classifier weights nonzero:\n{nonzero_weights}\n{nonzero_weights.shape}")
+    log.debug(f"Classifier bias:\n{net.module._classification.bias}")
     # Print weights and relevant prototypes per class
     for c in range(net.module._classification.weight.shape[0]):
         relevant_ps = []
@@ -384,5 +344,4 @@ def train_model(log, args=None):
             if proto_weights[p] > 1e-3:
                 relevant_ps.append((p, proto_weights[p].item()))
 
-    print("Done!", flush=True)
-    tensorboard_writer.close()
+    log.info("Done!")

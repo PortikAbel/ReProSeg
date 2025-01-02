@@ -1,5 +1,7 @@
-import argparse
 import random
+
+import argparse
+from model.util.log import Log
 
 import numpy as np
 import torch
@@ -16,16 +18,19 @@ from models.features import (
 class ReProSeg(nn.Module):
     def __init__(
         self,
+        args: argparse.Namespace,
+        log: Log,
         num_classes: int,
         num_prototypes: int,
         feature_net: nn.Module,
-        args: argparse.Namespace,
         add_on_layers: nn.Module,
         pool_layer: nn.Module,
         classification_layer: nn.Module,
     ):
         super().__init__()
         assert num_classes > 0
+        self._args = args
+        self._log = log
         self._num_features = args.num_features
         self._num_classes = num_classes
         self._num_prototypes = num_prototypes
@@ -34,7 +39,6 @@ class ReProSeg(nn.Module):
         self._pool = pool_layer
         self._classification = classification_layer
         self._multiplier = classification_layer.normalization_multiplier
-        self._args = args
         self._init_param_groups()
 
     def forward(self, xs, inference=False):
@@ -70,10 +74,7 @@ class ReProSeg(nn.Module):
                 else:
                     param.requires_grad = False
         else:
-            print(
-                "Layer groups not implemented for selected backbone architecture.",
-                flush=True,
-            )
+            self._log.warning("Layer groups not implemented for selected backbone architecture.")
         self.param_groups["classification_weight"] = []
         self.param_groups["classification_bias"] = []
         for name, param in self._classification.named_parameters():
@@ -216,7 +217,7 @@ class NonNegLinear(nn.Module):
         return F.linear(input_, torch.relu(self.weight), self.bias)
 
 
-def get_network(num_classes: int, args: argparse.Namespace):
+def get_network(args: argparse.Namespace, log: Log, num_classes: int):
     feature_kwargs = {
         "in_channels": args.color_channels,
     }
@@ -232,21 +233,14 @@ def get_network(num_classes: int, args: argparse.Namespace):
 
     if args.num_features == 0:
         num_prototypes = first_add_on_layer_in_channels
-        print("Number of prototypes: ", num_prototypes, flush=True)
+        log.info(f"Number of prototypes: {num_prototypes}")
         add_on_layers = nn.Sequential(
             nn.Softmax(dim=1),  # softmax over every prototype for each patch,
             # such that for every location in image, sum over prototypes is 1
         )
     else:
         num_prototypes = args.num_features
-        print(
-            "Number of prototypes set from",
-            first_add_on_layer_in_channels,
-            "to",
-            num_prototypes,
-            ". Extra 1x1 conv layer added. Not recommended.",
-            flush=True,
-        )
+        log.info(f"Number of prototypes set from {first_add_on_layer_in_channels} to {num_prototypes}. Extra 1x1 conv layer added. Not recommended.")
         add_on_layers = nn.Sequential(
             nn.Conv2d(
                 in_channels=first_add_on_layer_in_channels,

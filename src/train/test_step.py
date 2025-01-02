@@ -1,29 +1,32 @@
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim
 from sklearn.metrics import balanced_accuracy_score, f1_score, roc_auc_score
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+import argparse
+from model.model import ReProSeg
+from model.util.log import Log
 from model.util.func import topk_accuracy
-from utils.log import Log
 
 
 @torch.no_grad()
 def eval(
-    net,
+    args: argparse.Namespace,
+    log: Log,
+    net: nn.DataParallel[ReProSeg],
     test_loader: DataLoader,
     epoch,
-    device,
-    log: Log,
     progress_prefix: str = "Eval Epoch",
 ) -> dict:
-    net = net.to(device)
+    net = net.to(args.device)
     # Make sure the model is in evaluation mode
     net.eval()
     # Keep an info dict about the procedure
-    info = dict()
+    eval_info = dict()
     # Build a confusion matrix
     cm = np.zeros((net.module._num_classes, net.module._num_classes), dtype=int)
 
@@ -48,7 +51,7 @@ def eval(
     (xs, ys) = next(iter(test_loader))
     # Iterate through the test set
     for i, (xs, ys) in test_iter:
-        xs, ys = xs.to(device), ys.to(device)
+        xs, ys = xs.to(args.device), ys.to(args.device)
 
         with torch.no_grad():
             net.module._classification.weight.copy_(
@@ -125,97 +128,47 @@ def eval(
         del pooled
         del ys_pred
 
-    print(
-        "model abstained from a decision for",
-        abstained.item(),
-        "images",
-        flush=True,
+    log.info(f"model abstained from a decision for {abstained.item()} images")
+
+    num_nonzero_prototypes = torch.count_nonzero(
+        F.relu(net.module._classification.weight - 1e-3)
+    ).item()
+    num_prototypes = torch.numel(net.module._classification.weight)
+    log.info(
+        f"sparsity ratio: {(num_prototypes - num_nonzero_prototypes) / num_prototypes}"
     )
-    info["num non-zero prototypes"] = (
-        torch.gt(net.module._classification.weight, 1e-3).any(dim=0).sum().item()
-    )
-    print(
-        "sparsity ratio: ",
-        (
-            torch.numel(net.module._classification.weight)
-            - torch.count_nonzero(
-                torch.nn.functional.relu(net.module._classification.weight - 1e-3)
-            ).item()
-        )
-        / torch.numel(net.module._classification.weight),
-        flush=True,
-    )
-    info["confusion_matrix"] = cm
-    info["test_accuracy"] = acc_from_cm(cm)
-    info["top1_accuracy"] = global_top1acc / len(test_loader.dataset)
-    info["top5_accuracy"] = global_top5acc / len(test_loader.dataset)
-    info["almost_sim_nonzeros"] = global_sim_anz / len(test_loader.dataset)
-    info["local_size_all_classes"] = local_size_total / len(test_loader.dataset)
-    info["almost_nonzeros"] = global_anz / len(test_loader.dataset)
+
+    eval_info["num non-zero prototypes"] = num_nonzero_prototypes
+    eval_info["confusion_matrix"] = cm
+    eval_info["test_accuracy"] = acc_from_cm(cm)
+    eval_info["top1_accuracy"] = global_top1acc / len(test_loader.dataset)
+    eval_info["top5_accuracy"] = global_top5acc / len(test_loader.dataset)
+    eval_info["almost_sim_nonzeros"] = global_sim_anz / len(test_loader.dataset)
+    eval_info["local_size_all_classes"] = local_size_total / len(test_loader.dataset)
+    eval_info["almost_nonzeros"] = global_anz / len(test_loader.dataset)
 
     if net.module._num_classes == 2:
         tp = cm[0][0]
         fn = cm[0][1]
         fp = cm[1][0]
         tn = cm[1][1]
-        print("TP: ", tp, "FN: ", fn, "FP:", fp, "TN:", tn, flush=True)
         sensitivity = tp / (tp + fn)
         specificity = tn / (tn + fp)
-        print("\n Epoch", epoch, flush=True)
-        print("Confusion matrix: ", cm, flush=True)
+        log.info(f"TP: {tp} FN: {fn} FP: {fp} TN: {tn}")
+        log.info(f"Epoch {epoch}")
+        log.info(f"Confusion matrix: {cm}")
+        log.info(f"Balanced accuracy: {balanced_accuracy_score(y_trues, y_preds_classes)}")
+        log.info(f"Sensitivity: {sensitivity}, Specificity: {specificity}")
+        eval_info["top5_accuracy"] = f1_score(y_trues, y_preds_classes)
         try:
-            for (
-                classname,
-                classidx,
-            ) in test_loader.dataset.class_to_idx.items():
-                if classidx == 0:
-                    print(
-                        "Accuracy positive class (",
-                        classname,
-                        classidx,
-                        ") (TPR, Sensitivity):",
-                        tp / (tp + fn),
-                    )
-                elif classidx == 1:
-                    print(
-                        "Accuracy negative class (",
-                        classname,
-                        classidx,
-                        ") (TNR, Specificity):",
-                        tn / (tn + fp),
-                    )
-        except ValueError:
-            pass
-        print(
-            "Balanced accuracy: ",
-            balanced_accuracy_score(y_trues, y_preds_classes),
-            flush=True,
-        )
-        print(
-            "Sensitivity: ",
-            sensitivity,
-            "Specificity: ",
-            specificity,
-            flush=True,
-        )
-        info["top5_accuracy"] = f1_score(y_trues, y_preds_classes)
-        try:
-            print(
-                "AUC macro: ",
-                roc_auc_score(y_trues, y_preds, average="macro"),
-                flush=True,
-            )
-            print(
-                "AUC weighted: ",
-                roc_auc_score(y_trues, y_preds, average="weighted"),
-                flush=True,
-            )
+            log.info(f"AUC macro: {roc_auc_score(y_trues, y_preds, average="macro")}")
+            log.info(f"AUC weighted: {roc_auc_score(y_trues, y_preds, average="weighted")}")
         except ValueError:
             pass
     else:
-        info["top5_accuracy"] = global_top5acc / len(test_loader.dataset)
+        eval_info["top5_accuracy"] = global_top5acc / len(test_loader.dataset)
 
-    return info
+    return eval_info
 
 
 def acc_from_cm(cm: np.ndarray) -> float:
