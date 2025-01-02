@@ -6,7 +6,7 @@ from sklearn.metrics import balanced_accuracy_score, f1_score, roc_auc_score
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from models.PIPNet.util.func import topk_accuracy
+from model.util.func import topk_accuracy
 from utils.log import Log
 
 
@@ -126,7 +126,7 @@ def eval(
         del ys_pred
 
     print(
-        "PIP-Net abstained from a decision for",
+        "model abstained from a decision for",
         abstained.item(),
         "images",
         flush=True,

@@ -128,12 +128,6 @@ def define_parser() -> argparse.ArgumentParser:
         "Batch size is multiplied with number of available GPUs",
     )
     net_parameter_group.add_argument(
-        "--pretrain_batch_size",
-        type=np.uint16,
-        default=128,
-        help="Batch size when pretraining the prototypes (first training stage)",
-    )
-    net_parameter_group.add_argument(
         "--train_backbone_during_pretrain",
         action="store_true",
         help="To train the whole backbone during pretrain "
