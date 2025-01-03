@@ -161,8 +161,8 @@ def eval(
         log.info(f"Sensitivity: {sensitivity}, Specificity: {specificity}")
         eval_info["top5_accuracy"] = f1_score(y_trues, y_preds_classes)
         try:
-            log.info(f"AUC macro: {roc_auc_score(y_trues, y_preds, average="macro")}")
-            log.info(f"AUC weighted: {roc_auc_score(y_trues, y_preds, average="weighted")}")
+            log.info(f"AUC macro: {roc_auc_score(y_trues, y_preds, average='macro')}")
+            log.info(f"AUC weighted: {roc_auc_score(y_trues, y_preds, average='weighted')}")
         except ValueError:
             pass
     else:

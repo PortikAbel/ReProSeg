@@ -78,8 +78,8 @@ def train(
         var_weigth,
         cl_weight,
     )
-    log.debug(f"Pretrain - {"ON" if pretrain else "OFF"}")
-    log.debug(f"Finetune - {"ON" if finetune else "OFF"}")
+    log.debug(f"Pretrain - {'ON' if pretrain else 'OFF'}")
+    log.debug(f"Finetune - {'ON' if finetune else 'OFF'}")
 
     lrs_net = []
     lrs_class = []
