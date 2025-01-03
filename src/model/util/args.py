@@ -4,6 +4,7 @@ import warnings
 from pathlib import Path
 import pickle
 
+import torch
 import numpy as np
 
 
@@ -256,6 +257,34 @@ def define_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def set_device(gpu_ids: str, disable_gpu: bool = False) -> tuple[torch.device, list]:
+    """
+    Set the device to use for training.
+
+    :param gpu_ids: GPU ids separated with comma
+    :param disable_gpu: Whether to disable GPU. Defaults to ``False``.
+    :return: The device to use for training
+    """
+
+    device_ids = [int(gpu_id) for gpu_id in gpu_ids.split(",")]
+
+    if disable_gpu or not torch.cuda.is_available():
+        return torch.device("cpu"), []
+    if len(device_ids) == 1:
+        return torch.device(f"cuda:{gpu_ids}"), device_ids
+    if len(device_ids) == 0:
+        device = torch.device("cuda")
+        print("CUDA device set without id specification", flush=True)
+        device_ids.append(torch.cuda.current_device())
+        return device, device_ids
+    print(
+        "This code should work with multiple GPUs "
+        "but we didn't test that, so we recommend to use only 1 GPU.",
+        flush=True,
+    )
+    return torch.device("cuda:" + str(device_ids[0])), device_ids
+
+
 class ModelTrainerArgumentParser:
     def __init__(self):
         self._parser = define_parser()
@@ -269,6 +298,8 @@ class ModelTrainerArgumentParser:
             Defaults to ``True``.
         :return: specified arguments in the command line
         """
+
+        self._args.device, self._args.device_ids = set_device(self._args.gpu_ids, self._args.disable_gpu)
 
         if self._args.image_height is None and self._args.image_width is None:
             self._parser.error("Both image_height and image_width cannot be None")
