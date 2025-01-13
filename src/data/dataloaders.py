@@ -11,7 +11,7 @@ import torchvision.transforms.v2 as transforms
 from sklearn.model_selection import train_test_split
 from torch import Tensor
 
-from utils.log import Log
+from model.util.log import Log
 
 
 def get_dataloaders(log: Log, args: argparse.Namespace):

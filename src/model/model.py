@@ -9,7 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from models.features import (
+from model.features import (
     base_architecture_to_features,
     base_architecture_to_layer_groups,
 )

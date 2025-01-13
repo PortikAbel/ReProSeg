@@ -5,8 +5,8 @@ import torch
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 
-from models import pretrained_models_dir
-from models.resnet import BasicBlock, Bottleneck, conv1x1, model_urls
+from model import pretrained_models_dir
+from model.resnet import BasicBlock, Bottleneck, conv1x1, model_urls
 
 
 class ResNet_features(nn.Module):

@@ -1,8 +1,8 @@
-from models.features.convnext_features import (
+from model.features.convnext_features import (
     convnext_tiny_13_features,
     convnext_tiny_26_features,
 )
-from models.features.resnet_features import (
+from model.features.resnet_features import (
     resnet18_features,
     resnet34_features,
     resnet50_features,
@@ -10,7 +10,7 @@ from models.features.resnet_features import (
     resnet101_features,
     resnet152_features,
 )
-from models.features.vgg_features import (
+from model.features.vgg_features import (
     vgg11_bn_features,
     vgg11_features,
     vgg13_bn_features,
