@@ -5,11 +5,11 @@ import torch.nn as nn
 import argparse
 
 from data.dataloaders import get_dataloaders
-# from model.model import ReProSeg, get_network  # TODO: add imports
+from model.model import ReProSeg, get_network  # TODO: add imports
 from model.util.func import init_weights_xavier
 from model.util.log import Log
-# from train.train_step import train
-# from train.test_step import eval
+from train.train_step import train
+from train.test_step import eval
 
 
 def train_model(log: Log, args: argparse.Namespace):
