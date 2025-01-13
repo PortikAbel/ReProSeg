@@ -13,6 +13,15 @@ from torch import Tensor
 
 from model.util.log import Log
 
+# TODO: move this to a separate file?
+# TODO: do some classes need to be merged?
+cityscapes_classes = [
+    "unlabeled", "ego vehicle", "rectification border", "out of roi", "static",
+    "dynamic", "ground", "road", "sidewalk", "parking", "rail track", "building",
+    "wall", "fence", "guard rail", "bridge", "tunnel", "pole", "polegroup", "traffic light",
+    "traffic sign", "vegetation", "terrain", "sky", "person", "rider", "car",
+    "truck", "bus", "caravan", "trailer", "train", "motorcycle", "bicycle",
+]
 
 def get_dataloaders(log: Log, args: argparse.Namespace):
     """
@@ -23,8 +32,6 @@ def get_dataloaders(log: Log, args: argparse.Namespace):
         train_set,
         test_set,
         classes,
-        train_indices,
-        targets,
     ) = get_datasets(log, args)
 
     # Determine if GPU should be used
@@ -32,6 +39,7 @@ def get_dataloaders(log: Log, args: argparse.Namespace):
     sampler = None
     to_shuffle_train_set = True
 
+    # TODO: do we need this? If yes, get_datasets needs to be modified to return targets and train_indices
     if args.weighted_loss:
         if targets is None:
             raise ValueError(
@@ -110,7 +118,7 @@ def get_datasets(log: Log, args: argparse.Namespace):
     if args.dataset == "CityScapes":
         log.info("Loading CityScapes dataset")
         train_set = torchvision.datasets.Cityscapes(
-            root='data/Cityscapes', # TODO: add path to Cityscapes dataset as parameter
+            root='/tankstorage/data/Cityscapes', # TODO: add path to Cityscapes dataset as parameter
             split="train",
             mode="fine",
             target_type="semantic",
@@ -119,7 +127,7 @@ def get_datasets(log: Log, args: argparse.Namespace):
         )
         
         test_set = torchvision.datasets.Cityscapes(
-            root='data/Cityscapes', # TODO: add path to Cityscapes dataset as parameter
+            root='/tankstorage/data/Cityscapes', # TODO: add path to Cityscapes dataset as parameter
             split="test",
             mode="fine",
             target_type="semantic",
@@ -130,8 +138,7 @@ def get_datasets(log: Log, args: argparse.Namespace):
     return (
         train_set,
         test_set,
-        None,  # TODO: return classes
-        torch.LongTensor(targets),
+        cityscapes_classes
     )
 
 
