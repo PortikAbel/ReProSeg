@@ -5,7 +5,8 @@ import torch
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 
-from model import pretrained_models_dir
+# TODO: do we still need the pretrained_models_dir?
+# from model import pretrained_models_dir
 from model.resnet import BasicBlock, Bottleneck, conv1x1, model_urls
 
 
