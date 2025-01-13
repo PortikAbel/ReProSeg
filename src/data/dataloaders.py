@@ -93,68 +93,49 @@ def get_datasets(log: Log, args: argparse.Namespace):
     """
     Load the proper dataset based on the parsed arguments
     """
+
+    # TODO: is this needed?
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)
 
-    train_dir = args.train_dir
-    test_dir = args.test_dir
 
-    train_val_set = torchvision.datasets.ImageFolder(train_dir)
-    classes = train_val_set.classes
-    targets = train_val_set.targets
-    indices = list(range(len(train_val_set)))
+    # TODO: add necessary transforms
+    # (
+    #     transform_no_augment,
+    #     transform1,
+    #     transform2,
+    # ) = get_transforms(args)
 
-    train_indices = indices
-
-    (
-        transform_no_augment,
-        transform1,
-        transform2,
-    ) = get_transforms(args)
-
-    if test_dir is None:
-        if args.validation_size <= 0.0:
-            raise ValueError(
-                "There is no test set directory, so validation size "
-                "should be > 0 such that training set can be split."
-            )
-        subset_targets = list(np.array(targets)[train_indices])
-        train_indices, test_indices = train_test_split(
-            train_indices,
-            test_size=args.validation_size,
-            stratify=subset_targets,
-            random_state=args.seed,
+    if args.dataset == "CityScapes":
+        log.info("Loading CityScapes dataset")
+        train_set = torchvision.datasets.Cityscapes(
+            root='data/Cityscapes', # TODO: add path to Cityscapes dataset as parameter
+            split="train",
+            mode="fine",
+            target_type="semantic",
+            transform=None,
+            target_transform=None,
         )
-        test_set = torch.utils.data.Subset(
-            torchvision.datasets.ImageFolder(train_dir, transform=transform_no_augment),
-            indices=test_indices,
+        
+        test_set = torchvision.datasets.Cityscapes(
+            root='data/Cityscapes', # TODO: add path to Cityscapes dataset as parameter
+            split="test",
+            mode="fine",
+            target_type="semantic",
+            transform=None,
+            target_transform=None,
         )
-        log.info(
-            f"Samples in train_set: {len(indices)} of which {len(train_indices)} "
-            f"for training and {len(test_indices)} for testing."
-        )
-    else:
-        test_set = torchvision.datasets.ImageFolder(
-            test_dir, transform=transform_no_augment
-        )
-
-    train_set = torch.utils.data.Subset(
-        TwoAugSupervisedDataset(
-            train_val_set, transform1=transform1, transform2=transform2
-        ),
-        indices=train_indices,
-    )
 
     return (
         train_set,
         test_set,
-        classes,
-        train_indices,
+        None,  # TODO: return classes
         torch.LongTensor(targets),
     )
 
 
+# TODO: implement necessary transforms
 def get_transforms(args: argparse.Namespace):
 
     mean = args.mean
