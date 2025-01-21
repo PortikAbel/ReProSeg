@@ -1,9 +1,6 @@
-import random
-
 import argparse
 from model.util.log import Log
 
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -86,11 +83,6 @@ class ReProSeg(nn.Module):
                 self.param_groups["classification_bias"].append(param)
 
     def get_optimizers(self):
-        torch.manual_seed(self._args.seed)
-        torch.cuda.manual_seed_all(self._args.seed)
-        random.seed(self._args.seed)
-        np.random.seed(self._args.seed)
-
         paramlist_net = [
             {
                 "params": self.param_groups["backbone"],

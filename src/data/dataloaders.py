@@ -101,13 +101,6 @@ def get_datasets(log: Log, args: argparse.Namespace):
     """
     Load the proper dataset based on the parsed arguments
     """
-
-    # TODO: is this needed?
-    torch.manual_seed(args.seed)
-    random.seed(args.seed)
-    np.random.seed(args.seed)
-
-
     # TODO: add necessary transforms
     # (
     #     transform_no_augment,

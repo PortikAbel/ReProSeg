@@ -1,7 +1,3 @@
-import random
-import numpy as np
-import torch
-
 from train.trainer import train_model
 from model.util.args import ModelTrainerArgumentParser
 from model.util.log import Log
@@ -15,11 +11,6 @@ log = Log(model_args.log_dir, __name__)
 
 # Log the run arguments
 model_trainer_argument_parser.save_args(log.metadata_dir)
-
-torch.manual_seed(model_args.seed)
-torch.cuda.manual_seed_all(model_args.seed)
-random.seed(model_args.seed)
-np.random.seed(model_args.seed)
 
 try:
     train_model(log, model_args)

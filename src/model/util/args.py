@@ -4,6 +4,7 @@ import warnings
 from pathlib import Path
 import pickle
 
+import random
 import torch
 import numpy as np
 
@@ -257,6 +258,19 @@ def define_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def set_rand_state(seed: int) -> None:
+    """
+    Set the random seed for reproducibility.
+
+    :param seed: The random seed to set
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+
 def set_device(gpu_ids: str, disable_gpu: bool = False) -> tuple[torch.device, list]:
     """
     Set the device to use for training.
@@ -266,7 +280,7 @@ def set_device(gpu_ids: str, disable_gpu: bool = False) -> tuple[torch.device, l
     :return: The device to use for training
     """
 
-    device_ids = [int(gpu_id) for gpu_id in gpu_ids.split(",")]
+    device_ids = [int(gpu_id) for gpu_id in (gpu_ids.split(",") if gpu_ids else [])]
 
     if disable_gpu or not torch.cuda.is_available():
         return torch.device("cpu"), []
@@ -299,6 +313,7 @@ class ModelTrainerArgumentParser:
         :return: specified arguments in the command line
         """
 
+        set_rand_state(self._args.seed)
         self._args.device, self._args.device_ids = set_device(self._args.gpu_ids, self._args.disable_gpu)
 
         if self._args.image_height is None and self._args.image_width is None:
