@@ -104,6 +104,7 @@ def get_datasets(log: Log, args: argparse.Namespace):
         transform_no_augment,
         transform1,
         transform2,
+        target_transform,
     ) = get_transforms(args)
 
     if args.dataset == "CityScapes":
@@ -114,7 +115,7 @@ def get_datasets(log: Log, args: argparse.Namespace):
             mode="fine",
             target_type="semantic",
             transform=transform_no_augment,
-            target_transform=None,
+            target_transform=target_transform,
         )
         
         test_set = torchvision.datasets.Cityscapes(
@@ -123,7 +124,7 @@ def get_datasets(log: Log, args: argparse.Namespace):
             mode="fine",
             target_type="semantic",
             transform=transform_no_augment,
-            target_transform=None,
+            target_transform=target_transform,
         )
 
     return (
@@ -143,9 +144,10 @@ def get_transforms(args: argparse.Namespace):
 
     transform_no_augment = transforms.Compose(
         [
+            transforms.ToTensor(),
             transforms.Resize(size=img_shape),
-            transforms.ToImage(),
-            transforms.ConvertImageDtype(),
+            # transforms.ToImage(),
+            # transforms.ConvertImageDtype(),
             normalize,
         ]
     )
@@ -178,10 +180,13 @@ def get_transforms(args: argparse.Namespace):
         ]
     )
 
+    target_transform = transforms.ToTensor()
+
     return (
         transform_no_augment,
         None, # transform1,
         None, # transform2,
+        target_transform,
     )
 
 
