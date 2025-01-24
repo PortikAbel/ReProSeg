@@ -3,7 +3,7 @@ from typing import Any
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 
-from models import pretrained_models_dir
+from model import pretrained_models_dir
 
 model_urls = {
     "vgg11": "https://download.pytorch.org/models/vgg11-bbd30ac9.pth",

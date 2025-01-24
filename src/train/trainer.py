@@ -5,7 +5,7 @@ import torch.nn as nn
 import argparse
 
 from data.dataloaders import get_dataloaders
-from model.model import ReProSeg, get_network  # TODO: add imports
+from model.model import ReProSeg, get_network
 from model.util.func import init_weights_xavier
 from model.util.log import Log
 from train.train_step import train

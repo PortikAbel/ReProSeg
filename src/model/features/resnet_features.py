@@ -8,8 +8,7 @@ import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 from torch import Tensor
 
-# TODO: do we still need the pretrained_models_dir?
-# from model import pretrained_models_dir
+from model import pretrained_models_dir
 
 
 model_urls = {
