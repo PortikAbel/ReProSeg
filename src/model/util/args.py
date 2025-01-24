@@ -98,6 +98,13 @@ def define_parser() -> argparse.ArgumentParser:
         help="The height of the images in the dataset",
     )
 
+    parser.add_argument(
+        "--color_channels",
+        type=int,
+        default=3,
+        help="Number of channels of the input images.",
+    )
+
     net_group = parser.add_mutually_exclusive_group()
     net_group.add_argument(
         "--net",
