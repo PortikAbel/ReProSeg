@@ -100,11 +100,11 @@ def get_datasets(log: Log, args: argparse.Namespace):
     Load the proper dataset based on the parsed arguments
     """
     # TODO: add necessary transforms
-    # (
-    #     transform_no_augment,
-    #     transform1,
-    #     transform2,
-    # ) = get_transforms(args)
+    (
+        transform_no_augment,
+        transform1,
+        transform2,
+    ) = get_transforms(args)
 
     if args.dataset == "CityScapes":
         log.info("Loading CityScapes dataset")
@@ -113,7 +113,7 @@ def get_datasets(log: Log, args: argparse.Namespace):
             split="train",
             mode="fine",
             target_type="semantic",
-            transform=None,
+            transform=transform_no_augment,
             target_transform=None,
         )
         
@@ -122,7 +122,7 @@ def get_datasets(log: Log, args: argparse.Namespace):
             split="test",
             mode="fine",
             target_type="semantic",
-            transform=None,
+            transform=transform_no_augment,
             target_transform=None,
         )
 
@@ -133,7 +133,6 @@ def get_datasets(log: Log, args: argparse.Namespace):
     )
 
 
-# TODO: implement necessary transforms
 def get_transforms(args: argparse.Namespace):
 
     mean = args.mean
@@ -151,6 +150,7 @@ def get_transforms(args: argparse.Namespace):
         ]
     )
 
+    # TODO: add segmentation specific transforms
     # transform1: first step of augmentation
     match args.dataset:
         case "CityScapes" | "Pascal-VOC":
@@ -180,8 +180,8 @@ def get_transforms(args: argparse.Namespace):
 
     return (
         transform_no_augment,
-        transform1,
-        transform2,
+        None, # transform1,
+        None, # transform2,
     )
 
 

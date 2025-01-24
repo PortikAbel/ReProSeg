@@ -98,6 +98,27 @@ def define_parser() -> argparse.ArgumentParser:
         help="The height of the images in the dataset",
     )
 
+    image_stats_group = dataset_group.add_argument_group(
+        "Image stats",
+        "Specifies the mean and stddev of the images. ",
+    )
+
+    image_stats_group.add_argument(
+        "--mean",
+        nargs='+',
+        type=float,
+        default=[0.485, 0.456, 0.406],
+        help="Mean of the dataset. "
+    )
+
+    image_stats_group.add_argument(
+        "--std",
+        nargs='+',
+        type=float,
+        default=[0.229, 0.224, 0.225],
+        help="Mean of the dataset. "
+    )
+
     parser.add_argument(
         "--color_channels",
         type=int,
