@@ -8,6 +8,7 @@ import torch.utils.data
 import torchvision
 import torchvision.transforms.v2 as transforms
 from torch import Tensor
+from torch.utils.data import DataLoader
 
 from model.util.log import Log
 
@@ -30,6 +31,7 @@ def get_dataloaders(log: Log, args: argparse.Namespace):
         train_set,
         test_set,
         classes,
+        train_indices,
     ) = get_datasets(log, args)
 
     # Determine if GPU should be used
@@ -37,7 +39,6 @@ def get_dataloaders(log: Log, args: argparse.Namespace):
     sampler = None
     to_shuffle_train_set = True
 
-    # TODO: do we need this? If yes, get_datasets needs to be modified to return targets and train_indices
     if args.weighted_loss:
         if targets is None:
             raise ValueError(
@@ -73,6 +74,7 @@ def get_dataloaders(log: Log, args: argparse.Namespace):
             drop_last=drop_last,
         )
 
+    # TODO: add weighted random sampler
     train_loader = create_dataloader(
         dataset=train_set,
         batch_size=args.batch_size,
@@ -95,11 +97,11 @@ def get_dataloaders(log: Log, args: argparse.Namespace):
     )
 
 
+# TODO: modify it so that it returns TwoAugSupervisedDatasets
 def get_datasets(log: Log, args: argparse.Namespace):
     """
     Load the proper dataset based on the parsed arguments
     """
-    # TODO: add necessary transforms
     (
         transform_no_augment,
         transform1,
@@ -114,8 +116,17 @@ def get_datasets(log: Log, args: argparse.Namespace):
             split="train",
             mode="fine",
             target_type="semantic",
-            transform=transform_no_augment,
-            target_transform=target_transform,
+            transform=None, # will add it later in TwoAugSupervisedDataset
+            target_transform=None,  # will add it later in TwoAugSupervisedDataset
+        )
+
+        train_indices = list(range(len(train_set)))
+
+        train_set = torch.utils.data.Subset(
+        TwoAugSupervisedDataset(
+            train_set, transform_no_augment, transform_no_augment  # TODO add transform1 and transform2
+        ),
+            indices=train_indices,
         )
         
         test_set = torchvision.datasets.Cityscapes(
@@ -130,6 +141,7 @@ def get_datasets(log: Log, args: argparse.Namespace):
     return (
         train_set,
         test_set,
+        train_indices,
         cityscapes_classes
     )
 
@@ -196,9 +208,19 @@ class TwoAugSupervisedDataset(torch.utils.data.Dataset):
     def __init__(self, dataset, transform1, transform2):
         self.dataset = dataset
         self.classes = dataset.classes
-        if isinstance(dataset, torchvision.datasets.folder.ImageFolder):
-            self.imgs = dataset.imgs
-            self.targets = dataset.targets
+        if isinstance(dataset, torchvision.datasets.Cityscapes):
+            # TODO: not optimal?
+            # Create a DataLoader to load all data in a single batch
+            data_loader = DataLoader(
+                dataset,
+                batch_size=len(dataset),
+                shuffle=False
+            )
+
+            # Retrieve all images and targets in one go
+            self.imgs, self.targets = next(iter(data_loader))  # Get a single batch from the DataLoader
+
+            print("Cityscapes dataset loaded")
         else:
             self.targets = dataset._labels
             self.imgs = list(zip(dataset._image_files, dataset._labels))
