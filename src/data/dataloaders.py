@@ -1,5 +1,4 @@
 import argparse
-import random
 from typing import Dict, Tuple
 
 import numpy as np
@@ -8,7 +7,6 @@ import torch.optim
 import torch.utils.data
 import torchvision
 import torchvision.transforms.v2 as transforms
-from sklearn.model_selection import train_test_split
 from torch import Tensor
 
 from model.util.log import Log
