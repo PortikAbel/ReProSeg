@@ -150,6 +150,8 @@ class Log(BasicLog):
             (e.g. epoch number)
         :param value_names: The names of the attributes that are logged
         """
+        print(f"Creating log {log_name} with key {key_name} and values {value_names}")
+
         if log_name in self._logs.keys():
             raise KeyError("Log already exists!")
         # Add to existing logs
