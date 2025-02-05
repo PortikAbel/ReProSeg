@@ -8,7 +8,7 @@ import torch.utils.data
 import torchvision
 import torchvision.transforms.v2 as transforms
 from torch import Tensor
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, SubsetRandomSampler
 
 from model.util.log import Log
 
@@ -208,29 +208,31 @@ class TwoAugSupervisedDataset(torch.utils.data.Dataset):
     def __init__(self, dataset, transform1, transform2):
         self.dataset = dataset
         self.classes = dataset.classes
-        if isinstance(dataset, torchvision.datasets.Cityscapes):
-            # TODO: not optimal?
-            # Create a DataLoader to load all data in a single batch
-            data_loader = DataLoader(
-                dataset,
-                batch_size=len(dataset),
-                shuffle=False
-            )
+        # if isinstance(dataset, torchvision.datasets.Cityscapes):
+        #     #TODO: do we need this? self.imgs and self.targets?
+        #     # Create a DataLoader to load all data in a single batch
+        #     data_loader = DataLoader(
+        #         dataset,
+        #         batch_size=10,  # TODO: for testing purposes, only working with 10 images; should be: batch_size=len(dataset),
+        #         shuffle=False
+        #     )
 
-            # Retrieve all images and targets in one go
-            self.imgs, self.targets = next(iter(data_loader))  # Get a single batch from the DataLoader
+        #     # Retrieve all images and targets in one go
+        #     self.imgs, self.targets = next(iter(data_loader))  # Get a single batch from the DataLoader
 
-            print("Cityscapes dataset loaded")
-        else:
-            self.targets = dataset._labels
-            self.imgs = list(zip(dataset._image_files, dataset._labels))
+        # else:
+        #     self.targets = dataset._labels
+        #     self.imgs = list(zip(dataset._image_files, dataset._labels))
         self.transform1 = transform1
         self.transform2 = transform2
 
     def __getitem__(self, index):
         image, target = self.dataset[index]
         image = self.transform1(image)
-        return self.transform2(image), self.transform2(image), target
+        #TODO: only temporary!! target is set to a single pixel value
+        target_transform = transforms.ToTensor()
+        target = target_transform(target)
+        return self.transform2(image), self.transform2(image), target[:, 0, 0]
 
     def __len__(self):
         return len(self.dataset)
