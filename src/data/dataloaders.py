@@ -146,6 +146,7 @@ def get_datasets(log: Log, args: argparse.Namespace):
     )
 
 
+# TODO: define separate transforms for image+target (geometrical transforms) and image only (e.g. color transforms, normalization)
 def get_transforms(args: argparse.Namespace):
 
     mean = args.mean
@@ -183,11 +184,11 @@ def get_transforms(args: argparse.Namespace):
     # applied twice on the result of transform1(p) to obtain two similar imgs
     transform2 = transforms.Compose(
         [
-            TrivialAugmentWideNoShape(),
+            # TrivialAugmentWideNoShape(),
             transforms.RandomCrop(size=img_shape),  # includes crop
             transforms.ToImage(),
             transforms.ConvertImageDtype(),
-            normalize,
+            normalize, # TODO: don't normalize the target
         ]
     )
 
@@ -241,12 +242,24 @@ class TwoAugSupervisedDataset(torch.utils.data.Dataset):
         # Convert back to a PIL image
         image_target_img = Image.fromarray(image_target_array, mode="RGBA")
 
+        # apply augmentation
         image_target_img = self.transform1(image_target_img)
+
+
+        image_target_array = np.array(image_target_img)  # Shape: (H, W, 4)
+
+        # Split the array
+        image_array = image_target_array[:, :, :3]  # Shape: (H, W, 3) - RGB channels
+        target_array = image_target_array[:, :, 3]  # Shape: (H, W) - Alpha channel (grayscale)
+
+        # Convert back to PIL images
+        image = Image.fromarray(image_array, mode="RGB")
+        target = Image.fromarray(target_array, mode="L")
 
         #TODO: only temporary!! target is set to a single pixel value
         target_transform = transforms.ToTensor()
         target = target_transform(target)
-        return self.transform2(image), self.transform2(image), target[:, 0, 0]
+        return self.transform2(image), self.transform2(image), target[:, 0, 0]  # return two augmented images and the target
 
     def __len__(self):
         return len(self.dataset)
