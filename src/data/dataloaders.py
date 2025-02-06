@@ -10,7 +10,7 @@ import torchvision.transforms.v2 as transforms
 from torch import Tensor
 from torch.utils.data import DataLoader, SubsetRandomSampler
 
-from model.util.log import Log
+from utils.log import Log
 
 # TODO: move this to a separate file?
 # TODO: do some classes need to be merged?

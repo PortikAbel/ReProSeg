@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 import argparse
 from model.model import ReProSeg
-from model.util.log import Log
+from utils.log import Log
 
 def train(
     args: argparse.Namespace,

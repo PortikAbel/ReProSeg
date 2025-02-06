@@ -1,6 +1,6 @@
 from train.trainer import train_model
-from model.util.args import ModelTrainerArgumentParser
-from model.util.log import Log
+from utils.args import ModelTrainerArgumentParser
+from utils.log import Log
 
 
 model_trainer_argument_parser = ModelTrainerArgumentParser()

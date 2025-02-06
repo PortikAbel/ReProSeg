@@ -9,8 +9,8 @@ from tqdm import tqdm
 
 import argparse
 from model.model import ReProSeg
-from model.util.log import Log
-from model.util.func import topk_accuracy
+from utils.log import Log
+from utils.func import topk_accuracy
 
 
 @torch.no_grad()

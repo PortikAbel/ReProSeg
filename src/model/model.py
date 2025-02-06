@@ -1,5 +1,5 @@
 import argparse
-from model.util.log import Log
+from utils.log import Log
 
 import torch
 import torch.nn as nn

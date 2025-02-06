@@ -6,8 +6,8 @@ import argparse
 
 from data.dataloaders import get_dataloaders
 from model.model import ReProSeg, get_network
-from model.util.func import init_weights_xavier
-from model.util.log import Log
+from utils.func import init_weights_xavier
+from utils.log import Log
 from train.train_step import train
 from train.test_step import eval
 
