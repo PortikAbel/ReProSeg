@@ -2,6 +2,7 @@ import argparse
 from typing import Dict, Tuple
 
 import numpy as np
+from PIL import Image
 import torch
 import torch.optim
 import torch.utils.data
@@ -97,7 +98,6 @@ def get_dataloaders(log: Log, args: argparse.Namespace):
     )
 
 
-# TODO: modify it so that it returns TwoAugSupervisedDatasets
 def get_datasets(log: Log, args: argparse.Namespace):
     """
     Load the proper dataset based on the parsed arguments
@@ -124,13 +124,13 @@ def get_datasets(log: Log, args: argparse.Namespace):
 
         train_set = torch.utils.data.Subset(
         TwoAugSupervisedDataset(
-            train_set, transform_no_augment, transform_no_augment  # TODO add transform1 and transform2
+            train_set, transform1, transform2
         ),
             indices=train_indices,
         )
         
         test_set = torchvision.datasets.Cityscapes(
-            root='/tankstorage/data/Cityscapes', # TODO: add path to Cityscapes dataset as parameter
+            root='/tankstorage/data/Cityscapes', # TODO: add path to Cityscapes dataset as parameter or to .env
             split="test",
             mode="fine",
             target_type="semantic",
@@ -160,18 +160,17 @@ def get_transforms(args: argparse.Namespace):
             transforms.Resize(size=img_shape),
             # transforms.ToImage(),
             # transforms.ConvertImageDtype(),
-            normalize,
+            normalize,  # TODO: don't normalize the target
         ]
     )
 
-    # TODO: add segmentation specific transforms
     # transform1: first step of augmentation
     match args.dataset:
         case "CityScapes" | "Pascal-VOC":
             transform1 = transforms.Compose(
                 [
                     transforms.Resize(size=(img_shape[0] + 8, img_shape[1] + 8)),
-                    TrivialAugmentWideNoColor(),
+                    # TrivialAugmentWideNoColor(),
                     transforms.RandomHorizontalFlip(),
                     transforms.RandomResizedCrop(
                         size=(img_shape[0] + 4, img_shape[1] + 4),
@@ -196,8 +195,8 @@ def get_transforms(args: argparse.Namespace):
 
     return (
         transform_no_augment,
-        None, # transform1,
-        None, # transform2,
+        transform1,
+        transform2,
         target_transform,
     )
 
@@ -228,7 +227,22 @@ class TwoAugSupervisedDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         image, target = self.dataset[index]
-        image = self.transform1(image)
+
+        # adding the label (segmenation mask) to the RGB input images as a fourth channel in order to apply the same augmentation to both
+        image_array = np.array(image)  # Shape: (H, W, 3)
+        target_array = np.array(target)  # Shape: (H, W)
+
+        # Ensure both images have the same size
+        assert image_array.shape[:2] == target_array.shape, "Image and segmentation mask must have the same dimensions"
+
+        # Add the grayscale image (segmentation mask) as the fourth channel
+        image_target_array = np.dstack((image_array, target_array))  # Shape: (H, W, 4)
+
+        # Convert back to a PIL image
+        image_target_img = Image.fromarray(image_target_array, mode="RGBA")
+
+        image_target_img = self.transform1(image_target_img)
+
         #TODO: only temporary!! target is set to a single pixel value
         target_transform = transforms.ToTensor()
         target = target_transform(target)
