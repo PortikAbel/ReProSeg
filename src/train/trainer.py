@@ -155,6 +155,7 @@ def train_model(log: Log, args: argparse.Namespace):
         )
     log.create_log(
         "log_loss_weights",
+        "epoch",
         "Align",
         "Tanh",
         "Uniformity",
