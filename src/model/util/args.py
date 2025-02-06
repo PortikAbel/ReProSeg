@@ -8,6 +8,7 @@ import random
 import torch
 import numpy as np
 
+from utils.environment import get_env
 
 def define_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -51,7 +52,7 @@ def define_parser() -> argparse.ArgumentParser:
     log_group.add_argument(
         "--log_dir",
         type=Path,
-        default=f"{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}",
+        default=(Path(get_env("LOG_ROOT")) / "reproseg" / datetime.now().strftime('%Y-%m-%d-%H-%M-%S')).resolve(),
         help="The directory in which train progress should be logged",
     )
     log_group.add_argument(
