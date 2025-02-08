@@ -84,49 +84,6 @@ def define_parser() -> argparse.ArgumentParser:
         help="Flag that disables normalization of the images",
     )
 
-    image_size_group = dataset_group.add_argument_group(
-        "Image size",
-        "Specifies the size of the images. At least one of them is required",
-    )
-    image_size_group.add_argument(
-        "--image_width",
-        type=np.uint16,
-        help="The width of the images in the dataset",
-    )
-    image_size_group.add_argument(
-        "--image_height",
-        type=np.uint16,
-        help="The height of the images in the dataset",
-    )
-
-    image_stats_group = dataset_group.add_argument_group(
-        "Image stats",
-        "Specifies the mean and stddev of the images. ",
-    )
-
-    image_stats_group.add_argument(
-        "--mean",
-        nargs='+',
-        type=float,
-        default=[0.485, 0.456, 0.406],
-        help="Mean of the dataset. "
-    )
-
-    image_stats_group.add_argument(
-        "--std",
-        nargs='+',
-        type=float,
-        default=[0.229, 0.224, 0.225],
-        help="Mean of the dataset. "
-    )
-
-    parser.add_argument(
-        "--color_channels",
-        type=int,
-        default=3,
-        help="Number of channels of the input images.",
-    )
-
     net_group = parser.add_mutually_exclusive_group()
     net_group.add_argument(
         "--net",
@@ -344,16 +301,6 @@ class ModelTrainerArgumentParser:
 
         set_rand_state(self._args.seed)
         self._args.device, self._args.device_ids = set_device(self._args.gpu_ids, self._args.disable_gpu)
-
-        if self._args.image_height is None and self._args.image_width is None:
-            self._parser.error("Both image_height and image_width cannot be None")
-
-        self._args.image_height = self._args.image_height or self._args.image_width
-        self._args.image_width = self._args.image_width or self._args.image_height
-
-        self._args.image_shape = np.array(
-            (self._args.image_height, self._args.image_width)
-        )
 
         if (
             not self._args.tanh_loss

@@ -11,6 +11,8 @@ from model.features import (
     base_architecture_to_layer_groups,
 )
 
+from data.config import DATASETS
+
 
 class ReProSeg(nn.Module):
     def __init__(
@@ -211,7 +213,7 @@ class NonNegLinear(nn.Module):
 
 def get_network(args: argparse.Namespace, log: Log, num_classes: int):
     feature_kwargs = {
-        "in_channels": args.color_channels,
+        "in_channels": DATASETS[args.dataset]["color_channels"],
     }
     if "resnet" in args.net:
         feature_kwargs["stride"] = [1, 2, 1, 1]
