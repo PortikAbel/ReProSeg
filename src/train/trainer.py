@@ -115,7 +115,7 @@ def train_model(log: Log, args: argparse.Namespace):
         proto_features, _, _ = net(xs1)
         wshape = np.array(proto_features.shape)[-2:]
         args.wshape = wshape  # needed for calculating image patch size
-        log.debug("Output shape: {proto_features.shape}")
+        log.debug(f"Output shape: {proto_features.shape}")
 
     if net.module._num_classes == 2:
         # Create a csv log for storing the test accuracy,

@@ -12,7 +12,7 @@ cityscapes_classes = [
     "traffic sign", "vegetation", "terrain", "sky", "person", "rider", "car",
     "truck", "bus", "caravan", "trailer", "train", "motorcycle", "bicycle",
 ]
-data_dir = Path(get_env("DATASET_LOCATION"), "Cityscapes")
+data_dir = Path(get_env("DATA_ROOT"), "Cityscapes")
 DATASETS["CityScapes"] = {
     "data_dir": data_dir,
     "color_channels": 3,
