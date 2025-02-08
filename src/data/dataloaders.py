@@ -141,8 +141,8 @@ def get_datasets(log: Log, args: argparse.Namespace):
     return (
         train_set,
         test_set,
-        train_indices,
-        cityscapes_classes
+        cityscapes_classes,
+        train_indices
     )
 
 
