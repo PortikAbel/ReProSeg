@@ -1,19 +1,20 @@
-import argparse
+from argparse import Namespace
 
 import numpy as np
 import torch
 import torch.optim
+import torch.utils
+from torch.utils.data import Dataset, DataLoader
 import torchvision
 import torchvision.transforms.v2 as transforms
 
-from torch.utils.data import DataLoader, SubsetRandomSampler
-
 from data.config import DATASETS
 from data.dataset import TwoAugSupervisedDataset
+from data.augment import get_transforms
 from utils.log import Log
 
 
-def get_dataloaders(log: Log, args: argparse.Namespace):
+def get_dataloaders(log: Log, args: Namespace) -> tuple[DataLoader, DataLoader, list[str]]:
     """
     Get data loaders
     """
@@ -89,15 +90,15 @@ def get_dataloaders(log: Log, args: argparse.Namespace):
     )
 
 
-def get_datasets(log: Log, args: argparse.Namespace):
+def get_datasets(log: Log, args: Namespace) -> tuple[TwoAugSupervisedDataset, Dataset, list[int]]:
     """
     Load the proper dataset based on the parsed arguments
     """
     (
-        transform_no_augment,
+        transform_base,
         transform1,
         transform2,
-        target_transform,
+        normalize,
     ) = get_transforms(args)
 
     dataset_config = DATASETS[args.dataset]
@@ -109,87 +110,30 @@ def get_datasets(log: Log, args: argparse.Namespace):
             split="train",
             mode="fine",
             target_type="semantic",
-            transform=None, # will add it later in TwoAugSupervisedDataset
-            target_transform=None,  # will add it later in TwoAugSupervisedDataset
         )
 
         train_indices = list(range(len(train_set)))
 
         train_set = torch.utils.data.Subset(
             TwoAugSupervisedDataset(
-                train_set, transform1, transform2
+                train_set,
+                transforms.Compose([transform_base, transform1]),
+                transforms.Compose([transform2, normalize]),
             ),
             indices=train_indices,
         )
-        
+
         test_set = torchvision.datasets.Cityscapes(
             root=dataset_config["data_dir"],
             split="test",
             mode="fine",
             target_type="semantic",
-            transform=transform_no_augment,
-            target_transform=target_transform,
+            transform=transforms.Compose([transform_base, normalize]),
         )
 
     return (
         train_set,
         test_set,
         train_indices
-    )
-
-
-# TODO: define separate transforms for image+target (geometrical transforms) and image only (e.g. color transforms, normalization)
-def get_transforms(args: argparse.Namespace):
-    
-    mean = DATASETS[args.dataset]["mean"]
-    std = DATASETS[args.dataset]["std"]
-    img_shape = DATASETS[args.dataset]["img_shape"]
-
-    normalize = transforms.Normalize(mean=mean, std=std)
-
-    transform_no_augment = transforms.Compose(
-        [
-            transforms.ToTensor(),
-            transforms.Resize(size=img_shape),
-            # transforms.ToImage(),
-            # transforms.ConvertImageDtype(),
-            normalize,  # TODO: don't normalize the target
-        ]
-    )
-
-    # transform1: first step of augmentation
-    match args.dataset:
-        case "CityScapes" | "Pascal-VOC":
-            transform1 = transforms.Compose(
-                [
-                    transforms.Resize(size=(img_shape[0] + 8, img_shape[1] + 8)),
-                    # TrivialAugmentWideNoColor(),
-                    transforms.RandomHorizontalFlip(),
-                    transforms.RandomResizedCrop(
-                        size=(img_shape[0] + 4, img_shape[1] + 4),
-                        scale=(0.95, 1.0),
-                    ),
-                ]
-            )
-
-    # transform2: second step of augmentation
-    # applied twice on the result of transform1(p) to obtain two similar imgs
-    transform2 = transforms.Compose(
-        [
-            # TrivialAugmentWideNoShape(),
-            transforms.RandomCrop(size=img_shape),  # includes crop
-            transforms.ToImage(),
-            transforms.ConvertImageDtype(),
-            normalize, # TODO: don't normalize the target
-        ]
-    )
-
-    target_transform = transforms.ToTensor()
-
-    return (
-        transform_no_augment,
-        transform1,
-        transform2,
-        target_transform,
     )
 

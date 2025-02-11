@@ -1,51 +1,63 @@
-from typing import Dict, Tuple
+import argparse
+from typing import Tuple
 
 import torch
 import torchvision.transforms.v2 as transforms
 
-# function copied from https://pytorch.org/vision/stable/_modules/torchvision/transforms/autoaugment.html#TrivialAugmentWide (v0.12) and adapted  # noqa
-class TrivialAugmentWideNoColor(transforms.TrivialAugmentWide):
-    def _augmentation_space(self, num_bins: int) -> Dict[str, Tuple[torch.Tensor, bool]]:
-        return {
-            "Identity": (torch.tensor(0.0), False),
-            "ShearX": (torch.linspace(0.0, 0.5, num_bins), True),
-            "ShearY": (torch.linspace(0.0, 0.5, num_bins), True),
-            "TranslateX": (torch.linspace(0.0, 16.0, num_bins), True),
-            "TranslateY": (torch.linspace(0.0, 16.0, num_bins), True),
-            "Rotate": (torch.linspace(0.0, 60.0, num_bins), True),
-        }
+from data.config import DATASETS
 
 
-class TrivialAugmentWideNoShapeWithColor(transforms.TrivialAugmentWide):
-    def _augmentation_space(self, num_bins: int) -> Dict[str, Tuple[torch.Tensor, bool]]:
-        return {
-            "Identity": (torch.tensor(0.0), False),
-            "Brightness": (torch.linspace(0.0, 0.5, num_bins), True),
-            "Color": (torch.linspace(0.0, 0.5, num_bins), True),
-            "Contrast": (torch.linspace(0.0, 0.5, num_bins), True),
-            "Sharpness": (torch.linspace(0.0, 0.5, num_bins), True),
-            "Posterize": (
-                8 - (torch.arange(num_bins) / ((num_bins - 1) / 6)).round().int(),
-                False,
+def get_transforms(args: argparse.Namespace):
+    img_shape = DATASETS[args.dataset]["img_shape"]
+    mean = DATASETS[args.dataset]["mean"]
+    std = DATASETS[args.dataset]["std"]
+
+    transform_base = transforms.Compose([
+        transforms.ToImage(),
+        transforms.ToDtype(torch.float32, scale=True),
+        transforms.Resize(size=img_shape),
+    ])
+
+    # transform1: first step of augmentation
+    transform1 = AugmentGeometry(img_shape=img_shape)
+
+    # transform2: second step of augmentation
+    # applied twice on the result of transform1(p) to obtain two similar imgs
+    transform2 = AugmentColor(img_shape=img_shape)
+
+    normalize = transforms.Normalize(mean=mean, std=std)
+
+    return (
+        transform_base,
+        transform1,
+        transform2,
+        normalize,
+    )
+
+
+class AugmentGeometry(transforms.Compose):
+    def __init__(self, img_shape: Tuple[int, int] = (256, 256)):
+        super().__init__([
+            transforms.Resize(size=(img_shape[0] + 8, img_shape[1] + 8)),
+            transforms.RandomAffine(degrees=20, translate=(0.1, 0.1), shear=(0.5, 0.5)),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomResizedCrop(
+                size=(img_shape[0] + 4, img_shape[1] + 4),
+                scale=(0.95, 1.0),
             ),
-            "Solarize": (torch.linspace(255.0, 0.0, num_bins), False),
-            "AutoContrast": (torch.tensor(0.0), False),
-            "Equalize": (torch.tensor(0.0), False),
-        }
+        ])
 
 
-class TrivialAugmentWideNoShape(transforms.TrivialAugmentWide):
-    def _augmentation_space(self, num_bins: int) -> Dict[str, Tuple[torch.Tensor, bool]]:
-        return {
-            "Identity": (torch.tensor(0.0), False),
-            "Brightness": (torch.linspace(0.0, 0.5, num_bins), True),
-            "Color": (torch.linspace(0.0, 0.02, num_bins), True),
-            "Contrast": (torch.linspace(0.0, 0.5, num_bins), True),
-            "Sharpness": (torch.linspace(0.0, 0.5, num_bins), True),
-            "Posterize": (
-                8 - (torch.arange(num_bins) / ((num_bins - 1) / 6)).round().int(),
-                False,
-            ),
-            "AutoContrast": (torch.tensor(0.0), False),
-            "Equalize": (torch.tensor(0.0), False),
-        }
+class AugmentColor(transforms.Compose):
+    def __init__(self, img_shape: Tuple[int, int] = (256, 256)):
+        super().__init__([
+            transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
+            transforms.RandomAdjustSharpness(sharpness_factor=0.5),
+            transforms.RandomPosterize(bits=4),
+            transforms.RandomSolarize(threshold=0.5),
+            transforms.RandomAutocontrast(),
+            transforms.RandomEqualize(),
+            transforms.RandomCrop(size=img_shape),
+            transforms.ToImage(),
+            transforms.ConvertImageDtype(),
+        ])
