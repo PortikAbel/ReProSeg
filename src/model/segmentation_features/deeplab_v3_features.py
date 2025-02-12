@@ -1,7 +1,7 @@
-from torchvision.models.segmentation import deeplabv3_resnet50
+from torchvision.models.segmentation import deeplabv3_resnet50, DeepLabV3_ResNet50_Weights
 
 def deeplab_v3_features(pretrained):
-    weights = "DEFAUT" if pretrained else None
+    weights = DeepLabV3_ResNet50_Weights.DEFAULT if pretrained else None
     original_model = deeplabv3_resnet50(weights=weights)
         
     # Extract the backbone and ASPP module

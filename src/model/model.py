@@ -1,29 +1,27 @@
-import argparse
-from utils.log import Log
+from argparse import Namespace
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch import Tensor
 
-from model.features import (
+from data.config import DATASETS
+from utils.log import Log
+from model.segmentation_features import (
     base_architecture_to_features,
     base_architecture_to_layer_groups,
 )
-
-from data.config import DATASETS
 
 
 class ReProSeg(nn.Module):
     def __init__(
         self,
-        args: argparse.Namespace,
+        args: Namespace,
         log: Log,
         num_classes: int,
         num_prototypes: int,
         feature_net: nn.Module,
+        aspp: nn.Module,
         add_on_layers: nn.Module,
-        pool_layer: nn.Module,
         classification_layer: nn.Module,
     ):
         super().__init__()
@@ -33,27 +31,30 @@ class ReProSeg(nn.Module):
         self._num_features = args.num_features
         self._num_classes = num_classes
         self._num_prototypes = num_prototypes
+        
         self._net = feature_net
+        self._aspp = aspp
         self._add_on = add_on_layers
-        self._pool = pool_layer
+        
         self._classification = classification_layer
         self._multiplier = classification_layer.normalization_multiplier
+        
         self._init_param_groups()
 
     def forward(self, xs, inference=False):
-        features = self._net(xs)
+        features = self._aspp(self._net(xs))
+
         proto_features = self._add_on(features)
-        pooled = self._pool(proto_features)
         if inference:
-            clamped_pooled = torch.where(
-                pooled < 0.1, 0.0, pooled
+            clamped_proto_features = torch.where(
+                proto_features < 0.1, 0.0, proto_features
             )  # during inference, ignore all prototypes
             # that have 0.1 similarity or lower
-            out = self._classification(clamped_pooled)  # shape (bs*2, num_classes)
-            return proto_features, clamped_pooled, out
+            out = self._classification(clamped_proto_features)
+            return proto_features, clamped_proto_features, out
         else:
-            out = self._classification(pooled)  # shape (bs*2, num_classes)
-            return proto_features, pooled, out
+            out = self._classification(proto_features)
+            return proto_features, proto_features, out
 
     def _init_param_groups(self):
         self.param_groups = dict()
@@ -179,51 +180,49 @@ class ReProSeg(nn.Module):
             param.requires_grad = True
 
 
-# adapted from
-# https://pytorch.org/docs/stable/_modules/torch/nn/modules/linear.html#Linear
-class NonNegLinear(nn.Module):
-    """Applies a linear transformation to the incoming data with non-negative weights"""
+class NonNegConv1x1(nn.Module):
+    """Applies a 1x1 convolution to the incoming data with non-negative weights"""
 
     def __init__(
         self,
-        in_features: int,
-        out_features: int,
+        in_channels: int,
+        out_channels: int,
         bias: bool = True,
         device=None,
         dtype=None,
     ) -> None:
         factory_kwargs = {"device": device, "dtype": dtype}
-        super(NonNegLinear, self).__init__()
-        self.in_features = in_features
-        self.out_features = out_features
+        super(NonNegConv1x1, self).__init__()
+        
+        self.in_channels = in_channels
+        self.out_channels = out_channels
         self.weight = nn.Parameter(
-            torch.empty((out_features, in_features), **factory_kwargs)
+            torch.empty((out_channels, in_channels, 1, 1), **factory_kwargs)
         )
+        #TODO check this if it is necessary
         self.normalization_multiplier = nn.Parameter(
             torch.ones((1,), requires_grad=True)
         )
         if bias:
-            self.bias = nn.Parameter(torch.empty(out_features, **factory_kwargs))
+            self.bias = nn.Parameter(torch.empty(out_channels, **factory_kwargs))
         else:
             self.register_parameter("bias", None)
 
-    def forward(self, input_: Tensor) -> Tensor:
-        return F.linear(input_, torch.relu(self.weight), self.bias)
+    def forward(self, input_: torch.Tensor) -> torch.Tensor:
+        weight = torch.relu(self.weight)
+        # TODO shouldn't be the bias also non-negative?
+        return F.conv2d(input_, weight, self.bias, stride=1, padding=0)
+    
 
-
-def get_network(args: argparse.Namespace, log: Log, num_classes: int):
+def get_network(args: Namespace, log: Log, num_classes: int):
     feature_kwargs = {
         "in_channels": DATASETS[args.dataset]["color_channels"],
     }
-    if "resnet" in args.net:
-        feature_kwargs["stride"] = [1, 2, 1, 1]
 
-    features = base_architecture_to_features[args.net](
+    features, aspp = base_architecture_to_features[args.net](
         pretrained=not args.disable_pretrained, **feature_kwargs,
     )
-    first_add_on_layer_in_channels = [
-        i for i in features.modules() if isinstance(i, nn.Conv2d)
-    ][-1].out_channels
+    first_add_on_layer_in_channels = aspp[-1].out_channels
 
     if args.num_features == 0:
         num_prototypes = first_add_on_layer_in_channels
@@ -247,20 +246,14 @@ def get_network(args: argparse.Namespace, log: Log, num_classes: int):
             nn.Softmax(dim=1),  # softmax over every prototype for each patch,
             # such that for every location in image, sum over prototypes is 1
         )
-    pool_layer = nn.Sequential(
-        nn.AdaptiveMaxPool2d(output_size=(1, 1)),  # outputs (bs, ps,1,1)
-        nn.Flatten(),  # outputs (bs, ps)
-    )
 
-    if args.bias:
-        classification_layer = NonNegLinear(num_prototypes, num_classes, bias=True)
-    else:
-        classification_layer = NonNegLinear(num_prototypes, num_classes, bias=False)
+
+    classification_layer = NonNegConv1x1(num_prototypes, num_classes, bias=args.bias)
 
     return (
         features,
+        aspp,
         add_on_layers,
-        pool_layer,
         classification_layer,
         num_prototypes,
     )
