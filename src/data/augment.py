@@ -12,11 +12,17 @@ def get_transforms(args: argparse.Namespace):
     mean = DATASETS[args.dataset]["mean"]
     std = DATASETS[args.dataset]["std"]
 
-    transform_base = transforms.Compose([
+    transform_base_image = transforms.Compose([
         transforms.ToImage(),
         transforms.ToDtype(torch.float32, scale=True),
         transforms.Resize(size=img_shape),
     ])
+    transform_base_target = transforms.Compose([
+        transforms.ToImage(),
+        transforms.ToDtype(torch.int64),
+        transforms.Resize(size=img_shape, interpolation=transforms.InterpolationMode.NEAREST),
+    ])
+    normalize = transforms.Normalize(mean=mean, std=std)
 
     # transform1: first step of augmentation
     transform1 = AugmentGeometry(img_shape=img_shape)
@@ -25,13 +31,13 @@ def get_transforms(args: argparse.Namespace):
     # applied twice on the result of transform1(p) to obtain two similar imgs
     transform2 = AugmentColor(img_shape=img_shape)
 
-    normalize = transforms.Normalize(mean=mean, std=std)
 
     return (
-        transform_base,
+        transform_base_image,
+        transform_base_target,
+        normalize,
         transform1,
         transform2,
-        normalize,
     )
 
 
