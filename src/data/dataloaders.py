@@ -10,7 +10,7 @@ import torchvision.transforms.v2 as transforms
 
 from data.config import DATASETS
 from data.dataset import TwoAugSupervisedDataset
-from data.augment import get_transforms
+from data.transforms import get_transforms
 from utils.log import Log
 
 
