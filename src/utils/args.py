@@ -88,16 +88,9 @@ def define_parser() -> argparse.ArgumentParser:
     net_group.add_argument(
         "--net",
         type=str,
-        default="convnext_tiny_26",
+        default="deeplab_v3",
         help="Base network used as backbone of ReProSeg. "
-        "Default is convnext_tiny_26 with adapted strides "
-        "to output 26x26 latent representations. "
-        "Other option is convnext_tiny_13 that outputs 13x13 " 
-        "(smaller and faster to train, less fine-grained). "
-        "Pretrained network on iNaturalist is only available for resnet50_inat. "
-        "Options are: "
-        "resnet18, resnet34, resnet50, resnet50_inat, resnet101, resnet152, "
-        "convnext_tiny_13 and convnext_tiny_26.",
+        "Default is deeplab_v3",
     )
     net_group.add_argument(
         "--pretrained_net_state_dict_dir",

@@ -29,9 +29,9 @@ def train_model(log: Log, args: argparse.Namespace):
 
     # Create a convolutional network based on arguments and add 1x1 conv layer
     (
-        feature_net,
+        features,
+        aspp_convs,
         add_on_layers,
-        pool_layer,
         classification_layer,
         num_prototypes,
     ) = get_network(args, log, len(classes))
@@ -42,9 +42,9 @@ def train_model(log: Log, args: argparse.Namespace):
         log=log,
         num_classes=len(classes),
         num_prototypes=num_prototypes,
-        feature_net=feature_net,
+        feature_net=features,
+        aspp_convs=aspp_convs,
         add_on_layers=add_on_layers,
-        pool_layer=pool_layer,
         classification_layer=classification_layer,
     )
 
@@ -112,7 +112,7 @@ def train_model(log: Log, args: argparse.Namespace):
     with torch.no_grad():
         xs1, _, _ = next(iter(train_loader))
         xs1 = xs1.to(args.device)
-        proto_features, _, _ = net(xs1)
+        proto_features, _proto_features, _out = net(xs1)
         wshape = np.array(proto_features.shape)[-2:]
         args.wshape = wshape  # needed for calculating image patch size
         log.debug(f"Output shape: {proto_features.shape}")

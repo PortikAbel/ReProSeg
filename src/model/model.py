@@ -20,7 +20,7 @@ class ReProSeg(nn.Module):
         num_classes: int,
         num_prototypes: int,
         feature_net: nn.Module,
-        aspp: nn.Module,
+        aspp_convs: nn.Module,
         add_on_layers: nn.Module,
         classification_layer: nn.Module,
     ):
@@ -33,7 +33,7 @@ class ReProSeg(nn.Module):
         self._num_prototypes = num_prototypes
         
         self._net = feature_net
-        self._aspp = aspp
+        self._aspp_convs = aspp_convs
         self._add_on = add_on_layers
         
         self._classification = classification_layer
@@ -42,9 +42,10 @@ class ReProSeg(nn.Module):
         self._init_param_groups()
 
     def forward(self, xs, inference=False):
-        features = self._aspp(self._net(xs))
+        features = self._net(xs)["out"]
+        aspp_features = torch.cat([conv(features) for conv in self._aspp_convs], dim=1)
+        proto_features = self._add_on(aspp_features)
 
-        proto_features = self._add_on(features)
         if inference:
             clamped_proto_features = torch.where(
                 proto_features < 0.1, 0.0, proto_features
@@ -54,7 +55,7 @@ class ReProSeg(nn.Module):
             return proto_features, clamped_proto_features, out
         else:
             out = self._classification(proto_features)
-            return proto_features, proto_features, out
+            return features, proto_features, out
 
     def _init_param_groups(self):
         self.param_groups = dict()
@@ -219,10 +220,10 @@ def get_network(args: Namespace, log: Log, num_classes: int):
         "in_channels": DATASETS[args.dataset]["color_channels"],
     }
 
-    features, aspp = base_architecture_to_features[args.net](
+    features, aspp_convs = base_architecture_to_features[args.net](
         pretrained=not args.disable_pretrained, **feature_kwargs,
     )
-    first_add_on_layer_in_channels = aspp[-1].out_channels
+    first_add_on_layer_in_channels = aspp_convs[-1][0].out_channels
 
     if args.num_features == 0:
         num_prototypes = first_add_on_layer_in_channels
@@ -248,11 +249,11 @@ def get_network(args: Namespace, log: Log, num_classes: int):
         )
 
 
-    classification_layer = NonNegConv1x1(num_prototypes, num_classes, bias=args.bias)
+    classification_layer = NonNegConv1x1(num_prototypes * len(aspp_convs), num_classes, bias=args.bias)
 
     return (
         features,
-        aspp,
+        aspp_convs,
         add_on_layers,
         classification_layer,
         num_prototypes,
