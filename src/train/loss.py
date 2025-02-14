@@ -1,3 +1,7 @@
+import torch
+import torch.nn.functional as F
+
+from utils.log import Log
 
 def calculate_loss(
     log: Log,
