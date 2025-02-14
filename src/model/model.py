@@ -20,8 +20,9 @@ class ReProSeg(nn.Module):
         num_classes: int,
         num_prototypes: int,
         feature_net: nn.Module,
-        aspp_convs: nn.Module,
         add_on_layers: nn.Module,
+        aspp_convs: nn.Module,
+        max_pool: nn.Module,
         classification_layer: nn.Module,
     ):
         super().__init__()
@@ -33,8 +34,12 @@ class ReProSeg(nn.Module):
         self._num_prototypes = num_prototypes
         
         self._net = feature_net
-        self._aspp_convs = aspp_convs
         self._add_on = add_on_layers
+        self._aspp_convs = aspp_convs
+        self._shared_weights = self._aspp_convs[0][0].weight
+        for conv in self._aspp_convs:
+            del conv[0].weight
+        self._max_pool = max_pool
         
         self._classification = classification_layer
         self._multiplier = classification_layer.normalization_multiplier
@@ -42,20 +47,22 @@ class ReProSeg(nn.Module):
         self._init_param_groups()
 
     def forward(self, xs, inference=False):
-        features = self._net(xs)["out"]
-        aspp_features = torch.cat([conv(features) for conv in self._aspp_convs], dim=1)
-        proto_features = self._add_on(aspp_features)
+        # set shared weights to all aspp convolutions
+        for conv in self._aspp_convs:
+            conv[0].weight = self._shared_weights.clone()
+
+        backbone_features = self._net(xs)["out"]
+        aspp_features = torch.cat([conv(backbone_features) for conv in self._aspp_convs], dim=0)
+        aspp_features = self._add_on(aspp_features)
+        aspp_features = torch.stack(torch.chunk(aspp_features, len(self._aspp_convs), dim=0), dim=2)
+        pooled = torch.squeeze(self._max_pool(aspp_features), dim=2)
 
         if inference:
-            clamped_proto_features = torch.where(
-                proto_features < 0.1, 0.0, proto_features
-            )  # during inference, ignore all prototypes
-            # that have 0.1 similarity or lower
-            out = self._classification(clamped_proto_features)
-            return proto_features, clamped_proto_features, out
-        else:
-            out = self._classification(proto_features)
-            return features, proto_features, out
+            # ignore all prototypes that have 0.1 similarity or lower
+            pooled = torch.where(pooled < 0.1, 0.0, pooled)
+        
+        out = self._classification(pooled)
+        return aspp_features, pooled, out
 
     def _init_param_groups(self):
         self.param_groups = dict()
@@ -223,15 +230,16 @@ def get_network(args: Namespace, log: Log, num_classes: int):
     features, aspp_convs = base_architecture_to_features[args.net](
         pretrained=not args.disable_pretrained, **feature_kwargs,
     )
-    first_add_on_layer_in_channels = aspp_convs[-1][0].out_channels
+    first_add_on_layer_in_channels = [
+        m for m in aspp_convs.modules() if isinstance(m, nn.Conv2d)
+    ][-1].out_channels
+    
+    # the sum of prototype activations should be 1 for each patch in each scale
+    add_on_layers = nn.Softmax(dim=1)
 
     if args.num_features == 0:
         num_prototypes = first_add_on_layer_in_channels
         log.info(f"Number of prototypes: {num_prototypes}")
-        add_on_layers = nn.Sequential(
-            nn.Softmax(dim=1),  # softmax over every prototype for each patch,
-            # such that for every location in image, sum over prototypes is 1
-        )
     else:
         num_prototypes = args.num_features
         log.info(f"Number of prototypes set from {first_add_on_layer_in_channels} to {num_prototypes}. Extra 1x1 conv layer added. Not recommended.")
@@ -242,19 +250,20 @@ def get_network(args: Namespace, log: Log, num_classes: int):
                 kernel_size=1,
                 stride=1,
                 padding=0,
-                bias=True,
+                bias=False,
             ),
-            nn.Softmax(dim=1),  # softmax over every prototype for each patch,
-            # such that for every location in image, sum over prototypes is 1
+            add_on_layers
         )
 
+    max_pool = nn.AdaptiveMaxPool3d((1, None, None))
 
-    classification_layer = NonNegConv1x1(num_prototypes * len(aspp_convs), num_classes, bias=args.bias)
+    classification_layer = NonNegConv1x1(num_prototypes, num_classes, bias=args.bias)
 
     return (
         features,
-        aspp_convs,
         add_on_layers,
+        aspp_convs,
+        max_pool,
         classification_layer,
         num_prototypes,
     )

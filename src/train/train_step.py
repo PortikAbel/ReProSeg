@@ -84,7 +84,7 @@ def train(
     lrs_net = []
     lrs_class = []
     prototype_activations = torch.empty(
-        (iters, 2 * train_loader.batch_size, net.module._num_prototypes)
+        (iters, 2 * train_loader.batch_size, net.module._num_prototypes, *args.wshape)
     )
     # Iterate through the data set to update leaves, prototypes and network
     for i, (xs1, xs2, ys) in train_iter:
@@ -95,12 +95,12 @@ def train(
         optimizer_net.zero_grad(set_to_none=True)
 
         # Perform a forward pass through the network
-        proto_features, pooled, out = net(torch.cat([xs1, xs2]))
-        prototype_activations[i, :, :] = pooled
+        aspp_features, pooled, out = net(torch.cat([xs1, xs2]))
+        prototype_activations[i, :, :, :, :] = pooled
 
         loss, acc = calculate_loss(
             log,
-            proto_features,
+            aspp_features,
             pooled,
             out,
             ys,
@@ -173,7 +173,7 @@ def train(
 
 def calculate_loss(
     log: Log,
-    proto_features,
+    aspp_features,
     pooled,
     out,
     ys1,
@@ -192,11 +192,11 @@ def calculate_loss(
     EPS=1e-10,
 ):
     ys = torch.cat([ys1, ys1])
+    af1, af2 = aspp_features.chunk(2)
     pooled1, pooled2 = pooled.chunk(2)
-    pf1, pf2 = proto_features.chunk(2)
 
-    embv2 = pf2.flatten(start_dim=2).permute(0, 2, 1).flatten(end_dim=1)
-    embv1 = pf1.flatten(start_dim=2).permute(0, 2, 1).flatten(end_dim=1)
+    embv2 = af2.flatten(start_dim=2).permute(0, 2, 1).flatten(end_dim=1)
+    embv1 = af1.flatten(start_dim=2).permute(0, 2, 1).flatten(end_dim=1)
 
     a_loss_pf = (
         align_loss(embv1, embv2.detach()) + align_loss(embv2, embv1.detach())
@@ -209,8 +209,8 @@ def calculate_loss(
         / 2.0
     )
     uni_loss = (
-        uniform_loss(F.normalize(pooled1 + EPS, dim=1))
-        + uniform_loss(F.normalize(pooled2 + EPS, dim=1))
+        uniform_loss(pooled1)
+        + uniform_loss(pooled2)
     ) / 2.0
     var_loss = (variance_loss(embv1) + variance_loss(embv2)) / 2.0
 
@@ -277,12 +277,14 @@ def calculate_loss(
 
 
 # Extra uniform loss from https://www.tongzhouwang.info/hypersphere/.
-# Currently not used but you could try adding it if you want.
 def uniform_loss(x, t=2, EPS=1e-10):
     # print(
     #   "sum elements: ", torch.sum(torch.pow(x,2), dim=1).shape,
     #   torch.sum(torch.pow(x,2), dim=1),
     # ) #--> should be ones
+    x = x.permute(1, 0, 2, 3)
+    x = x.view(x.size(0), -1)
+    x = F.normalize(x + EPS, dim=0)
     loss = (torch.pdist(x, p=2).pow(2).mul(-t).exp().mean() + EPS).log()
     return loss
 
