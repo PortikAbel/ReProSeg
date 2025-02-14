@@ -115,7 +115,7 @@ def uniform_loss(x, t=2, EPS=1e-10):
     #   torch.sum(torch.pow(x,2), dim=1),
     # ) #--> should be ones
     x = x.permute(1, 0, 2, 3)
-    x = x.view(x.size(0), -1)
+    x = x.reshape(x.size(0), -1)
     x = F.normalize(x + EPS, dim=0)
     loss = (torch.pdist(x, p=2).pow(2).mul(-t).exp().mean() + EPS).log()
     return loss
