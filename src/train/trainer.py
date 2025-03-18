@@ -24,7 +24,6 @@ def train_model(log: Log, args: argparse.Namespace):
     (
         train_loader,
         test_loader,
-        classes,
     ) = get_dataloaders(log, args)
 
     # Create a convolutional network based on arguments and add 1x1 conv layer
@@ -34,15 +33,12 @@ def train_model(log: Log, args: argparse.Namespace):
         aspp_convs,
         max_pool,
         classification_layer,
-        num_prototypes,
-    ) = get_network(args, log, len(classes))
+    ) = get_network(args, log)
 
     # Create a ReProSeg model
     net = ReProSeg(
         args=args,
         log=log,
-        num_classes=len(classes),
-        num_prototypes=num_prototypes,
         feature_net=features,
         add_on_layers=add_on_layers,
         aspp_convs=aspp_convs,
@@ -75,7 +71,7 @@ def train_model(log: Log, args: argparse.Namespace):
                 )
                 .float()
                 .item()
-                > 0.8 * (num_prototypes * len(classes))
+                > 0.8 * (args.num_prototypes * args.num_classes)
             ):  # assume that the linear classification layer is not yet trained (e.g. when loading a pretrained backbone only)
                 log.warning("We assume that the classification layer is not yet trained. We re-initialize it...")
                 torch.nn.init.normal_(

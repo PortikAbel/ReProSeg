@@ -25,8 +25,6 @@ def get_dataloaders(log: Log, args: Namespace) -> tuple[DataLoader, DataLoader, 
         train_indices,
     ) = get_datasets(log, args)
 
-    classes = DATASETS[args.dataset]["class_names"]
-
     # Determine if GPU should be used
     cuda = not args.disable_gpu and torch.cuda.is_available()
     sampler = None
@@ -54,8 +52,8 @@ def get_dataloaders(log: Log, args: Namespace) -> tuple[DataLoader, DataLoader, 
         )
         to_shuffle_train_set = False
 
-    def create_dataloader(dataset, batch_size, shuffle, drop_last):
-        return torch.utils.data.DataLoader(
+    def create_dataloader(dataset, batch_size, shuffle, drop_last) -> DataLoader:
+        return DataLoader(
             dataset,
             # batch size is np.uint16, so we need to convert it to int
             batch_size=int(batch_size),
@@ -81,7 +79,9 @@ def get_dataloaders(log: Log, args: Namespace) -> tuple[DataLoader, DataLoader, 
         drop_last=False,
     )
 
-    log.info(f"Num classes (k) = {len(classes)} {classes[:5],} etc.")
+    args.num_classes = len(train_loader.dataset.dataset.classes)
+
+    log.info(f"Num classes (k) = {args.num_classes} {train_loader.dataset.dataset.classes[:5],} etc.")
 
     return (
         train_loader,

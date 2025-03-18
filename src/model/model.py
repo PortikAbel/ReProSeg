@@ -17,8 +17,6 @@ class ReProSeg(nn.Module):
         self,
         args: Namespace,
         log: Log,
-        num_classes: int,
-        num_prototypes: int,
         feature_net: nn.Module,
         add_on_layers: nn.Module,
         aspp_convs: nn.Module,
@@ -26,12 +24,12 @@ class ReProSeg(nn.Module):
         classification_layer: nn.Module,
     ):
         super().__init__()
-        assert num_classes > 0
+        assert args.num_classes > 0
         self._args = args
         self._log = log
         self._num_features = args.num_features
-        self._num_classes = num_classes
-        self._num_prototypes = num_prototypes
+        self._num_classes = args.num_classes
+        self._num_prototypes = args.num_prototypes
         
         self._net = feature_net
         self._add_on = add_on_layers
@@ -222,7 +220,7 @@ class NonNegConv1x1(nn.Module):
         return F.conv2d(input_, weight, self.bias, stride=1, padding=0)
     
 
-def get_network(args: Namespace, log: Log, num_classes: int):
+def get_network(args: Namespace, log: Log):
     feature_kwargs = {
         "in_channels": DATASETS[args.dataset]["color_channels"],
     }
@@ -254,10 +252,11 @@ def get_network(args: Namespace, log: Log, num_classes: int):
             ),
             add_on_layers
         )
+    args.num_prototypes = num_prototypes
 
     max_pool = nn.AdaptiveMaxPool3d((1, None, None))
 
-    classification_layer = NonNegConv1x1(num_prototypes, num_classes, bias=args.bias)
+    classification_layer = NonNegConv1x1(num_prototypes, args.num_classes, bias=args.bias)
 
     return (
         features,
@@ -265,5 +264,4 @@ def get_network(args: Namespace, log: Log, num_classes: int):
         aspp_convs,
         max_pool,
         classification_layer,
-        num_prototypes,
     )
