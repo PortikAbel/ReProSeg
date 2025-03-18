@@ -54,7 +54,7 @@ def calculate_loss(
 
     if not pretrain:
         softmax_inputs = torch.log1p(out**net_normalization_multiplier)
-        class_loss = criterion(F.log_softmax((softmax_inputs), dim=1), ys)
+        class_loss = criterion(F.log_softmax((softmax_inputs), dim=1), ys.squeeze())
 
         if finetune:
             loss = cl_weight * class_loss

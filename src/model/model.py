@@ -60,6 +60,8 @@ class ReProSeg(nn.Module):
             pooled = torch.where(pooled < 0.1, 0.0, pooled)
         
         out = self._classification(pooled)
+        out = F.interpolate(out, size=xs.shape[2:], mode='bilinear')
+
         return aspp_features, pooled, out
 
     def _init_param_groups(self):
