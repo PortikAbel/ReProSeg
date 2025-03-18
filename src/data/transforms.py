@@ -20,9 +20,8 @@ def get_transforms(args: argparse.Namespace):
     transform_base_target = transforms.Compose([
         transforms.ToImage(),
         transforms.ToDtype(torch.int64),
-        transforms.Resize(size=img_shape, interpolation=transforms.InterpolationMode.NEAREST),
+        transforms.Resize(size=img_shape, interpolation=transforms.InterpolationMode.NEAREST_EXACT),
     ])
-    normalize = transforms.Normalize(mean=mean, std=std)
 
     # transform1: first step of augmentation
     transform1 = AugmentGeometry(img_shape=img_shape)
@@ -31,13 +30,18 @@ def get_transforms(args: argparse.Namespace):
     # applied twice on the result of transform1(p) to obtain two similar imgs
     transform2 = AugmentColor(img_shape=img_shape)
 
+    transform_final = transforms.Compose([
+        transforms.ToImage(),
+        transforms.ConvertImageDtype(),
+        transforms.Normalize(mean=mean, std=std),
+    ])
 
     return (
         transform_base_image,
         transform_base_target,
-        normalize,
         transform1,
         transform2,
+        transform_final,
     )
 
 
@@ -48,7 +52,7 @@ class AugmentGeometry(transforms.Compose):
             transforms.RandomAffine(degrees=20, translate=(0.1, 0.1), shear=(0.5, 0.5)),
             transforms.RandomHorizontalFlip(),
             transforms.RandomResizedCrop(
-                size=(img_shape[0] + 4, img_shape[1] + 4),
+                size=(img_shape[0], img_shape[1]),
                 scale=(0.95, 1.0),
             ),
         ])
@@ -64,6 +68,4 @@ class AugmentColor(transforms.Compose):
             transforms.RandomAutocontrast(),
             transforms.RandomEqualize(),
             transforms.RandomCrop(size=img_shape),
-            transforms.ToImage(),
-            transforms.ConvertImageDtype(),
         ])

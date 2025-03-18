@@ -86,7 +86,6 @@ def get_dataloaders(log: Log, args: Namespace) -> tuple[DataLoader, DataLoader, 
     return (
         train_loader,
         test_loader,
-        classes,
     )
 
 
@@ -97,9 +96,9 @@ def get_datasets(log: Log, args: Namespace) -> tuple[TwoAugSupervisedDataset, Da
     (
         transform_base_image,
         transform_base_target,
-        normalize,
         transform1,
         transform2,
+        transform_final,
     ) = get_transforms(args)
 
     dataset_config = DATASETS[args.dataset]
@@ -121,7 +120,7 @@ def get_datasets(log: Log, args: Namespace) -> tuple[TwoAugSupervisedDataset, Da
                 transform_base_image,
                 transform_base_target,
                 transform1,
-                transforms.Compose([transform2, normalize]),
+                transforms.Compose([transform2, transform_final]),
             ),
             indices=train_indices,
         )
@@ -131,7 +130,8 @@ def get_datasets(log: Log, args: Namespace) -> tuple[TwoAugSupervisedDataset, Da
             split="test",
             mode="fine",
             target_type="semantic",
-            transform=transforms.Compose([transform_base_image, normalize]),
+            transform=transforms.Compose([transform_base_image, transform_final]),
+            target_transform=transform_base_target,
         )
 
     return (
