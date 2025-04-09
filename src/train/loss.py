@@ -28,20 +28,9 @@ def calculate_loss(
     embv2 = af2.flatten(start_dim=2).permute(0, 2, 1).flatten(end_dim=1)
     embv1 = af1.flatten(start_dim=2).permute(0, 2, 1).flatten(end_dim=1)
 
-    a_loss_pf = (
-        align_loss(embv1, embv2.detach()) + align_loss(embv2, embv1.detach())
-    ) / 2.0
-    tanh_loss = (
-        -(
-            torch.log(torch.tanh(torch.sum(pooled1, dim=0)) + EPS).mean()
-            + torch.log(torch.tanh(torch.sum(pooled2, dim=0)) + EPS).mean()
-        )
-        / 2.0
-    )
-    uni_loss = (
-        uniform_loss(pooled1)
-        + uniform_loss(pooled2)
-    ) / 2.0
+    a_loss_pf = (align_loss(embv1, embv2.detach()) + align_loss(embv2, embv1.detach())) / 2.0
+    tanh_loss = (log_tanh_loss(pooled1) + log_tanh_loss(pooled2)) / 2.0
+    uni_loss = (uniform_loss(pooled1) + uniform_loss(pooled2)) / 2.0
     var_loss = (variance_loss(embv1) + variance_loss(embv2)) / 2.0
 
     if not finetune:
@@ -104,6 +93,10 @@ def calculate_loss(
                 log.tb_scalar("Loss/train/LV", var_loss.item(), iteration)
 
     return loss, acc
+
+
+def log_tanh_loss(x, EPS=1e-10):
+    return -torch.log(torch.tanh(torch.sum(x, dim=0)) + EPS).mean()
 
 
 # Extra uniform loss from https://www.tongzhouwang.info/hypersphere/.
