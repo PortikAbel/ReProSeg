@@ -178,6 +178,8 @@ def train_model(log: Log, args: argparse.Namespace):
     lrs_net = []
     lrs_classifier = []
 
+    best_acc = 0.0
+
     for epoch in range(1, args.epochs + 1):
         # during fine-tuning, only train classification layer and freeze rest.
         # usually done for a few epochs (at least 1, more depends on size of dataset)
@@ -237,22 +239,21 @@ def train_model(log: Log, args: argparse.Namespace):
         log.tb_scalar("Acc/train-epochs", train_info["train_accuracy"], epoch)
         log.tb_scalar("Loss/train-epochs", train_info["loss"], epoch)
         log.tb_scalar("Abstained", eval_info["abstained"], epoch)
-        log.tb_scalar("Num non-zero prototypes", eval_info["almost_nonzeros"], epoch)
 
         with torch.no_grad():
             net.eval()
-            log.model_checkpoint(get_checkpoint(), "net_trained")
+            log.model_checkpoint(get_checkpoint(), "net_trained_last")
+
+            if eval_info["test_accuracy"] > best_acc:
+                best_acc = eval_info["test_accuracy"]
+                log.info(f"Best accuracy so far: {best_acc}")
+                log.model_checkpoint(get_checkpoint(), "net_trained_best")
 
             if epoch % 30 == 0:
                 net.eval()
                 log.model_checkpoint(get_checkpoint(), f"net_trained_{epoch}")
 
-    net.eval()
-    log.model_checkpoint(get_checkpoint(), "net_trained_last")
-
-    nonzero_weights = net.module._classification.weight[
-        net.module._classification.weight.nonzero(as_tuple=True)
-    ]
+    nonzero_weights = net.module._classification.weight[net.module._classification.weight.nonzero(as_tuple=True)]
     log.debug(f"Classifier weights:\n{net.module._classification.weight}")
     log.debug(f"Classifier weights nonzero:\n{nonzero_weights}\n{nonzero_weights.shape}")
     log.debug(f"Classifier bias:\n{net.module._classification.bias}")

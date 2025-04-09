@@ -22,10 +22,11 @@ def eval(
 ) -> dict:
     net = net.to(args.device)
     net.eval()
-
     eval_info = dict()
-    cm = torch.zeros((net.module._num_classes, net.module._num_classes), dtype=int).to(args.device)
-    abstained = 0
+
+    n_classes = net.module._num_classes
+    cm = torch.zeros((n_classes, n_classes), dtype=int).to(args.device)
+    abstained = 0.0
     
     test_iter = tqdm(
         enumerate(test_loader),
@@ -43,22 +44,25 @@ def eval(
         with torch.no_grad():
             _, pooled, out = net(xs, inference=True)
             max_out_score, ys_pred = torch.max(out, dim=1)
-            abstained += np.prod(max_out_score.shape) - torch.count_nonzero(max_out_score)
-            
-            cm_batch = torch.zeros((net.module._num_classes, net.module._num_classes), dtype=int).to(args.device)
-            for y_pred, y_true in zip(ys_pred, ys):
-                cm[y_true][y_pred] += 1
-                cm_batch[y_true][y_pred] += 1
-            acc = acc_from_cm(cm_batch)
 
+            pixel_count = torch.prod(torch.tensor(max_out_score.shape))
+            abstained_pixels = pixel_count - torch.count_nonzero(max_out_score)
+            abstained += abstained_pixels / pixel_count
+            
+            y_true_flat = ys.squeeze(1).view(-1)
+            y_pred_flat = ys_pred.view(-1)
+            cm_batch = torch.bincount(y_true_flat * n_classes + y_pred_flat, minlength=n_classes**2).view(n_classes, n_classes).to(args.device)
+            cm += cm_batch
+            
+            acc = acc_from_cm(cm_batch)
             test_iter.set_postfix_str(f"Acc: {acc:.3f}", refresh=False)
 
         del out
         del pooled
         del ys_pred
 
-    abstained /= np.prod(xs.shape[-2:])
-    log.info(f"model abstained from a decision for {abstained.item()} images")
+    abstained /= len(test_iter)
+    log.info(f"model abstained from a decision for {abstained.item()*100}% of images")
 
     num_nonzero_prototypes = torch.count_nonzero(F.relu(net.module._classification.weight - 1e-3)).item()
     num_prototypes = torch.numel(net.module._classification.weight)
@@ -66,13 +70,13 @@ def eval(
 
     eval_info["abstained"] = abstained.item()
     eval_info["num non-zero prototypes"] = num_nonzero_prototypes
-    eval_info["confusion_matrix"] = cm.item()
+    eval_info["confusion_matrix"] = cm
     eval_info["test_accuracy"] = acc_from_cm(cm)
 
     return eval_info
 
 
-def acc_from_cm(cm: np.ndarray) -> float:
+def acc_from_cm(cm: torch.Tensor) -> float:
     """
     Compute the accuracy from the confusion matrix
     :param cm: confusion matrix
@@ -81,6 +85,6 @@ def acc_from_cm(cm: np.ndarray) -> float:
     assert len(cm.shape) == 2 and cm.shape[0] == cm.shape[1]
 
     correct = cm.diagonal().sum()
-    total = np.sum(cm)
+    total = cm.sum()
 
     return 1 if total == 0 else correct / total

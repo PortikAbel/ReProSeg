@@ -69,15 +69,6 @@ def train(
         var_weigth = 2.0
         cl_weight = 2.0
 
-    log.log_values(
-        "log_loss_weights",
-        epoch,
-        align_pf_weight,
-        t_weight,
-        unif_weight,
-        var_weigth,
-        cl_weight,
-    )
     log.debug(f"Pretrain - {'ON' if pretrain else 'OFF'}")
     log.debug(f"Finetune - {'ON' if finetune else 'OFF'}")
 
