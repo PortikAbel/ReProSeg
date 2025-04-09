@@ -105,52 +105,6 @@ def train_model(log: Log, args: argparse.Namespace):
         args.wshape = np.array(pooled.shape)[-2:]
         log.debug(f"ASPP output shape: {pooled.shape}")
 
-    if net.module._num_classes == 2:
-        # Create a csv log for storing the test accuracy,
-        # F1-score, mean train accuracy and mean loss for each epoch
-        log.create_log(
-            "log_epoch_overview",
-            "epoch",
-            "test_top1_acc",
-            "test_f1",
-            "almost_sim_nonzeros",
-            "local_size_all_classes",
-            "almost_nonzeros_pooled",
-            "num_nonzero_prototypes",
-            "mean_train_acc",
-            "mean_train_loss_during_epoch",
-        )
-        log.warning(
-            "Your dataset only has two classes. "
-            "Is the number of samples per class similar? "
-            "If the data is imbalanced, we recommend to use "
-            "the --weighted_loss flag to account for the imbalance."
-        )
-    else:
-        # Create a csv log for storing the test accuracy (top 1 and top 5),
-        # mean train accuracy and mean loss for each epoch
-        log.create_log(
-            "log_epoch_overview",
-            "epoch",
-            "test_top1_acc",
-            "test_top5_acc",
-            "almost_sim_nonzeros",
-            "local_size_all_classes",
-            "almost_nonzeros_pooled",
-            "num_nonzero_prototypes",
-            "mean_train_acc",
-            "mean_train_loss_during_epoch",
-        )
-    log.create_log(
-        "log_loss_weights",
-        "epoch",
-        "Align",
-        "Tanh",
-        "Uniformity",
-        "Variance",
-        "Classification",
-    )
-
     # PRETRAINING PROTOTYPES PHASE
     for epoch in range(1, args.epochs_pretrain + 1):
         log.info(f"Pretrain Epoch {epoch} with batch size {train_loader.batch_size}")
@@ -170,18 +124,6 @@ def train_model(log: Log, args: argparse.Namespace):
             epoch,
             pretrain=True,
             finetune=False,
-        )
-        log.log_values(
-            "log_epoch_overview",
-            epoch,
-            "n.a.",
-            "n.a.",
-            "n.a.",
-            "n.a.",
-            "n.a.",
-            "n.a.",
-            "n.a.",
-            train_info["loss"],
         )
 
     def get_checkpoint(with_optimizer_classifier_state_dict: bool = True):
@@ -291,21 +233,10 @@ def train_model(log: Log, args: argparse.Namespace):
         lrs_classifier += train_info["lrs_class"]
         # Evaluate model
         eval_info = eval(args, log, net, test_loader, epoch)
-        log.log_values(
-            "log_epoch_overview",
-            epoch,
-            eval_info["top1_accuracy"],
-            eval_info["top5_accuracy"],
-            eval_info["almost_sim_nonzeros"],
-            eval_info["local_size_all_classes"],
-            eval_info["almost_nonzeros"],
-            eval_info["num non-zero prototypes"],
-            train_info["train_accuracy"],
-            train_info["loss"],
-        )
-        log.tb_scalar("Acc/eval-epochs", eval_info["top1_accuracy"], epoch)
+        log.tb_scalar("Acc/eval-epochs", eval_info["test_accuracy"], epoch)
         log.tb_scalar("Acc/train-epochs", train_info["train_accuracy"], epoch)
         log.tb_scalar("Loss/train-epochs", train_info["loss"], epoch)
+        log.tb_scalar("Abstained", eval_info["abstained"], epoch)
         log.tb_scalar("Num non-zero prototypes", eval_info["almost_nonzeros"], epoch)
 
         with torch.no_grad():

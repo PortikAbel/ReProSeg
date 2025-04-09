@@ -141,39 +141,6 @@ class Log(BasicLog):
     @property
     def tensorboard_dir(self):
         return self._log_dir / "tensorboard"
-
-    def create_log(self, log_name: str, key_name: str, *value_names):
-        """
-        Create a csv for logging information
-        :param log_name: The name of the log. The log filename will be <log_name>.csv.
-        :param key_name: The name of the attribute that is used as key
-            (e.g. epoch number)
-        :param value_names: The names of the attributes that are logged
-        """
-        print(f"Creating log {log_name} with key {key_name} and values {value_names}")
-
-        if log_name in self._logs.keys():
-            raise KeyError("Log already exists!")
-        # Add to existing logs
-        self._logs[log_name] = (key_name, value_names)
-        # Create log file. Create columns
-        with (self.log_dir / f"{log_name}.csv").open(mode="w") as f:
-            f.write(",".join((key_name,) + value_names) + "\n")
-
-    def log_values(self, log_name, key, *values):
-        """
-        Log values in an existent log file
-        :param log_name: The name of the log file
-        :param key: The key attribute for logging these values
-        :param values: value attributes that will be stored in the log
-        """
-        if log_name not in self._logs.keys():
-            raise Exception("Log not existent!")
-        if len(values) != len(self._logs[log_name][1]):
-            raise Exception("Not all required values are logged!")
-        # Write a new line with the given values
-        with (self.log_dir / f"{log_name}.csv").open(mode="a") as f:
-            f.write(",".join(str(v) for v in (key,) + values) + "\n")
     
     def tb_scalar(self, tag, value, step):
         self._tensorboard_writer.add_scalar(tag, value, step)
