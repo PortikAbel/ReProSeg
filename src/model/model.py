@@ -37,10 +37,8 @@ class ReProSeg(nn.Module):
         self._shared_weights = self._aspp_convs[0][0].weight
         for conv in self._aspp_convs:
             del conv[0].weight
-        self._max_pool = max_pool
-        
+        self._max_pool = max_pool        
         self._classification = classification_layer
-        self._multiplier = classification_layer.normalization_multiplier
         
         self._init_param_groups()
 
@@ -88,8 +86,6 @@ class ReProSeg(nn.Module):
         for name, param in self._classification.named_parameters():
             if "weight" in name:
                 self.param_groups["classification_weight"].append(param)
-            elif "multiplier" in name:
-                param.requires_grad = False
             elif self._args.bias:
                 self.param_groups["classification_bias"].append(param)
 
@@ -206,10 +202,6 @@ class NonNegConv1x1(nn.Module):
         self.out_channels = out_channels
         self.weight = nn.Parameter(
             torch.empty((out_channels, in_channels, 1, 1), **factory_kwargs)
-        )
-        #TODO check this if it is necessary
-        self.normalization_multiplier = nn.Parameter(
-            torch.ones((1,), requires_grad=True)
         )
         if bias:
             self.bias = nn.Parameter(torch.empty(out_channels, **factory_kwargs))

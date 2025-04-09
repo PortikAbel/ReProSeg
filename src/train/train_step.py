@@ -109,14 +109,12 @@ def train(
             unif_weight,
             var_weigth,
             cl_weight,
-            net.module._classification.normalization_multiplier,
             pretrain,
             finetune,
             criterion,
             train_iter,
             len(train_iter) * (epoch - 1) + i,
             print=True,
-            EPS=1e-8,
         )
 
         # Compute the gradient
@@ -147,12 +145,6 @@ def train(
                         net.module._classification.weight,
                     )
                 )  # set weights in classification layer < 1e-3 to zero
-                net.module._classification.normalization_multiplier.copy_(
-                    torch.clamp(
-                        net.module._classification.normalization_multiplier.data,
-                        min=1.0,
-                    )
-                )
                 if net.module._classification.bias is not None:
                     net.module._classification.bias.copy_(
                         torch.clamp(net.module._classification.bias.data, min=0.0)

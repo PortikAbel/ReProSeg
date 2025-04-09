@@ -54,11 +54,9 @@ def train_model(log: Log, args: argparse.Namespace):
     # Initialize or load model
     with torch.no_grad():
         if args.pretrained_net_state_dict_dir is not None:
-            epoch = 0
             checkpoint = torch.load(args.pretrained_net_state_dict_dir, map_location=args.device)
             net.load_state_dict(checkpoint["model_state_dict"], strict=True)
             log.info("Pretrained network loaded")
-            net.module._multiplier.requires_grad = False
             try:
                 optimizer_net.load_state_dict(checkpoint["optimizer_net_state_dict"])
             except Exception:
@@ -66,18 +64,13 @@ def train_model(log: Log, args: argparse.Namespace):
             if (
                 torch.mean(net.module._classification.weight).item() > 1.0
                 and torch.mean(net.module._classification.weight).item() < 3.0
-                and torch.count_nonzero(
-                    torch.relu(net.module._classification.weight - 1e-5)
-                )
-                .float()
-                .item()
-                > 0.8 * (args.num_prototypes * args.num_classes)
+                and torch.count_nonzero(torch.relu(net.module._classification.weight - 1e-5)).float().item()
+                    > 0.8 * (args.num_prototypes * args.num_classes)
             ):  # assume that the linear classification layer is not yet trained (e.g. when loading a pretrained backbone only)
                 log.warning("We assume that the classification layer is not yet trained. We re-initialize it...")
                 torch.nn.init.normal_(
                     net.module._classification.weight, mean=1.0, std=0.1
                 )
-                torch.nn.init.constant_(net.module._multiplier, val=2.0)
                 log.info(f"Classification layer initialized with mean {torch.mean(net.module._classification.weight).item()}")
                 if args.bias:
                     torch.nn.init.constant_(net.module._classification.bias, val=0.0)
@@ -92,8 +85,6 @@ def train_model(log: Log, args: argparse.Namespace):
             torch.nn.init.normal_(net.module._classification.weight, mean=1.0, std=0.1)
             if args.bias:
                 torch.nn.init.constant_(net.module._classification.bias, val=0.0)
-            torch.nn.init.constant_(net.module._multiplier, val=2.0)
-            net.module._multiplier.requires_grad = False
 
             log.info(f"Classification layer initialized with mean {torch.mean(net.module._classification.weight).item()}")
 

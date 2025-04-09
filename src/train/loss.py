@@ -14,14 +14,12 @@ def calculate_loss(
     unif_weight,
     var_weigth,
     cl_weight,
-    net_normalization_multiplier,
     pretrain,
     finetune,
     criterion,
     train_iter,
     iteration=0,
     print=True,
-    EPS=1e-10,
 ):
     ys = torch.cat([ys1, ys1])
     af1, af2 = aspp_features.chunk(2)
@@ -53,7 +51,7 @@ def calculate_loss(
         loss += var_weigth * var_loss
 
     if not pretrain:
-        softmax_inputs = torch.log1p(out**net_normalization_multiplier)
+        softmax_inputs = torch.log1p(out**2)
         class_loss = criterion(F.log_softmax((softmax_inputs), dim=1), ys.squeeze())
 
         if finetune:
