@@ -39,6 +39,7 @@ def calculate_loss(
         loss += unif_weight * uni_loss
         loss += var_weigth * var_loss
 
+    acc = 0.0
     if not pretrain:
         softmax_inputs = torch.log1p(out**2)
         class_loss = criterion(F.log_softmax((softmax_inputs), dim=1), ys.squeeze())
@@ -48,49 +49,33 @@ def calculate_loss(
         else:
             loss += cl_weight * class_loss
 
-    acc = 0.0
-    if not pretrain:
         ys_pred_max = torch.argmax(out, dim=1)
         correct = torch.sum(torch.eq(ys_pred_max, ys))
         acc = correct.item() / float(torch.prod(torch.tensor(ys.shape)))
+
     if print:
         with torch.no_grad():
-            if pretrain:
-                train_iter.set_postfix_str(
-                    (
-                        f"L: {loss.item():.3f}, "
-                        f"LA:{a_loss_pf.item():.2f}, "
-                        f"LT:{tanh_loss.item():.3f}, "
-                        f"LU:{uni_loss.item():.3f}, "
-                        f"LV:{var_loss.item():.3f}, "
-                        f"num_scores>0.1:{torch.count_nonzero(torch.relu(pooled-0.1),dim=1).float().mean().item():.1f}"  # noqa
-                    ),
-                    refresh=False,
-                )
-                log.tb_scalar("Loss/pretrain/L", loss.item(), iteration)
-                log.tb_scalar("Loss/pretrain/LA", a_loss_pf.item(), iteration)
-                log.tb_scalar("Loss/pretrain/LT", tanh_loss.item(), iteration)
-                log.tb_scalar("Loss/pretrain/LU", uni_loss.item(), iteration)
-                log.tb_scalar("Loss/pretrain/LV", var_loss.item(), iteration)
-            else:
-                train_iter.set_postfix_str(
-                    (
-                        f"L:{loss.item():.3f}, "
-                        f"LC:{class_loss.item():.3f}, "
-                        f"LA:{a_loss_pf.item():.2f}, "
-                        f"LT:{tanh_loss.item():.3f}, "
-                        f"LU:{uni_loss.item():.3f}, "
-                        f"LV:{var_loss.item():.3f}, "
-                        f"num_scores>0.1:{torch.count_nonzero(torch.relu(pooled-0.1),dim=1).float().mean().item():.1f}, "  # noqa
-                        f"Ac:{acc:.3f}"
-                    ),
-                    refresh=False,
-                )
-                log.tb_scalar("Loss/train/L", loss.item(), iteration)
-                log.tb_scalar("Loss/train/LA", a_loss_pf.item(), iteration)
-                log.tb_scalar("Loss/train/LT", tanh_loss.item(), iteration)
-                log.tb_scalar("Loss/train/LU", uni_loss.item(), iteration)
-                log.tb_scalar("Loss/train/LV", var_loss.item(), iteration)
+            train_iter.set_postfix_str(
+                (
+                    f"LA:{a_loss_pf.item():.2f}, " +
+                    f"LT:{tanh_loss.item():.3f}, " +
+                    f"LU:{uni_loss.item():.3f}, " +
+                    f"LV:{var_loss.item():.3f}, " +
+                    (f"LC:{class_loss.item():.3f}, " if not pretrain else "") +
+                    f"L:{loss.item():.3f}, " +
+                    f"num_scores>0.1:{torch.count_nonzero(torch.relu(pooled-0.1),dim=1).float().mean().item():.1f}"  # noqa +
+                    (f", Ac:{acc:.3f}" if not pretrain else "")
+                ),
+                refresh=False,
+            )
+            phase_string = "pretrain" if pretrain else "train"
+            log.tb_scalar(f"Loss/{phase_string}/LA", a_loss_pf.item(), iteration)
+            log.tb_scalar(f"Loss/{phase_string}/LT", tanh_loss.item(), iteration)
+            log.tb_scalar(f"Loss/{phase_string}/LU", uni_loss.item(), iteration)
+            log.tb_scalar(f"Loss/{phase_string}/LV", var_loss.item(), iteration)
+            if not pretrain:
+                log.tb_scalar(f"Loss/{phase_string}/LC", class_loss.item(), iteration)
+            log.tb_scalar(f"Loss/{phase_string}/L", loss.item(), iteration)
 
     return loss, acc
 
