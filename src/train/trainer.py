@@ -54,7 +54,7 @@ def train_model(log: Log, args: argparse.Namespace):
     # Initialize or load model
     with torch.no_grad():
         if args.pretrained_net_state_dict_dir is not None:
-            checkpoint = torch.load(args.pretrained_net_state_dict_dir, map_location=args.device)
+            checkpoint = torch.load(args.pretrained_net_state_dict_dir / "net_pretrained", map_location=args.device)
             net.load_state_dict(checkpoint["model_state_dict"], strict=True)
             log.info("Pretrained network loaded")
             try:
