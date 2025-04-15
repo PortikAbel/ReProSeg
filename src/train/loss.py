@@ -52,7 +52,7 @@ def calculate_loss(
     if not pretrain:
         ys_pred_max = torch.argmax(out, dim=1)
         correct = torch.sum(torch.eq(ys_pred_max, ys))
-        acc = correct.item() / float(len(ys))
+        acc = correct.item() / float(torch.prod(torch.tensor(ys.shape)))
     if print:
         with torch.no_grad():
             if pretrain:

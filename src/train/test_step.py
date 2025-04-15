@@ -49,8 +49,8 @@ def eval(
             abstained_pixels = pixel_count - torch.count_nonzero(max_out_score)
             abstained += abstained_pixels / pixel_count
             
-            y_true_flat = ys.squeeze(1).view(-1)
-            y_pred_flat = ys_pred.view(-1)
+            y_true_flat = ys.squeeze(1).view(-1)[max_out_score.view(-1)!=0]
+            y_pred_flat = ys_pred.view(-1)[max_out_score.view(-1)!=0]
             cm_batch = torch.bincount(y_true_flat * n_classes + y_pred_flat, minlength=n_classes**2).view(n_classes, n_classes).to(args.device)
             cm += cm_batch
             
