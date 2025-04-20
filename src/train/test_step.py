@@ -24,7 +24,7 @@ def eval(
     net.eval()
     eval_info = dict()
 
-    n_classes = net.module._num_classes
+    n_classes = args.num_classes
     cm = torch.zeros((n_classes, n_classes), dtype=int).to(args.device)
     abstained = 0.0
     
@@ -64,8 +64,8 @@ def eval(
     abstained /= len(test_iter)
     log.info(f"model abstained from a decision for {abstained.item()*100}% of images")
 
-    num_nonzero_prototypes = torch.count_nonzero(F.relu(net.module._classification.weight - 1e-3)).item()
-    num_prototypes = torch.numel(net.module._classification.weight)
+    num_nonzero_prototypes = torch.count_nonzero(F.relu(net.module.layers.classification_layer.weight - 1e-3)).item()
+    num_prototypes = torch.numel(net.module.layers.classification_layer.weight)
     log.info(f"sparsity ratio: {(num_prototypes - num_nonzero_prototypes) / num_prototypes}")
 
     eval_info["abstained"] = abstained.item()

@@ -1,4 +1,5 @@
 from argparse import Namespace
+from enum import Enum
 
 import torch
 import torch.nn as nn
@@ -6,10 +7,81 @@ import torch.nn.functional as F
 
 from data.config import DATASETS
 from utils.log import Log
+from utils.func import init_weights_xavier
 from model.segmentation_features import (
     base_architecture_to_features,
     base_architecture_to_layer_groups,
 )
+
+
+class TrainPhase(Enum):
+    """
+    Enum to define the training phase.
+    """
+    
+    PRETRAIN = 0
+    """
+    Pretraining phase.
+    """
+
+    FINETUNE = 1
+    """
+    Finetuning phase.
+    """
+    
+    FREEZE_FIRST_LAYERS = 2
+    """
+    Freeze first layers of the backbone.
+    """
+
+    FULL_TRAINING = 3
+    """
+    Full training phase.
+    """
+
+
+class ReProSegLayers(nn.Module):
+    def __init__(self, args: Namespace, log: Log):
+        super().__init__()
+
+        features, aspp_convs = base_architecture_to_features[args.net](
+            pretrained=not args.disable_pretrained,
+            in_channels=DATASETS[args.dataset]["color_channels"],
+        )
+        self.feature_net = features
+        self.aspp_convs = aspp_convs
+        
+        self.shared_weights = self.aspp_convs[0][0].weight
+        for conv in self.aspp_convs:
+            del conv[0].weight
+
+        first_add_on_layer_in_channels = [
+            m for m in aspp_convs.modules() if isinstance(m, nn.Conv2d)
+        ][-1].out_channels
+        
+        # the sum of prototype activations should be 1 for each patch in each scale
+        self.add_on_layers = nn.Softmax(dim=1)
+
+        if args.num_features == 0:
+            self.num_prototypes = first_add_on_layer_in_channels
+            log.info(f"Number of prototypes: {self.num_prototypes}")
+        else:
+            self.num_prototypes = args.num_features
+            log.info(f"Number of prototypes set from {first_add_on_layer_in_channels} to {self.num_prototypes}. Extra 1x1 conv layer added. Not recommended.")
+            self.add_on_layers = nn.Sequential(
+                nn.Conv2d(
+                    in_channels=first_add_on_layer_in_channels,
+                    out_channels=self.num_prototypes,
+                    kernel_size=1,
+                    stride=1,
+                    padding=0,
+                    bias=False,
+                ),
+                self.add_on_layers
+            )
+
+        self.max_pool = nn.AdaptiveMaxPool3d((1, None, None))
+        self.classification_layer = NonNegConv1x1(self.num_prototypes, args.num_classes, bias=args.bias)
 
 
 class ReProSeg(nn.Module):
@@ -17,50 +89,46 @@ class ReProSeg(nn.Module):
         self,
         args: Namespace,
         log: Log,
-        feature_net: nn.Module,
-        add_on_layers: nn.Module,
-        aspp_convs: nn.Module,
-        max_pool: nn.Module,
-        classification_layer: nn.Module,
     ):
         super().__init__()
         assert args.num_classes > 0
         self._args = args
         self._log = log
-        self._num_features = args.num_features
-        self._num_classes = args.num_classes
-        self._num_prototypes = args.num_prototypes
         
-        self._net = feature_net
-        self._add_on = add_on_layers
-        self._aspp_convs = aspp_convs
-        self._shared_weights = self._aspp_convs[0][0].weight
-        for conv in self._aspp_convs:
-            del conv[0].weight
-        self._max_pool = max_pool        
-        self._classification = classification_layer
-        
+        self.layers = ReProSegLayers(args, log)
+
         self._init_param_groups()
 
     def forward(self, xs, inference=False):
         # set shared weights to all aspp convolutions
-        for conv in self._aspp_convs:
-            conv[0].weight = self._shared_weights.clone()
+        for conv in self.layers.aspp_convs:
+            conv[0].weight = self.layers.shared_weights.clone()
 
-        backbone_features = self._net(xs)["out"]
-        aspp_features = torch.cat([conv(backbone_features) for conv in self._aspp_convs], dim=0)
-        aspp_features = self._add_on(aspp_features)
-        aspp_features = torch.stack(torch.chunk(aspp_features, len(self._aspp_convs), dim=0), dim=2)
-        pooled = torch.squeeze(self._max_pool(aspp_features), dim=2)
+        backbone_features = self.layers.feature_net(xs)["out"]
+        aspp_features = torch.cat([conv(backbone_features) for conv in self.layers.aspp_convs], dim=0)
+        aspp_features = self.layers.add_on_layers(aspp_features)
+        aspp_features = torch.stack(torch.chunk(aspp_features, len(self.layers.aspp_convs), dim=0), dim=2)
+        pooled = torch.squeeze(self.layers.max_pool(aspp_features), dim=2)
 
         if inference:
             # ignore all prototypes that have 0.1 similarity or lower
             pooled = torch.where(pooled < 0.1, 0.0, pooled)
         
-        out = self._classification(pooled)
+        out = self.layers.classification_layer(pooled)
         out = F.interpolate(out, size=xs.shape[2:], mode='bilinear')
 
         return aspp_features, pooled, out
+    
+    def init_add_on_weights(self):
+        self.layers.add_on_layers.apply(init_weights_xavier)
+
+    def init_classifier_weights(self):
+        torch.nn.init.normal_(
+            self.layers.classification_layer.weight, mean=1.0, std=0.1
+        )
+        self._log.info(f"Classification layer initialized with mean {torch.mean(self.layers.classification_layer.weight).item()}")
+        if self._args.bias:
+            torch.nn.init.constant_(self.layers.classification_layer.bias, val=0.0)
 
     def _init_param_groups(self):
         self.param_groups = dict()
@@ -70,7 +138,7 @@ class ReProSeg(nn.Module):
 
         if self._args.net in base_architecture_to_layer_groups.keys():
             layer_groups = base_architecture_to_layer_groups[self._args.net]
-            for name, param in self._net.named_parameters():
+            for name, param in self.layers.feature_net.named_parameters():
                 if any(layer in name for layer in layer_groups["to_train"]):
                     self.param_groups["to_train"].append(param)
                 elif any(layer in name for layer in layer_groups["to_freeze"]):
@@ -83,7 +151,7 @@ class ReProSeg(nn.Module):
             self._log.warning("Layer groups not implemented for selected backbone architecture.")
         self.param_groups["classification_weight"] = []
         self.param_groups["classification_bias"] = []
-        for name, param in self._classification.named_parameters():
+        for name, param in self.layers.classification_layer.named_parameters():
             if "weight" in name:
                 self.param_groups["classification_weight"].append(param)
             elif self._args.bias:
@@ -107,7 +175,7 @@ class ReProSeg(nn.Module):
                 "weight_decay_rate": self._args.weight_decay,
             },
             {
-                "params": self._add_on.parameters(),
+                "params": self.layers.add_on_layers.parameters(),
                 "lr": self._args.lr_block * 10.0,
                 "weight_decay_rate": self._args.weight_decay,
             },
@@ -140,11 +208,13 @@ class ReProSeg(nn.Module):
             raise ValueError("this optimizer type is not implemented")
 
     def pretrain(self):
+        self.train_phase = TrainPhase.PRETRAIN
+
         for param in self.param_groups["to_train"]:
             param.requires_grad = True
-        for param in self._add_on.parameters():
+        for param in self.layers.add_on_layers.parameters():
             param.requires_grad = True
-        for param in self._classification.parameters():
+        for param in self.layers.classification_layer.parameters():
             param.requires_grad = False
         for param in self.param_groups["to_freeze"]:
             param.requires_grad = (
@@ -156,17 +226,21 @@ class ReProSeg(nn.Module):
             param.requires_grad = self._args.train_backbone_during_pretrain
 
     def finetune(self):
+        self.train_phase = TrainPhase.FINETUNE
+
         for param in self.parameters():
             param.requires_grad = False
-        for param in self._classification.parameters():
+        for param in self.layers.classification_layer.parameters():
             param.requires_grad = True
 
     def freeze(self):
+        self.train_phase = TrainPhase.FREEZE_FIRST_LAYERS
+
         for param in self.param_groups["to_freeze"]:
             # Can be set to False if you want
             # to train fewer layers of backbone
             param.requires_grad = True
-        for param in self._add_on.parameters():
+        for param in self.layers.add_on_layers.parameters():
             param.requires_grad = True
         for param in self.param_groups["to_train"]:
             param.requires_grad = True
@@ -174,7 +248,9 @@ class ReProSeg(nn.Module):
             param.requires_grad = False
 
     def unfreeze(self):
-        for param in self._add_on.parameters():
+        self.train_phase = TrainPhase.FULL_TRAINING
+
+        for param in self.layers.add_on_layers.parameters():
             param.requires_grad = True
         for param in self.param_groups["to_freeze"]:
             param.requires_grad = True
@@ -213,49 +289,3 @@ class NonNegConv1x1(nn.Module):
         # TODO shouldn't be the bias also non-negative?
         return F.conv2d(input_, weight, self.bias, stride=1, padding=0)
     
-
-def get_network(args: Namespace, log: Log):
-    feature_kwargs = {
-        "in_channels": DATASETS[args.dataset]["color_channels"],
-    }
-
-    features, aspp_convs = base_architecture_to_features[args.net](
-        pretrained=not args.disable_pretrained, **feature_kwargs,
-    )
-    first_add_on_layer_in_channels = [
-        m for m in aspp_convs.modules() if isinstance(m, nn.Conv2d)
-    ][-1].out_channels
-    
-    # the sum of prototype activations should be 1 for each patch in each scale
-    add_on_layers = nn.Softmax(dim=1)
-
-    if args.num_features == 0:
-        num_prototypes = first_add_on_layer_in_channels
-        log.info(f"Number of prototypes: {num_prototypes}")
-    else:
-        num_prototypes = args.num_features
-        log.info(f"Number of prototypes set from {first_add_on_layer_in_channels} to {num_prototypes}. Extra 1x1 conv layer added. Not recommended.")
-        add_on_layers = nn.Sequential(
-            nn.Conv2d(
-                in_channels=first_add_on_layer_in_channels,
-                out_channels=num_prototypes,
-                kernel_size=1,
-                stride=1,
-                padding=0,
-                bias=False,
-            ),
-            add_on_layers
-        )
-    args.num_prototypes = num_prototypes
-
-    max_pool = nn.AdaptiveMaxPool3d((1, None, None))
-
-    classification_layer = NonNegConv1x1(num_prototypes, args.num_classes, bias=args.bias)
-
-    return (
-        features,
-        add_on_layers,
-        aspp_convs,
-        max_pool,
-        classification_layer,
-    )

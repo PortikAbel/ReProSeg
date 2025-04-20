@@ -211,6 +211,12 @@ def define_parser() -> argparse.ArgumentParser:
         "Recommended to use when data is imbalanced.",
     )
     loss_group.add_argument(
+        "--align_loss",
+        type=float,
+        default=1.0,
+        help="Align loss regulates that the prototypes of two similar images are aligned.",
+    )
+    loss_group.add_argument(
         "--tanh_loss",
         type=float,
         default=0.0,
@@ -232,6 +238,12 @@ def define_parser() -> argparse.ArgumentParser:
         default=0.0,
         help="Regularizer term that enforces variance of features from "
         "https://arxiv.org/abs/2105.04906",
+    )
+    loss_group.add_argument(
+        "--classification_loss",
+        type=float,
+        default=1.0,
+        help="Classification loss regulates that the classification layer predicts the labels correctly.",
     )
 
     return parser

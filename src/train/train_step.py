@@ -1,12 +1,11 @@
 import torch
 import torch.nn as nn
-import torch.optim
-import torch.utils.data
 from tqdm import tqdm
 
 import argparse
-from model.model import ReProSeg
-from train.loss import calculate_loss
+from model.model import ReProSeg, TrainPhase
+from model.optimizers import OptimizerSchedulerManager
+from train.loss import LossWeights, calculate_loss
 from utils.log import Log
 
 def train(
@@ -14,26 +13,16 @@ def train(
     log: Log,
     net: nn.DataParallel[ReProSeg],
     train_loader,
-    optimizer_net,
-    optimizer_classifier,
-    scheduler_net,
-    scheduler_classifier,
+    optimizer_scheduler_manager: OptimizerSchedulerManager,
     criterion,
     epoch,
-    pretrain=False,
-    finetune=False,
     progress_prefix: str = "Train Epoch",
 ):
     # Make sure the model is in train mode
     net.train()
 
-    if pretrain:
-        # Disable training of classification layer
-        net.module._classification.requires_grad = False
+    if net.module.train_phase == TrainPhase.PRETRAIN:
         progress_prefix = "Pretrain Epoch"
-    else:
-        # Enable training of classification layer (disabled in case of pretraining)
-        net.module._classification.requires_grad = True
 
     # Store info about the procedure
     train_info = dict()
@@ -57,34 +46,20 @@ def train(
             count_param += 1
     log.debug(f"Number of parameters that require gradient: {count_param}")
 
-    align_pf_weight = (epoch / args.epochs_pretrain) * 1.0
-    t_weight = args.tanh_loss
-    unif_weight = args.unif_loss
-    var_weigth = args.variance_loss
-    cl_weight = 0.0
-    if not pretrain:
-        align_pf_weight = 5.0
-        t_weight = 2.0
-        unif_weight = 2.0
-        var_weigth = 2.0
-        cl_weight = 2.0
+    loss_weights = LossWeights(args)
 
-    log.debug(f"Pretrain - {'ON' if pretrain else 'OFF'}")
-    log.debug(f"Finetune - {'ON' if finetune else 'OFF'}")
+    log.debug(f"Training phase: {net.module.train_phase.name}")
 
-    lrs_net = []
-    lrs_class = []
     prototype_activations = torch.empty(
-        (iters, 2 * train_loader.batch_size, net.module._num_prototypes, *args.wshape)
+        (iters, 2 * train_loader.batch_size, net.module.layers.num_prototypes, *args.wshape)
     )
     # Iterate through the data set to update leaves, prototypes and network
     for i, (xs1, xs2, ys) in train_iter:
         xs1, xs2, ys = xs1.to(args.device), xs2.to(args.device), ys.to(args.device)
-
+        
         # Reset the gradients
-        optimizer_classifier.zero_grad(set_to_none=True)
-        optimizer_net.zero_grad(set_to_none=True)
-
+        optimizer_scheduler_manager.reset_gradients()
+        
         # Perform a forward pass through the network
         aspp_features, pooled, out = net(torch.cat([xs1, xs2]))
         prototype_activations[i, :, :, :, :] = pooled
@@ -95,13 +70,8 @@ def train(
             pooled,
             out,
             ys,
-            align_pf_weight,
-            t_weight,
-            unif_weight,
-            var_weigth,
-            cl_weight,
-            pretrain,
-            finetune,
+            loss_weights,
+            net.module.train_phase,
             criterion,
             train_iter,
             len(train_iter) * (epoch - 1) + i,
@@ -111,41 +81,30 @@ def train(
         # Compute the gradient
         loss.backward()
 
-        if not pretrain:
-            optimizer_classifier.step()
-            scheduler_classifier.step(epoch - 1 + (i / iters))
-            lrs_class.append(scheduler_classifier.get_last_lr()[0])
-
-        if not finetune:
-            optimizer_net.step()
-            scheduler_net.step()
-            lrs_net.append(scheduler_net.get_last_lr()[0])
-        else:
-            lrs_net.append(0.0)
+        optimizer_scheduler_manager.step(net.module.train_phase, epoch - 1 + (i / iters))
 
         with torch.no_grad():
             total_acc += acc
             total_loss += loss.item()
 
-        if not pretrain:
+        if net.module.train_phase is not TrainPhase.PRETRAIN:
             with torch.no_grad():
-                net.module._classification.weight.copy_(
+                net.module.layers.classification_layer.weight.copy_(
                     torch.where(
-                        net.module._classification.weight < 1e-3,
+                        net.module.layers.classification_layer.weight < 1e-3,
                         0.0,
-                        net.module._classification.weight,
+                        net.module.layers.classification_layer.weight,
                     )
                 )  # set weights in classification layer < 1e-3 to zero
-                if net.module._classification.bias is not None:
-                    net.module._classification.bias.copy_(
-                        torch.clamp(net.module._classification.bias.data, min=0.0)
+                if net.module.layers.classification_layer.bias is not None:
+                    net.module.layers.classification_layer.bias.copy_(
+                        torch.clamp(net.module.layers.classification_layer.bias.data, min=0.0)
                     )
+
     train_info["train_accuracy"] = total_acc / float(i + 1)
     train_info["loss"] = total_loss / float(i + 1)
-    train_info["lrs_net"] = lrs_net
-    train_info["lrs_class"] = lrs_class
     train_info["prototype_activations"] = (
-        prototype_activations.view((-1, net.module._num_prototypes))
+        prototype_activations.view((-1, net.module.layers.num_prototypes))
         .detach()
         .cpu()
         .numpy()
