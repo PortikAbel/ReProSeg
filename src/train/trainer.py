@@ -189,7 +189,6 @@ def train_model(log: Log, args: argparse.Namespace):
             topks = visualize_top_k(
                 net,
                 train_loader_visualization,
-                len(classes),
                 "visualised_pretrained_prototypes_topk",
                 args,
                 log,

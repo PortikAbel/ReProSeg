@@ -19,7 +19,6 @@ from models.PIPNet.visualize import get_patch, get_patch_size
 def visualize_top_k(
     net,
     project_loader,
-    num_classes,
     folder_name,
     args: argparse.Namespace,
     log: Log,
@@ -35,7 +34,7 @@ def visualize_top_k(
     saved_ys = dict()
     tensors_per_prototype = dict()
 
-    for p in range(net.module._num_prototypes):
+    for p in range(net.module.num_prototypes):
         near_imgs_dir = result_dir / str(p)
         near_imgs_dirs[p] = near_imgs_dir
         seen_max[p] = 0.0
@@ -235,9 +234,9 @@ def visualize(
     imgs = projectloader.dataset.imgs
 
     # skip some images for visualisation to speed up the process
-    if len(imgs) / num_classes < 10:
+    if len(imgs) / args.num_classes < 10:
         skip_img = 10
-    elif len(imgs) / num_classes < 50:
+    elif len(imgs) / args.num_classes < 50:
         skip_img = 5
     else:
         skip_img = 2
