@@ -5,6 +5,7 @@ import numpy as np
 import torchvision.transforms as transforms
 from PIL import Image
 
+from data.config import DATASETS
 
 def get_patch_size(args):
     """
@@ -16,7 +17,8 @@ def get_patch_size(args):
     :rtype: tuple[int, tuple[int, int]]
     """
     patch_size = 32 # TODO: adaptively compute this based on the ASPP output size
-    skip = np.round((args.image_shape - patch_size) / (args.wshape - 1)).astype(int)
+    img_shape = DATASETS[args.dataset]["img_shape"]
+    skip = np.round((img_shape[0] - patch_size) / (args.wshape - 1)).astype(int)
     return patch_size, skip
 
 

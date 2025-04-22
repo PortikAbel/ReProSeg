@@ -14,11 +14,13 @@ from tqdm import tqdm
 from models.PIPNet.util.log import Log
 from models.PIPNet.visualize import get_patch, get_patch_size
 
+from data.config import DATASETS
+
 
 @torch.no_grad()
 def visualize_top_k(
     net,
-    project_loader,
+    train_loader_visualization,
     folder_name,
     args: argparse.Namespace,
     log: Log,
@@ -44,7 +46,7 @@ def visualize_top_k(
 
     patch_size, skip = get_patch_size(args)
 
-    imgs = project_loader.dataset.imgs
+    # imgs = train_loader_visualization.dataset.imgs
 
     # Make sure the model is in evaluation mode
     net.eval()
@@ -52,8 +54,8 @@ def visualize_top_k(
 
     # Show progress on progress bar
     img_iter = tqdm(
-        enumerate(project_loader),
-        total=len(project_loader),
+        enumerate(train_loader_visualization),
+        total=len(train_loader_visualization),
         mininterval=50.0,
         desc="Collecting topk",
         ncols=0,
@@ -115,8 +117,8 @@ def visualize_top_k(
     abstained = 0
     # Show progress on progress bar
     img_iter = tqdm(
-        enumerate(project_loader),
-        total=len(project_loader),
+        enumerate(train_loader_visualization),
+        total=len(train_loader_visualization),
         mininterval=50.0,
         desc="Visualizing topk",
         ncols=0,
@@ -145,7 +147,8 @@ def visualize_top_k(
                 proto_slice = softmaxes[0, p, :, :]
                 h_idx, w_idx = (proto_slice.max() == proto_slice).nonzero(as_tuple=True)
                 h_idx, w_idx = h_idx[0], w_idx[0]
-                img_to_open = imgs[i]
+                #img_to_open = imgs[i]
+                img_to_open = train_loader_visualization.dataset[i]
                 if isinstance(img_to_open, tuple) or isinstance(
                     img_to_open, list
                 ):  # dataset contains tuples of (img,label)
