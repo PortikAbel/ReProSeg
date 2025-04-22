@@ -15,7 +15,7 @@ def get_patch_size(args):
     :return: patch size and skip size (in each direction)
     :rtype: tuple[int, tuple[int, int]]
     """
-    patch_size = 32
+    patch_size = 32 # TODO: adaptively compute this based on the ASPP output size
     skip = np.round((args.image_shape - patch_size) / (args.wshape - 1)).astype(int)
     return patch_size, skip
 

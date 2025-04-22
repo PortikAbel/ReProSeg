@@ -20,7 +20,6 @@ def visualize_top_k(
     net,
     project_loader,
     num_classes,
-    device,
     folder_name,
     args: argparse.Namespace,
     log: Log,
@@ -68,7 +67,7 @@ def visualize_top_k(
     # Iterate through the training set
     for i, (xs, ys) in img_iter:
         images_seen += 1
-        xs, ys = xs.to(device), ys.to(device)
+        xs, ys = xs.to(args.device), ys.to(args.device)
 
         with torch.no_grad():
             # Use the model to classify this batch of input data
@@ -126,7 +125,7 @@ def visualize_top_k(
     )
     for i, (xs, ys) in img_iter:
         # shuffle is false so should lead to same order as in imgs
-        xs, ys = xs.to(device), ys.to(device)
+        xs, ys = xs.to(args.device), ys.to(args.device)
         # Use the model to classify this batch of input data
         with torch.no_grad():
             softmaxes, pooled, out = net(

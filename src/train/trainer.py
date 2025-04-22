@@ -10,6 +10,7 @@ from model.optimizers import OptimizerSchedulerManager
 from utils.log import Log
 from train.train_step import train
 from train.test_step import eval
+from visualize.visualize_prototypes import visualize, visualize_top_k
 
 
 def train_model(log: Log, args: argparse.Namespace):
@@ -24,6 +25,7 @@ def train_model(log: Log, args: argparse.Namespace):
     (
         train_loader,
         test_loader,
+        train_loader_visualization,
     ) = get_dataloaders(log, args)
 
 
@@ -69,7 +71,9 @@ def train_model(log: Log, args: argparse.Namespace):
         xs1 = xs1.to(args.device)
         _aspp_features, pooled, _out = net(xs1)
         args.wshape = np.array(pooled.shape)[-2:]
-        log.debug(f"ASPP output shape: {pooled.shape}")
+        log.debug(f"ASPP features output shape: {_aspp_features.shape}")        
+        log.debug(f"pooled ASPP output shape: {pooled.shape}")
+
 
     # PRETRAINING PROTOTYPES PHASE
     for epoch in range(1, args.epochs_pretrain + 1):
@@ -179,5 +183,17 @@ def train_model(log: Log, args: argparse.Namespace):
         for p in range(net.module.layers.classification_layer.weight.shape[1]):
             if proto_weights[p] > 1e-3:
                 relevant_ps.append((p, proto_weights[p].item()))
+
+    with torch.no_grad():
+        if args.visualize_topk:
+            topks = visualize_top_k(
+                net,
+                train_loader_visualization,
+                len(classes),
+                "visualised_pretrained_prototypes_topk",
+                args,
+                log,
+            )
+
 
     log.info("Done!")
