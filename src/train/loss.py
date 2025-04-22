@@ -40,6 +40,7 @@ def calculate_loss(
     tanh_loss = (log_tanh_loss(pooled1) + log_tanh_loss(pooled2)) / 2.0
     uni_loss = (uniform_loss(pooled1) + uniform_loss(pooled2)) / 2.0
     var_loss = (variance_loss(embv1) + variance_loss(embv2)) / 2.0
+    class_loss = torch.tensor(0.0)
 
     loss = 0.0
     if train_phase is not TrainPhase.FINETUNE:
@@ -67,10 +68,10 @@ def calculate_loss(
                     f"LT:{tanh_loss.item():.3f}, " +
                     f"LU:{uni_loss.item():.3f}, " +
                     f"LV:{var_loss.item():.3f}, " +
-                    (f"LC:{class_loss.item():.3f}, " if train_phase is not TrainPhase.PRETRAIN else "") +
+                    f"LC:{class_loss.item():.3f}, " +
                     f"L:{loss.item():.3f}, " +
                     f"num_scores>0.1:{torch.count_nonzero(torch.relu(pooled-0.1),dim=1).float().mean().item():.1f}" +
-                    (f", Ac:{acc:.3f}" if train_phase is not TrainPhase.PRETRAIN else "")
+                    f", Ac:{acc:.3f}"
                 ),
                 refresh=False,
             )
@@ -79,15 +80,14 @@ def calculate_loss(
             log.tb_scalar(f"Loss/{phase_string}/LT", tanh_loss.item(), iteration)
             log.tb_scalar(f"Loss/{phase_string}/LU", uni_loss.item(), iteration)
             log.tb_scalar(f"Loss/{phase_string}/LV", var_loss.item(), iteration)
-            if train_phase is not TrainPhase.PRETRAIN:
-                log.tb_scalar(f"Loss/{phase_string}/LC", class_loss.item(), iteration)
+            log.tb_scalar(f"Loss/{phase_string}/LC", class_loss.item(), iteration)
             log.tb_scalar(f"Loss/{phase_string}/L", loss.item(), iteration)
 
     return loss, acc
 
 
 def log_tanh_loss(x, EPS=1e-10):
-    return -torch.log(torch.tanh(torch.sum(x, dim=0)) + EPS).mean()
+    return -torch.log(torch.tanh(torch.sum(x, dim=(0,2,3))) + EPS).mean()
 
 
 # Extra uniform loss from https://www.tongzhouwang.info/hypersphere/.
