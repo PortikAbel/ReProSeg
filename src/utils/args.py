@@ -246,6 +246,22 @@ def define_parser() -> argparse.ArgumentParser:
         help="Classification loss regulates that the classification layer predicts the labels correctly.",
     )
 
+    visualization_group = parser.add_argument_group(
+        "Visualization", "Specifies which visualizations should be generated"
+    )
+    visualization_group.add_argument(
+        "--visualize_topk",
+        action="store_true",
+        help="""Flag that indicates whether to visualize the top k
+            activations of each prototype from test set.""",
+    )
+    visualization_group.add_argument(
+        "--visualize_predictions",
+        action="store_true",
+        help="""Flag that indicates whether to visualize the predictions
+            on test data and the learned prototypes.""",
+    )
+
     return parser
 
 
