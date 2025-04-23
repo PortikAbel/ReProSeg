@@ -96,6 +96,7 @@ class ReProSeg(nn.Module):
         self._log = log
         
         self.layers = ReProSegLayers(args, log)
+        self.num_prototypes = self.layers.num_prototypes
 
         self._init_param_groups()
 

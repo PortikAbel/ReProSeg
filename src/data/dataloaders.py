@@ -22,6 +22,7 @@ def get_dataloaders(log: Log, args: Namespace) -> tuple[DataLoader, DataLoader, 
     (
         train_set,
         test_set,
+        train_set_visualization,
         train_indices,
     ) = get_datasets(log, args)
 
@@ -78,6 +79,12 @@ def get_dataloaders(log: Log, args: Namespace) -> tuple[DataLoader, DataLoader, 
         shuffle=True,
         drop_last=False,
     )
+    train_loader_visualization = create_dataloader(
+        dataset=train_set_visualization,
+        batch_size=1,
+        shuffle=False,
+        drop_last=False,
+    )
 
     args.num_classes = len(train_loader.dataset.dataset.classes)
 
@@ -86,6 +93,7 @@ def get_dataloaders(log: Log, args: Namespace) -> tuple[DataLoader, DataLoader, 
     return (
         train_loader,
         test_loader,
+        train_loader_visualization,
     )
 
 
@@ -134,9 +142,19 @@ def get_datasets(log: Log, args: Namespace) -> tuple[TwoAugSupervisedDataset, Da
             target_transform=transform_base_target,
         )
 
+        train_visualization_set = torchvision.datasets.Cityscapes(
+            root=dataset_config["data_dir"],
+            split="test",
+            mode="fine",
+            target_type="semantic",
+            transform=transforms.Compose([transform_base_image, transform_final]),
+            target_transform=transform_base_target,
+        )
+
     return (
         train_set,
         test_set,
+        train_visualization_set,
         train_indices
     )
 
