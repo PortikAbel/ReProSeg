@@ -46,11 +46,11 @@ def visualize_top_k(
 
     patch_size, skip = get_patch_size(args)
 
-    # imgs = train_loader_visualization.dataset.imgs
-
     # Make sure the model is in evaluation mode
     net.eval()
-    classification_weights = net.module._classification.weight
+    classification_weights = net.module.layers.classification_layer.weight
+    # print(f"classification_weights shape: {classification_weights.shape}") # (num_class, num_prototypes, 1, 1)
+
 
     # Show progress on progress bar
     img_iter = tqdm(
@@ -72,11 +72,20 @@ def visualize_top_k(
 
         with torch.no_grad():
             # Use the model to classify this batch of input data
-            pfs, pooled, _ = net(xs, inference=True)
-            pooled = pooled.squeeze(0)
-            pfs = pfs.squeeze(0)
+            aspp, aspp_maxpooled, out = net(xs, inference=True)
 
-            for p in range(pooled.shape[0]):
+            # b here is 1 (dataloader loads 1 image at a time)
+            # print(f"aspp output shape before maxpool: {aspp.shape}") # (b, num_prototypes, channels, w, h)
+            # print(f"aspp output shape after maxpool: {aspp.shape}") # (b, num_prototypes, w, h)
+            # print(f"out shape: {out.shape}") # (b, num_class, input_w, input_h)
+
+            aspp_maxpooled = aspp_maxpooled.squeeze(0)
+            aspp = aspp.squeeze(0)
+
+            aspp_maxpooled_sum = aspp_maxpooled.sum(dim=(1,2))
+
+
+            for p in range(aspp_maxpooled_sum.shape[0]):  # iterating over each prototype's sum
                 c_weight = torch.max(classification_weights[:, p])
                 if c_weight > 1e-3:
                     # ignore prototypes that are not relevant to any class
@@ -84,20 +93,20 @@ def visualize_top_k(
                         topks[p] = []
 
                     if len(topks[p]) < k:
-                        topks[p].append((i, pooled[p].item()))
+                        topks[p].append((i, aspp_maxpooled_sum[p].item()))
                     else:
                         topks[p] = sorted(
                             topks[p], key=lambda tup: tup[1], reverse=True
                         )
-                        if topks[p][-1][1] < pooled[p].item():
-                            topks[p][-1] = (i, pooled[p].item())
-                        if topks[p][-1][1] == pooled[p].item():
+                        if topks[p][-1][1] < aspp_maxpooled_sum[p].item():
+                            topks[p][-1] = (i, aspp_maxpooled_sum[p].item())
+                        if topks[p][-1][1] == aspp_maxpooled_sum[p].item():
                             # equal scores. randomly chose one
                             # (since dataset is not shuffled so latter images
                             # with same scores can now also get in topk).
                             replace_choice = random.choice([0, 1])
                             if replace_choice > 0:
-                                topks[p][-1] = (i, pooled[p].item())
+                                topks[p][-1] = (i, aspp_maxpooled_sum[p].item())
 
     prototypes_not_used = []
     i_to_p: dict = defaultdict(list)
@@ -133,7 +142,7 @@ def visualize_top_k(
                 xs, inference=True
             )  # softmaxes has shape (1, num_prototypes, W, H)
 
-            # shape ([1]) because batch size of projectloader is 1
+            # shape ([1]) because batch size of dataloader is 1
             outmax = torch.amax(out, dim=1)[0]
             if outmax.item() == 0.0:
                 abstained += 1

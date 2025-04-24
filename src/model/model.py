@@ -106,6 +106,7 @@ class ReProSeg(nn.Module):
             conv[0].weight = self.layers.shared_weights.clone()
 
         backbone_features = self.layers.feature_net(xs)["out"]
+        # (b x num_prototypes x num_scales x h x w)
         aspp_features = torch.cat([conv(backbone_features) for conv in self.layers.aspp_convs], dim=0)
         aspp_features = self.layers.add_on_layers(aspp_features)
         aspp_features = torch.stack(torch.chunk(aspp_features, len(self.layers.aspp_convs), dim=0), dim=2)
@@ -118,6 +119,7 @@ class ReProSeg(nn.Module):
         out = self.layers.classification_layer(pooled)
         out = F.interpolate(out, size=xs.shape[2:], mode='bilinear')
 
+        # aspp_features: (b x scales x num_prototypes x h x w)
         return aspp_features, pooled, out
     
     def init_add_on_weights(self):
