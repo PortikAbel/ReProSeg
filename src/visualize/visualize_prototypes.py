@@ -138,12 +138,13 @@ def visualize_top_k(
         xs, ys = xs.to(args.device), ys.to(args.device)
         # Use the model to classify this batch of input data
         with torch.no_grad():
-            softmaxes, pooled, out = net(
+            aspp, aspp_maxpooled, out = net(
                 xs, inference=True
             )  # softmaxes has shape (1, num_prototypes, W, H)
 
             # shape ([1]) because batch size of dataloader is 1
-            outmax = torch.amax(out, dim=1)[0]
+            outmax = torch.amax(out)
+            # print(f"max. output probability: {outmax.item()}")
             if outmax.item() == 0.0:
                 abstained += 1
 
@@ -152,23 +153,29 @@ def visualize_top_k(
                 classification_weights[:, p]
             )  # ignore prototypes that are not relevant to any class
             if (c_weight > 1e-10) or ("pretrain" in folder_name):
-                # get the h and w index of the max prototype from the p slice
-                proto_slice = softmaxes[0, p, :, :]
-                h_idx, w_idx = (proto_slice.max() == proto_slice).nonzero(as_tuple=True)
-                h_idx, w_idx = h_idx[0], w_idx[0]
-                #img_to_open = imgs[i]
-                img_to_open = train_loader_visualization.dataset[i]
-                if isinstance(img_to_open, tuple) or isinstance(
-                    img_to_open, list
-                ):  # dataset contains tuples of (img,label)
-                    img_to_open = img_to_open[0]
+                # get the image patches for all prototype points
+                for h_idx in range(aspp.shape[3]):
+                    for w_idx in range(aspp.shape[4]):
+                        # # get the h and w index of the max prototype from the p slice
+                        # proto_slice = softmaxes[0, p, :, :]
+                        # h_idx, w_idx = (proto_slice.max() == proto_slice).nonzero(as_tuple=True)
+                        # h_idx, w_idx = h_idx[0], w_idx[0]
+                        #img_to_open = imgs[i]
+                        img_to_open = train_loader_visualization.dataset.images[i]  # getting the path to the ith image
+                        # img_to_open = train_loader_visualization.dataset[i]
+                        if isinstance(img_to_open, tuple) or isinstance(
+                            img_to_open, list
+                        ):  # dataset contains tuples of (img,label)
+                            img_to_open = img_to_open[0]
 
-                image, img_tensor_patch, _, _ = get_patch(
-                    img_to_open, args, h_idx, w_idx, softmaxes.shape
-                )
+                        print(img_to_open)
 
-                saved[p] += 1
-                tensors_per_prototype[p].append(img_tensor_patch)
+                        image, img_tensor_patch, _, _ = get_patch(
+                            img_to_open, args, h_idx, w_idx, aspp_maxpooled.shape
+                        )
+
+                        saved[p] += 1
+                        tensors_per_prototype[p].append(img_tensor_patch)
 
     print("Abstained: ", abstained, flush=True)
     all_tensors = []
