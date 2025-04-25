@@ -11,8 +11,10 @@ from PIL import Image
 from PIL import ImageDraw as D
 from tqdm import tqdm
 
-from models.PIPNet.util.log import Log
-from models.PIPNet.visualize import get_patch, get_patch_size
+
+from visualize import get_patch, get_patch_size
+from utils.log import Log
+
 
 from data.config import DATASETS
 
@@ -168,7 +170,7 @@ def visualize_top_k(
                         ):  # dataset contains tuples of (img,label)
                             img_to_open = img_to_open[0]
 
-                        print(img_to_open)
+                        # print(img_to_open)
 
                         image, img_tensor_patch, _, _ = get_patch(
                             img_to_open, args, h_idx, w_idx, aspp_maxpooled.shape

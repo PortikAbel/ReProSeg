@@ -98,7 +98,8 @@ def get_patch(img_path, args, h_idx, w_idx, softmaxes_size, patch_size=None, ski
     if patch_size is None or skip is None:
         patch_size, skip = get_patch_size(args)
 
-    image = transforms.Resize(size=tuple(args.image_shape))(
+    image_shape = DATASETS[args.dataset]["img_shape"]
+    image = transforms.Resize(size=tuple(image_shape))(
         Image.open(img_path).convert("RGB")
     )
     img_tensor = transforms.ToTensor()(image).unsqueeze_(0)  # shape (1, 3, h, w)
@@ -108,7 +109,7 @@ def get_patch(img_path, args, h_idx, w_idx, softmaxes_size, patch_size=None, ski
         w_coord_min,
         w_coord_max,
     ) = get_img_coordinates(
-        args.image_shape,
+        image_shape,
         softmaxes_size,
         patch_size,
         skip,
