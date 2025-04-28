@@ -205,12 +205,6 @@ def define_parser() -> argparse.ArgumentParser:
         "Loss", "Specifies the loss function to use and its hyperparameters"
     )
     loss_group.add_argument(
-        "--weighted_loss",
-        action="store_true",
-        help="Flag that weights the loss based on the class balance of the dataset. "
-        "Recommended to use when data is imbalanced.",
-    )
-    loss_group.add_argument(
         "--align_loss",
         type=float,
         default=1.0,

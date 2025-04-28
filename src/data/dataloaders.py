@@ -31,28 +31,6 @@ def get_dataloaders(log: Log, args: Namespace) -> tuple[DataLoader, DataLoader, 
     sampler = None
     to_shuffle_train_set = True
 
-    if args.weighted_loss:
-        if targets is None:
-            raise ValueError(
-                "Weighted loss not implemented for this dataset. "
-                "Targets should be restructured"
-            )
-        # https://discuss.pytorch.org/t/dataloader-using-subsetrandomsampler-and-weightedrandomsampler-at-the-same-time/29907 # noqa
-        class_sample_count = torch.tensor(
-            [
-                (targets[train_indices] == t).sum()
-                for t in torch.unique(targets, sorted=True)
-            ]
-        )
-        weight = 1.0 / class_sample_count.float()
-        log.info(f"Weights for weighted sampler: {weight}")
-        samples_weight = torch.tensor([weight[t] for t in targets[train_indices]])
-        # Create sampler, dataset, loader
-        sampler = torch.utils.data.WeightedRandomSampler(
-            samples_weight, len(samples_weight), replacement=True
-        )
-        to_shuffle_train_set = False
-
     def create_dataloader(dataset, batch_size, shuffle, drop_last) -> DataLoader:
         return DataLoader(
             dataset,
