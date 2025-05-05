@@ -100,11 +100,19 @@ def get_datasets(log: Log, args: Namespace) -> tuple[TwoAugSupervisedDataset, Da
 
         train_indices = list(range(len(train_set)))
 
+        # exclude ignored classes from the target
+        map_classes: dict = { c.id: (0 if c.ignore_in_eval else c.id) for c in train_set.classes }
+        transform_filter_classes = transforms.Lambda(np.vectorize(map_classes.get))
+        target_transform = transforms.Compose([
+            transform_base_target,
+            transform_filter_classes,
+        ])
+
         train_set = torch.utils.data.Subset(
             TwoAugSupervisedDataset(
                 train_set,
                 transform_base_image,
-                transform_base_target,
+                target_transform,
                 transform1,
                 transforms.Compose([transform2, transform_final]),
             ),
@@ -117,7 +125,7 @@ def get_datasets(log: Log, args: Namespace) -> tuple[TwoAugSupervisedDataset, Da
             mode="fine",
             target_type="semantic",
             transform=transforms.Compose([transform_base_image, transform_final]),
-            target_transform=transform_base_target,
+            target_transform=target_transform,
         )
 
         train_visualization_set = torchvision.datasets.Cityscapes(
@@ -126,7 +134,7 @@ def get_datasets(log: Log, args: Namespace) -> tuple[TwoAugSupervisedDataset, Da
             mode="fine",
             target_type="semantic",
             transform=transforms.Compose([transform_base_image, transform_final]),
-            target_transform=transform_base_target,
+            target_transform=target_transform,
         )
 
     return (
