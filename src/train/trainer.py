@@ -63,7 +63,19 @@ def train_model(log: Log, args: argparse.Namespace):
             net.module.init_classifier_weights()
 
     # Define classification loss function
-    criterion = nn.NLLLoss(reduction="mean").to(args.device)
+    # Infer class weights from the dataset
+    class_counts_path = Path(__file__).parent.parent / "data" / "class_counts.npy"
+    if class_counts_path.is_file():
+        class_counts = np.load(class_counts_path)
+        log.info(f"Loaded class counts from {class_counts_path}:\n{class_counts}")
+    else:
+        from data.count_class_distribution import count_class_distribution
+        class_counts = count_class_distribution(args, log)
+        log.info(f"Calculated class counts: {class_counts}")
+    
+    class_weights = 1 / class_counts
+    class_weights = torch.tensor(class_weights, device=args.device, dtype=torch.float32)
+    criterion = nn.NLLLoss(weight=class_weights, ignore_index=0, reduction="mean").to(args.device)
 
     # Forward one batch through the backbone to get the latent output size
     with torch.no_grad():
