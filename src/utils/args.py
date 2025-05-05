@@ -211,6 +211,13 @@ def define_parser() -> argparse.ArgumentParser:
         help="Align loss regulates that the prototypes of two similar images are aligned.",
     )
     loss_group.add_argument(
+        "--jsd_loss",
+        type=float,
+        default=0.0,
+        help="Jensen-Shannon divergence loss regulates that the "
+        "distribution of the prototypes are pairwise disjoint.",
+    )
+    loss_group.add_argument(
         "--tanh_loss",
         type=float,
         default=0.0,
@@ -318,12 +325,13 @@ class ModelTrainerArgumentParser:
         self._args.device, self._args.device_ids = set_device(self._args.gpu_ids, self._args.disable_gpu)
 
         if (
-            not self._args.tanh_loss
+            not self._args.jsd_loss
+            and not self._args.tanh_loss
             and not self._args.unif_loss
             and not self._args.variance_loss
         ):
-            warnings.warn(f"No loss function specified. Using tanh loss by default")
-            self._args.tanh_loss = 5.0
+            warnings.warn(f"No loss function specified. Using JSD loss by default")
+            self._args.jsd_loss = 5.0
 
         return self._args
 
