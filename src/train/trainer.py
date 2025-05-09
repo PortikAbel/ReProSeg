@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+from pathlib import Path
 
 import argparse
 
@@ -70,9 +71,8 @@ def train_model(log: Log, args: argparse.Namespace):
         log.info(f"Loaded class counts from {class_counts_path}:\n{class_counts}")
     else:
         from data.count_class_distribution import count_class_distribution
-        class_counts = count_class_distribution(args, log)
+        class_counts = count_class_distribution(args, log, class_counts_path)
         log.info(f"Calculated class counts: {class_counts}")
-    
     class_weights = 1 / class_counts
     class_weights = torch.tensor(class_weights, device=args.device, dtype=torch.float32)
     criterion = nn.NLLLoss(weight=class_weights, ignore_index=0, reduction="mean").to(args.device)
