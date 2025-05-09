@@ -3,6 +3,7 @@ import torch.nn.functional as F
 
 from utils.log import Log
 from model.model import TrainPhase
+from .eval import compute_cm, acc_from_cm
 
 class LossWeights:
     def __init__(
@@ -59,9 +60,7 @@ def calculate_loss(
 
         loss += weights.classification * class_loss
 
-        ys_pred_max = torch.argmax(out, dim=1)
-        correct = torch.sum(torch.eq(ys_pred_max, ys))
-        acc = correct.item() / float(torch.prod(torch.tensor(ys.shape)))
+        acc = acc_from_cm(compute_cm(out, ys))
 
     if print:
         with torch.no_grad():
