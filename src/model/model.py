@@ -117,7 +117,9 @@ class ReProSeg(nn.Module):
             pooled = torch.where(pooled < 0.1, 0.0, pooled)
         
         out = self.layers.classification_layer(pooled)
-        out = F.interpolate(out, size=xs.shape[2:], mode='bilinear')
+
+        if inference:
+            out = F.interpolate(out, size=xs.shape[2:], mode='bilinear')
 
         # aspp_features: (b x scales x num_prototypes x h x w)
         return aspp_features, pooled, out
