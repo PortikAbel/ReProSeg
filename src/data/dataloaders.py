@@ -2,15 +2,14 @@ from argparse import Namespace
 
 import numpy as np
 import torch
-import torch.optim
 import torch.utils
 from torch.utils.data import Dataset, DataLoader
 import torchvision
-import torchvision.transforms.v2 as transforms
+from torchvision.transforms.v2 import Compose, Lambda, ToImage
 
 from data.config import DATASETS
 from data.dataset import TwoAugSupervisedDataset
-from data.transforms import get_transforms
+from data.transforms import Transforms
 from utils.log import Log
 
 
@@ -79,15 +78,8 @@ def get_datasets(log: Log, args: Namespace) -> tuple[TwoAugSupervisedDataset, Da
     """
     Load the proper dataset based on the parsed arguments
     """
-    (
-        transform_base_image,
-        transform_base_target,
-        transform1,
-        transform2,
-        transform_final,
-    ) = get_transforms(args)
-
     dataset_config = DATASETS[args.dataset]
+    transforms = Transforms(dataset_config)
 
     if args.dataset == "CityScapes":
         log.info("Loading CityScapes dataset")
@@ -98,24 +90,13 @@ def get_datasets(log: Log, args: Namespace) -> tuple[TwoAugSupervisedDataset, Da
             target_type="semantic",
         )
 
+        filtered_classes = transforms.filter_cityscapes_classes(train_set.classes)
+        train_set.classes = filtered_classes
+
         train_indices = list(range(len(train_set)))
 
-        # exclude ignored classes from the target
-        map_classes: dict = { c.id: (0 if c.ignore_in_eval else c.id) for c in train_set.classes }
-        transform_filter_classes = transforms.Lambda(np.vectorize(map_classes.get))
-        target_transform = transforms.Compose([
-            transform_base_target,
-            transform_filter_classes,
-        ])
-
         train_set = torch.utils.data.Subset(
-            TwoAugSupervisedDataset(
-                train_set,
-                transform_base_image,
-                target_transform,
-                transform1,
-                transforms.Compose([transform2, transform_final]),
-            ),
+            TwoAugSupervisedDataset(train_set, transforms),
             indices=train_indices,
         )
 
@@ -124,17 +105,17 @@ def get_datasets(log: Log, args: Namespace) -> tuple[TwoAugSupervisedDataset, Da
             split="test",
             mode="fine",
             target_type="semantic",
-            transform=transforms.Compose([transform_base_image, transform_final]),
-            target_transform=target_transform,
+            transform=Compose([transforms.base_image, transforms.image_normalization]),
+            target_transform=transforms.base_target,
         )
 
         train_visualization_set = torchvision.datasets.Cityscapes(
             root=dataset_config["data_dir"],
-            split="test",
+            split="train",
             mode="fine",
             target_type="semantic",
-            transform=transforms.Compose([transform_base_image, transform_final]),
-            target_transform=target_transform,
+            transform=Compose([transforms.base_image, transforms.image_normalization]),
+            target_transform=transforms.base_target,
         )
 
     return (
