@@ -1,14 +1,13 @@
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import argparse
 from model.model import ReProSeg
 from utils.log import Log
+from .eval import compute_absained, compute_cm, acc_from_cm
 
 
 @torch.no_grad()
@@ -43,18 +42,13 @@ def eval(
 
         with torch.no_grad():
             _, pooled, out = net(xs, inference=True)
-            max_out_score, ys_pred = torch.max(out, dim=1)
-
-            pixel_count = torch.prod(torch.tensor(max_out_score.shape))
-            abstained_pixels = pixel_count - torch.count_nonzero(max_out_score)
-            abstained += abstained_pixels / pixel_count
             
-            y_true_flat = ys.squeeze(1).view(-1)[max_out_score.view(-1)!=0]
-            y_pred_flat = ys_pred.view(-1)[max_out_score.view(-1)!=0]
-            cm_batch = torch.bincount(y_true_flat * n_classes + y_pred_flat, minlength=n_classes**2).view(n_classes, n_classes).to(args.device)
-            cm += cm_batch
-            
+            cm_batch = compute_cm(out, ys)
             acc = acc_from_cm(cm_batch)
+            cm += cm_batch
+
+            abstained += compute_absained(out, ys)
+
             test_iter.set_postfix_str(f"Acc: {acc:.3f}", refresh=False)
 
         del out
@@ -76,15 +70,3 @@ def eval(
     return eval_info
 
 
-def acc_from_cm(cm: torch.Tensor) -> float:
-    """
-    Compute the accuracy from the confusion matrix
-    :param cm: confusion matrix
-    :return: the accuracy score
-    """
-    assert len(cm.shape) == 2 and cm.shape[0] == cm.shape[1]
-
-    correct = cm.diagonal().sum()
-    total = cm.sum()
-
-    return 1 if total == 0 else correct / total

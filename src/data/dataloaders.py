@@ -2,15 +2,14 @@ from argparse import Namespace
 
 import numpy as np
 import torch
-import torch.optim
 import torch.utils
 from torch.utils.data import Dataset, DataLoader
 import torchvision
-import torchvision.transforms.v2 as transforms
+from torchvision.transforms.v2 import Compose, Lambda, ToImage
 
 from data.config import DATASETS
 from data.dataset import TwoAugSupervisedDataset
-from data.transforms import get_transforms
+from data.transforms import Transforms
 from utils.log import Log
 
 
@@ -30,28 +29,6 @@ def get_dataloaders(log: Log, args: Namespace) -> tuple[DataLoader, DataLoader, 
     cuda = not args.disable_gpu and torch.cuda.is_available()
     sampler = None
     to_shuffle_train_set = True
-
-    if args.weighted_loss:
-        if targets is None:
-            raise ValueError(
-                "Weighted loss not implemented for this dataset. "
-                "Targets should be restructured"
-            )
-        # https://discuss.pytorch.org/t/dataloader-using-subsetrandomsampler-and-weightedrandomsampler-at-the-same-time/29907 # noqa
-        class_sample_count = torch.tensor(
-            [
-                (targets[train_indices] == t).sum()
-                for t in torch.unique(targets, sorted=True)
-            ]
-        )
-        weight = 1.0 / class_sample_count.float()
-        log.info(f"Weights for weighted sampler: {weight}")
-        samples_weight = torch.tensor([weight[t] for t in targets[train_indices]])
-        # Create sampler, dataset, loader
-        sampler = torch.utils.data.WeightedRandomSampler(
-            samples_weight, len(samples_weight), replacement=True
-        )
-        to_shuffle_train_set = False
 
     def create_dataloader(dataset, batch_size, shuffle, drop_last) -> DataLoader:
         return DataLoader(
@@ -101,15 +78,8 @@ def get_datasets(log: Log, args: Namespace) -> tuple[TwoAugSupervisedDataset, Da
     """
     Load the proper dataset based on the parsed arguments
     """
-    (
-        transform_base_image,
-        transform_base_target,
-        transform1,
-        transform2,
-        transform_final,
-    ) = get_transforms(args)
-
     dataset_config = DATASETS[args.dataset]
+    transforms = Transforms(dataset_config)
 
     if args.dataset == "CityScapes":
         log.info("Loading CityScapes dataset")
@@ -120,16 +90,13 @@ def get_datasets(log: Log, args: Namespace) -> tuple[TwoAugSupervisedDataset, Da
             target_type="semantic",
         )
 
+        filtered_classes = transforms.filter_cityscapes_classes(train_set.classes)
+        train_set.classes = filtered_classes
+
         train_indices = list(range(len(train_set)))
 
         train_set = torch.utils.data.Subset(
-            TwoAugSupervisedDataset(
-                train_set,
-                transform_base_image,
-                transform_base_target,
-                transform1,
-                transforms.Compose([transform2, transform_final]),
-            ),
+            TwoAugSupervisedDataset(train_set, transforms),
             indices=train_indices,
         )
 
@@ -138,17 +105,17 @@ def get_datasets(log: Log, args: Namespace) -> tuple[TwoAugSupervisedDataset, Da
             split="test",
             mode="fine",
             target_type="semantic",
-            transform=transforms.Compose([transform_base_image, transform_final]),
-            target_transform=transform_base_target,
+            transform=Compose([transforms.base_image, transforms.image_normalization]),
+            target_transform=transforms.base_target,
         )
 
         train_visualization_set = torchvision.datasets.Cityscapes(
             root=dataset_config["data_dir"],
-            split="test",
+            split="train",
             mode="fine",
             target_type="semantic",
-            transform=transforms.Compose([transform_base_image, transform_final]),
-            target_transform=transform_base_target,
+            transform=Compose([transforms.base_image, transforms.image_normalization]),
+            target_transform=transforms.base_target,
         )
 
     return (

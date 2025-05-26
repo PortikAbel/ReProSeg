@@ -1,48 +1,9 @@
-import argparse
 from typing import Tuple
 
+import numpy as np
 import torch
 import torchvision.transforms.v2 as transforms
-
-from data.config import DATASETS
-
-
-def get_transforms(args: argparse.Namespace):
-    img_shape = DATASETS[args.dataset]["img_shape"]
-    mean = DATASETS[args.dataset]["mean"]
-    std = DATASETS[args.dataset]["std"]
-
-    transform_base_image = transforms.Compose([
-        transforms.ToImage(),
-        transforms.ToDtype(torch.float32, scale=True),
-        transforms.Resize(size=img_shape),
-    ])
-    transform_base_target = transforms.Compose([
-        transforms.ToImage(),
-        transforms.ToDtype(torch.int64),
-        transforms.Resize(size=img_shape, interpolation=transforms.InterpolationMode.NEAREST_EXACT),
-    ])
-
-    # transform1: first step of augmentation
-    transform1 = AugmentGeometry(img_shape=img_shape)
-
-    # transform2: second step of augmentation
-    # applied twice on the result of transform1(p) to obtain two similar imgs
-    transform2 = AugmentColor(img_shape=img_shape)
-
-    transform_final = transforms.Compose([
-        transforms.ToImage(),
-        transforms.ConvertImageDtype(),
-        transforms.Normalize(mean=mean, std=std),
-    ])
-
-    return (
-        transform_base_image,
-        transform_base_target,
-        transform1,
-        transform2,
-        transform_final,
-    )
+from torchvision.datasets import Cityscapes
 
 
 class AugmentGeometry(transforms.Compose):
@@ -69,3 +30,96 @@ class AugmentColor(transforms.Compose):
             transforms.RandomEqualize(),
             transforms.RandomCrop(size=img_shape),
         ])
+
+class Transforms:
+    base_image: transforms.Compose
+    """
+    Base image transform:
+        - Converts to PIL Image
+        - Converts to float32
+        - Resizes to the target size
+    """
+    geometry_augmentation: AugmentGeometry
+    """
+    First step of augmentation:
+        - Resizes to a larger size
+        - Applies random affine transformation
+        - Applies random horizontal flip
+        - Applies random resized crop to the target size
+    """
+    color_augmentation: AugmentColor
+    """
+    Second step of augmentation:
+        - Applies color jitter
+        - Applies random adjust sharpness
+        - Applies random posterize
+        - Applies random solarize
+        - Applies random autocontrast
+        - Applies random equalize
+        - Applies random crop to the target size
+    """
+    image_normalization: transforms.Compose
+    """
+    Final transform:
+        - Converts to PIL Image
+        - Converts to the default image dtype (float32)
+        - Normalizes the image with mean and std
+    """
+    base_target: transforms.Compose
+    """
+    Base target transform:
+        - Converts to PIL Image
+        - Converts to int64
+        - Resizes to the target size with nearest neighbor interpolation
+    """
+    shrink_target: transforms.Resize
+    """
+    Shrink target transform:
+        - Resize target to the size of model output
+    """
+
+    def __init__(self, dataset_cfg: dict):
+        img_shape = dataset_cfg["img_shape"]
+        mean = dataset_cfg["mean"]
+        std = dataset_cfg["std"]
+
+        self.base_image = transforms.Compose([
+            transforms.ToImage(),
+            transforms.ToDtype(torch.float32, scale=True),
+            transforms.Resize(size=img_shape),
+        ])
+
+        self.geometry_augmentation = AugmentGeometry(img_shape=img_shape)
+
+        self.color_augmentation = AugmentColor(img_shape=img_shape)
+        # applied twice on the result of transform1(p) to obtain two similar imgs
+
+        self.image_normalization = transforms.Compose([
+            transforms.ToImage(),
+            transforms.ConvertImageDtype(),
+            transforms.Normalize(mean=mean, std=std),
+        ])
+
+        self.base_target = transforms.Compose([
+            transforms.ToImage(),
+            transforms.ToDtype(torch.int64),
+            transforms.Resize(size=img_shape, interpolation=transforms.InterpolationMode.NEAREST_EXACT),
+        ])
+
+        self.shrink_target = transforms.Resize(
+            size=(img_shape[0] // 8, img_shape[1] // 8),
+            interpolation=transforms.InterpolationMode.NEAREST_EXACT,
+        )
+    
+    
+    def filter_cityscapes_classes(self, classes: list[Cityscapes.CityscapesClass]):
+        filtered_classes = [classes[0]] + [c for c in classes if not c.ignore_in_eval]
+        map_classes: list = torch.tensor([0 if c.ignore_in_eval else filtered_classes.index(c) for c in classes], dtype=torch.int64)
+        self.base_target = transforms.Compose([
+            self.base_target,
+            transforms.Lambda(np.vectorize(lambda c: map_classes[c])),
+            transforms.Lambda(lambda x: x.transpose(1, 2, 0)),
+            transforms.ToImage(),
+        ])
+
+        return filtered_classes
