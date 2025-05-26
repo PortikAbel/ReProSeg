@@ -251,10 +251,17 @@ def define_parser() -> argparse.ArgumentParser:
         "Visualization", "Specifies which visualizations should be generated"
     )
     visualization_group.add_argument(
-        "--visualize_topk",
+        "--visualize_prototypes",
         action="store_true",
         help="""Flag that indicates whether to visualize the top k
             activations of each prototype from test set.""",
+    )
+    visualization_group.add_argument(
+        "--visualize_top_k",
+        type=int,
+        default=10,
+        help="""Number of top activations of each prototype to visualize.
+            Defaults to 10.""",
     )
     visualization_group.add_argument(
         "--visualize_predictions",

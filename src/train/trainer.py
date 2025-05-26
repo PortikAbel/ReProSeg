@@ -1,43 +1,20 @@
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader
 from pathlib import Path
 
 import argparse
 
-from data.dataloaders import get_dataloaders
 from model.model import ReProSeg, TrainPhase
 from model.optimizers import OptimizerSchedulerManager
 from utils.log import Log
 from train.train_step import train
 from train.test_step import eval
-from visualize.visualize_prototypes import visualize, visualize_top_k
 
-
-def train_model(log: Log, args: argparse.Namespace):
-
-    # Log which device was actually used
-    log.info(
-        f"Device used: {args.device} "
-        f"{f'with id {args.device_ids}' if len(args.device_ids) > 0 else ''}",
-    )
-
-    # Obtain the dataloaders
-    (
-        train_loader,
-        test_loader,
-        train_loader_visualization,
-    ) = get_dataloaders(log, args)
-
-
-    # Create a ReProSeg model
-    net = ReProSeg(args=args, log=log)
-
-    net = net.to(device=args.device)
-    net = nn.DataParallel(net, device_ids=args.device_ids)
-
+def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader, log: Log, args: argparse.Namespace):
     optimizer_scheduler_manager = OptimizerSchedulerManager(
-        net.module,
+        net,
         len(train_loader) * args.epochs_pretrain,
         args.lr_block
     )
@@ -51,17 +28,17 @@ def train_model(log: Log, args: argparse.Namespace):
             optimizer_scheduler_manager.load_state_dict(checkpoint)
 
             if (
-                torch.mean(net.module.layers.classification_layer.weight).item() > 1.0
-                and torch.mean(net.module.layers.classification_layer.weight).item() < 3.0
-                and torch.count_nonzero(torch.relu(net.module.layers.classification_layer.weight - 1e-5)).float().item()
+                torch.mean(net.layers.classification_layer.weight).item() > 1.0
+                and torch.mean(net.layers.classification_layer.weight).item() < 3.0
+                and torch.count_nonzero(torch.relu(net.layers.classification_layer.weight - 1e-5)).float().item()
                     > 0.8 * (args.num_prototypes * args.num_classes)
             ):  # assume that the linear classification layer is not yet trained (e.g. when loading a pretrained backbone only)
                 log.warning("We assume that the classification layer is not yet trained. We re-initialize it...")
-                net.module.init_classifier_weights()
+                net.init_classifier_weights()
 
         else:
-            net.module.init_add_on_weights()
-            net.module.init_classifier_weights()
+            net.init_add_on_weights()
+            net.init_classifier_weights()
 
     # Define classification loss function
     # Infer class weights from the dataset
@@ -92,7 +69,7 @@ def train_model(log: Log, args: argparse.Namespace):
         log.info(f"Pretrain Epoch {epoch} with batch size {train_loader.batch_size}")
 
         # Pretrain prototypes
-        net.module.pretrain()
+        net.pretrain()
         train_info = train(
             args,
             log,
@@ -117,7 +94,7 @@ def train_model(log: Log, args: argparse.Namespace):
     # for second training phase
     if args.epochs_pretrain > 0 or args.pretrained_net_state_dict_dir is None:
         optimizer_scheduler_manager = OptimizerSchedulerManager(
-            net.module,
+            net,
             len(train_loader) * args.epochs,
             args.lr_net,
         )
@@ -130,28 +107,28 @@ def train_model(log: Log, args: argparse.Namespace):
         ):
             # during fine-tuning, only train classification layer and freeze rest.
             # usually done for a few epochs (at least 1, more depends on size of dataset)
-            net.module.finetune()
+            net.finetune()
         elif epoch <= args.freeze_epochs:
             # freeze first layers of backbone, train rest
-            net.module.freeze()
+            net.freeze()
         else:
             # unfreeze backbone
-            net.module.unfreeze()
+            net.unfreeze()
 
-        log.info(f"Epoch {epoch} first layers of backbone frozen: {net.module.train_phase in [TrainPhase.FINETUNE, TrainPhase.FREEZE_FIRST_LAYERS]}")
+        log.info(f"Epoch {epoch} first layers of backbone frozen: {net.train_phase in [TrainPhase.FINETUNE, TrainPhase.FREEZE_FIRST_LAYERS]}")
         if (epoch == args.epochs or epoch % 30 == 0) and args.epochs > 1:
             # SET SMALL WEIGHTS TO ZERO
             with torch.no_grad():
                 torch.set_printoptions(profile="full")
-                net.module.layers.classification_layer.weight.copy_(
-                    torch.clamp(net.module.layers.classification_layer.weight.data - 0.001, min=0.0)
+                net.layers.classification_layer.weight.copy_(
+                    torch.clamp(net.layers.classification_layer.weight.data - 0.001, min=0.0)
                 )
-                cls_w = net.module.layers.classification_layer.weight[
-                    net.module.layers.classification_layer.weight.nonzero(as_tuple=True)
+                cls_w = net.layers.classification_layer.weight[
+                    net.layers.classification_layer.weight.nonzero(as_tuple=True)
                 ]
                 log.debug(f"Classifier weights:\n{cls_w}\n{cls_w.shape}")
                 if args.bias:
-                    cls_b = net.module.layers.classification_layer.bias
+                    cls_b = net.layers.classification_layer.bias
                     log.debug(f"Classifier bias: {cls_b}", flush=True)
                 torch.set_printoptions(profile="default")
 
@@ -184,27 +161,16 @@ def train_model(log: Log, args: argparse.Namespace):
                 net.eval()
                 log.model_checkpoint(get_checkpoint(), f"net_trained_{epoch}")
 
-    nonzero_weights = net.module.layers.classification_layer.weight[net.module.layers.classification_layer.weight.nonzero(as_tuple=True)]
-    log.debug(f"Classifier weights:\n{net.module.layers.classification_layer.weight}")
+    nonzero_weights = net.layers.classification_layer.weight[net.layers.classification_layer.weight.nonzero(as_tuple=True)]
+    log.debug(f"Classifier weights:\n{net.layers.classification_layer.weight}")
     log.debug(f"Classifier weights nonzero:\n{nonzero_weights}\n{nonzero_weights.shape}")
-    log.debug(f"Classifier bias:\n{net.module.layers.classification_layer.bias}")
+    log.debug(f"Classifier bias:\n{net.layers.classification_layer.bias}")
     # Print weights and relevant prototypes per class
-    for c in range(net.module.layers.classification_layer.weight.shape[0]):
+    for c in range(net.layers.classification_layer.weight.shape[0]):
         relevant_ps = []
-        proto_weights = net.module.layers.classification_layer.weight[c, :]
-        for p in range(net.module.layers.classification_layer.weight.shape[1]):
+        proto_weights = net.layers.classification_layer.weight[c, :]
+        for p in range(net.layers.classification_layer.weight.shape[1]):
             if proto_weights[p] > 1e-3:
                 relevant_ps.append((p, proto_weights[p].item()))
-
-    with torch.no_grad():
-        if args.visualize_topk:
-            topks = visualize_top_k(
-                net,
-                train_loader_visualization,
-                "visualised_pretrained_prototypes_topk",
-                args,
-                log,
-            )
-
 
     log.info("Done!")

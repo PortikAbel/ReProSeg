@@ -1,5 +1,4 @@
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -14,7 +13,7 @@ from .eval import compute_absained, compute_cm, acc_from_cm
 def eval(
     args: argparse.Namespace,
     log: Log,
-    net: nn.DataParallel[ReProSeg],
+    net: ReProSeg,
     test_loader: DataLoader,
     epoch,
     progress_prefix: str = "Eval Epoch",
@@ -58,8 +57,8 @@ def eval(
     abstained /= len(test_iter)
     log.info(f"model abstained from a decision for {abstained.item()*100}% of images")
 
-    num_nonzero_prototypes = torch.count_nonzero(F.relu(net.module.layers.classification_layer.weight - 1e-3)).item()
-    num_prototypes = torch.numel(net.module.layers.classification_layer.weight)
+    num_nonzero_prototypes = torch.count_nonzero(F.relu(net.layers.classification_layer.weight - 1e-3)).item()
+    num_prototypes = torch.numel(net.layers.classification_layer.weight)
     log.info(f"sparsity ratio: {(num_prototypes - num_nonzero_prototypes) / num_prototypes}")
 
     eval_info["abstained"] = abstained.item()

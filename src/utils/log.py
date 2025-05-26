@@ -122,6 +122,7 @@ class Log(BasicLog):
         self.metadata_dir.mkdir(parents=True, exist_ok=True)
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         self.tensorboard_dir.mkdir(parents=True, exist_ok=True)
+        self.prototypes_dir.mkdir(parents=True, exist_ok=True)
 
         self._tqdm_file = (self._log_dir / "tqdm.txt").open(mode="w")
         self._tensorboard_writer = SummaryWriter(log_dir=self.tensorboard_dir)
@@ -141,6 +142,10 @@ class Log(BasicLog):
     @property
     def tensorboard_dir(self):
         return self._log_dir / "tensorboard"
+    
+    @property
+    def prototypes_dir(self):
+        return self._log_dir / "prototypes"
     
     def tb_scalar(self, tag, value, step):
         self._tensorboard_writer.add_scalar(tag, value, step)
