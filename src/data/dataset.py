@@ -1,7 +1,6 @@
 import numpy as np
 from torch.utils.data import Dataset
-from torchvision.transforms.v2 import Compose, Lambda, ToImage
-from torchvision.datasets import Cityscapes
+from torchvision.transforms.v2 import Compose
 
 from data.transforms import Transforms
 

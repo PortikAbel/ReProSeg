@@ -52,8 +52,9 @@ class ReProSegLayers(nn.Module):
         self.aspp_convs = aspp_convs
         
         self.shared_weights = self.aspp_convs[0][0].weight
+        # set shared weights to all aspp convolutions
         for conv in self.aspp_convs:
-            del conv[0].weight
+            conv[0].weight.data = self.shared_weights
 
         first_add_on_layer_in_channels = [
             m for m in aspp_convs.modules() if isinstance(m, nn.Conv2d)
@@ -101,10 +102,6 @@ class ReProSeg(nn.Module):
         self._init_param_groups()
 
     def forward(self, xs, inference=False):
-        # set shared weights to all aspp convolutions
-        for conv in self.layers.aspp_convs:
-            conv[0].weight = self.layers.shared_weights.clone()
-
         backbone_features = self.layers.feature_net(xs)["out"]
         # (b x num_prototypes x num_scales x h x w)
         aspp_features = torch.cat([conv(backbone_features) for conv in self.layers.aspp_convs], dim=0)
@@ -154,6 +151,13 @@ class ReProSeg(nn.Module):
                     param.requires_grad = False
         else:
             self._log.warning("Layer groups not implemented for selected backbone architecture.")
+
+        self.param_groups["to_train"].append(self.layers.shared_weights)
+        for name, param in self.layers.aspp_convs.named_parameters():
+            if "weight" in name:
+                self.param_groups["to_train"].append(param)
+            elif "bias" in name and self._args.bias:
+                self.param_groups["to_train"].append(param)
         self.param_groups["classification_weight"] = []
         self.param_groups["classification_bias"] = []
         for name, param in self.layers.classification_layer.named_parameters():

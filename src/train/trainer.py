@@ -68,7 +68,7 @@ def train_model(log: Log, args: argparse.Namespace):
     class_counts_path = Path(__file__).parent.parent / "data" / "class_counts.npy"
     if class_counts_path.is_file():
         class_counts = np.load(class_counts_path)
-        log.info(f"Loaded class counts from {class_counts_path}:\n{class_counts}")
+        log.info(f"Loaded class counts from {class_counts_path}: {class_counts}")
     else:
         from data.count_class_distribution import count_class_distribution
         class_counts = count_class_distribution(args, log, class_counts_path)
