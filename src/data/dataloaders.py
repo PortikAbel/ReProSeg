@@ -65,7 +65,7 @@ def get_dataloaders(log: Log, args: Namespace) -> tuple[DataLoader, DataLoader, 
 
     args.num_classes = len(train_loader.dataset.dataset.classes)
 
-    log.info(f"Num classes (k) = {args.num_classes} {train_loader.dataset.dataset.classes[:5],} etc.")
+    log.info(f"Num classes (k) = {args.num_classes} {[c.name for c in train_loader.dataset.dataset.classes[:5]],} etc.")
 
     return (
         train_loader,
