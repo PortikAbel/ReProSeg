@@ -21,8 +21,8 @@ def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader,
 
     # Initialize or load model
     with torch.no_grad():
-        if args.pretrained_net_state_dict_dir is not None:
-            checkpoint = torch.load(args.pretrained_net_state_dict_dir / "net_pretrained", map_location=args.device)
+        if args.model_checkpoint is not None:
+            checkpoint = torch.load(args.model_checkpoint, map_location=args.device)
             net.load_state_dict(checkpoint["model_state_dict"], strict=True)
             log.info("Pretrained network loaded")
             optimizer_scheduler_manager.load_state_dict(checkpoint)
@@ -85,14 +85,14 @@ def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader,
         checkpoint["model_state_dict"] = net.state_dict()
         return checkpoint
 
-    if args.pretrained_net_state_dict_dir is None:
+    if args.model_checkpoint is None:
         net.eval()
         log.model_checkpoint(get_checkpoint(), "net_pretrained")
         net.train()
 
     # SECOND TRAINING PHASE re-initialize optimizers and schedulers
     # for second training phase
-    if args.epochs_pretrain > 0 or args.pretrained_net_state_dict_dir is None:
+    if args.epochs_pretrain > 0 or args.model_checkpoint is None:
         optimizer_scheduler_manager = OptimizerSchedulerManager(
             net,
             len(train_loader) * args.epochs,
@@ -103,7 +103,7 @@ def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader,
 
     for epoch in range(1, args.epochs + 1):
         if epoch <= args.epochs_finetune and (
-            args.epochs_pretrain > 0 or args.pretrained_net_state_dict_dir is not None
+            args.epochs_pretrain > 0 or args.model_checkpoint is not None
         ):
             # during fine-tuning, only train classification layer and freeze rest.
             # usually done for a few epochs (at least 1, more depends on size of dataset)

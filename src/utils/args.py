@@ -93,9 +93,9 @@ def define_parser() -> argparse.ArgumentParser:
         "Default is deeplab_v3",
     )
     net_group.add_argument(
-        "--pretrained_net_state_dict_dir",
+        "--model_checkpoint",
         type=Path,
-        help="The directory containing a state dict with a pretrained ReProSeg."
+        help="The state dict of (pre)trained ReProSeg."
     )
 
     net_parameter_group = parser.add_argument_group(
