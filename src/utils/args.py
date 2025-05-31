@@ -30,6 +30,12 @@ def define_parser() -> argparse.ArgumentParser:
         default=8,
         help="Num workers in dataloaders.",
     )
+    parser.add_argument(
+        "--skip_training",
+        action="store_true",
+        help="Flag that skips training and only visualizes the prototypes "
+        "and predictions.",
+    )
 
     gpu_group = parser.add_argument_group("GPU", "Specifies the GPU settings")
     gpu_group.add_argument(
