@@ -53,11 +53,7 @@ class ModelVisualizer:
         )
         for i, (xs, ys) in img_iter:
             xs, ys = xs.to(self.args.device), ys.to(self.args.device)
-            _aspp, aspp_maxpooled, _out = self.net(xs, inference=True)
-            # b here is 1 (dataloader loads 1 image at a time)
-            # aspp.shape           = (b, num_prototypes, channels, w, h)
-            # aspp_maxpooled.shape = (b, num_prototypes, w, h)
-            # out.shape            = (b, num_class, input_w, input_h)
+            _aspp, aspp_maxpooled, _out = self.net(xs)
 
             aspp_maxpooled = aspp_maxpooled.squeeze(0)
             aspp_maxpooled_sum = aspp_maxpooled.sum(dim=(1,2))
@@ -122,11 +118,10 @@ class ModelVisualizer:
             image = resize_image(image)
 
             xs, ys = xs.to(self.args.device), ys.to(self.args.device)
-            aspp, _aspp_maxpooled, _out = self.net(xs, inference=True)
-            aspp = aspp.squeeze(0)
+            prototype_activations = self.net.interpolate_prototype_activations(xs)
 
             for p in i_to_p[i]:
-                alpha = self._interpolate_prototypes(aspp[p]).unsqueeze(0)
+                alpha = prototype_activations[p]
                 prototype_img = torch.cat((image, alpha), 0)
                 tensors_per_prototype[p].append(prototype_img)
 
@@ -161,149 +156,3 @@ class ModelVisualizer:
             torchvision.utils.save_image(grid, self.log.prototypes_dir / f"grid_top_{k}_prototype_activations.png")
         else:
             self.log.warning("Pretrained prototypes not visualized. Try to pretrain longer.")
-
-    def _interpolate_prototypes(self, activations: torch.Tensor) -> torch.Tensor:
-        max_scale = torch.argmax(activations, dim=(0))
-        scales = activations.shape[0]
-        
-        interpolated_activations = torch.zeros(self.image_shape, device=activations.device)
-        upscale = transforms.Resize(size=self.image_shape, interpolation=transforms.InterpolationMode.NEAREST_EXACT)
-        for scale in range(scales):
-            activations[scale, max_scale!=scale]=0
-            padding = scale + 1
-            max_pool = torch.nn.MaxPool2d(kernel_size=2*padding+1, padding=padding, stride=1)
-            scaled_activations = upscale(max_pool(activations[scale].unsqueeze(0))).squeeze(0)
-            interpolated_activations = torch.maximum(interpolated_activations, scaled_activations)
-
-        interpolated_activations = interpolated_activations.where(
-            interpolated_activations >= interpolated_activations.mean(), 0)
-        interpolated_activations /= interpolated_activations.max()
-
-        return interpolated_activations
-
-
-    def visualize_predictions(
-        self,
-        projectloader,
-    ):
-        print("Visualizing prototypes...", flush=True)
-        result_dir = args.log_dir / foldername
-        result_dir.mkdir(parents=True, exist_ok=True)
-
-        near_imgs_dirs = dict()
-        seen_max = dict()
-        saved = dict()
-        saved_ys = dict()
-        tensors_per_prototype = dict()
-        abstainedimgs = set()
-        notabstainedimgs = set()
-
-        for p in range(net._num_prototypes):
-            near_imgs_dir = result_dir / str(p)
-            near_imgs_dirs[p] = near_imgs_dir
-            seen_max[p] = 0.0
-            saved[p] = 0
-            saved_ys[p] = []
-            tensors_per_prototype[p] = []
-
-        imgs = projectloader.dataset.imgs
-
-        # Make sure the model is in evaluation mode
-        net.eval()
-        classification_weights = net._classification.weight
-        # Show progress on progress bar
-        img_iter = tqdm(
-            enumerate(projectloader),
-            total=len(projectloader),
-            mininterval=100.0,
-            desc="Visualizing",
-            ncols=0,
-            file=log.tqdm_file,
-        )
-
-        # Iterate through the data
-        images_seen_before = 0
-        for i, (xs, ys) in img_iter:  # shuffle is false so should lead to same order as in imgs
-            xs, ys = xs.to(device), ys.to(device)
-            # Use the model to classify this batch of input data
-            with torch.no_grad():
-                softmaxes, _, out = net(xs, inference=True)
-
-            max_per_prototype, max_idx_per_prototype = torch.max(softmaxes, dim=0)
-            # In PyTorch, images are represented as [channels, height, width]
-            max_per_prototype_h, max_idx_per_prototype_h = torch.max(
-                max_per_prototype, dim=1
-            )
-            max_per_prototype_w, max_idx_per_prototype_w = torch.max(
-                max_per_prototype_h, dim=1
-            )
-            for p in range(0, net._num_prototypes):
-                c_weight = torch.max(
-                    classification_weights[:, p]
-                )  # ignore prototypes that are not relevant to any class
-                if c_weight > 0:
-                    h_idx = max_idx_per_prototype_h[p, max_idx_per_prototype_w[p]]
-                    w_idx = max_idx_per_prototype_w[p]
-                    idx_to_select = max_idx_per_prototype[p, h_idx, w_idx].item()
-                    found_max = max_per_prototype[p, h_idx, w_idx].item()
-
-                    img_name = imgs[images_seen_before + idx_to_select]
-                    if out.max() < 1e-8:
-                        abstainedimgs.add(img_name)
-                    else:
-                        notabstainedimgs.add(img_name)
-
-                    if found_max > seen_max[p]:
-                        seen_max[p] = found_max
-
-                    if found_max > 0.5:
-                        img_to_open = imgs[images_seen_before + idx_to_select]
-                        if isinstance(img_to_open, tuple) or isinstance(
-                            img_to_open, list
-                        ):  # dataset contains tuples of (img,label)
-                            img_label = img_to_open[1]
-                            img_to_open = img_to_open[0]
-
-                        (
-                            image,
-                            img_tensor_patch,
-                            h_coord_max,
-                            h_coord_min,
-                            w_coord_max,
-                            w_coord_min,
-                        ) = get_patch(img_to_open, args, h_idx, w_idx, softmaxes)
-                        saved[p] += 1
-                        tensors_per_prototype[p].append((img_tensor_patch, found_max))
-
-                        save_path = result_dir / f"prototype_{p}"
-                        save_path.mkdir(parents=True, exist_ok=True)
-
-                        draw = D.Draw(image)
-                        draw.rectangle(
-                            ((w_coord_min, h_coord_min), (w_coord_max, h_coord_max)),
-                            outline="yellow",
-                            width=2,
-                        )
-                        image.save(
-                            save_path
-                            / f"p{p}_{img_label}_{round(found_max, 2)}_{img_to_open.stem}"
-                            f"_rect.png"
-                        )
-
-            images_seen_before += len(ys)
-
-        print("num images abstained: ", len(abstainedimgs), flush=True)
-        print("num images not abstained: ", len(notabstainedimgs), flush=True)
-        for p in range(net._num_prototypes):
-            if saved[p] > 0:
-                try:
-                    sorted_by_second = sorted(
-                        tensors_per_prototype[p],
-                        key=lambda tup: tup[1],
-                        reverse=True,
-                    )
-                    sorted_ps = [i[0] for i in sorted_by_second]
-                    grid = torchvision.utils.make_grid(sorted_ps, nrow=16, padding=1)
-                    torchvision.utils.save_image(grid, result_dir / f"grid_{p}.png")
-                except RuntimeError:
-                    pass

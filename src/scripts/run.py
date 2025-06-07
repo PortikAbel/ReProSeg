@@ -38,13 +38,9 @@ if not model_args.skip_training:
     except Exception as e:
         log.exception(e)
 
-if model_args.visualize_prototypes or model_args.visualize_predictions:
+if model_args.visualize_prototypes:
     from visualize.visualizer import ModelVisualizer
     visualizer = ModelVisualizer(net, model_args, log)
-
-    if model_args.visualize_prototypes:
-        visualizer.visualize_prototypes(train_loader_visualization, k=model_args.visualize_top_k)
-    if model_args.visualize_predictions:
-        visualizer.visualize_predictions(test_loader)
+    visualizer.visualize_prototypes(train_loader_visualization, k=model_args.visualize_top_k)
 
 log.close()
