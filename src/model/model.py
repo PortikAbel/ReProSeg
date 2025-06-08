@@ -124,24 +124,22 @@ class ReProSeg(nn.Module):
     
     def interpolate_prototype_activations(self, xs: torch.Tensor) -> torch.Tensor:
         assert xs.shape[0] == 1, "Only one image can be processed at a time for interpolation."
+
+        original_shape = xs.shape[2:]
+
         activations = self.forward(xs, inference=True)[0].squeeze(0)  # (num_prototypes x scales x h x w)
         activations = activations.permute(1, 0, 2, 3)  # (scales x num_prototypes x h x w)
         max_scale = torch.argmax(activations, dim=(0))
         scales = activations.shape[0]
         
-        interpolated_activations = torch.zeros(self.image_shape, device=activations.device)
-        upscale = transforms.Resize(size=self.image_shape, interpolation=transforms.InterpolationMode.NEAREST_EXACT)
+        interpolated_activations = torch.zeros(original_shape, device=activations.device)
+        upscale = transforms.Resize(size=original_shape, interpolation=transforms.InterpolationMode.NEAREST_EXACT)
         for scale in range(scales):
             activations[scale, max_scale!=scale]=0
             padding = scale + 1
             max_pool = torch.nn.MaxPool2d(kernel_size=2*padding+1, padding=padding, stride=1)
             scaled_activations = upscale(max_pool(activations[scale].unsqueeze(0))).squeeze(0)
             interpolated_activations = torch.maximum(interpolated_activations, scaled_activations)
-
-        interpolated_activations = interpolated_activations.where(
-            interpolated_activations >= interpolated_activations.mean(), 0)
-        interpolated_activations /= interpolated_activations.max()
-
         return interpolated_activations
     
     def init_add_on_weights(self):

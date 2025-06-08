@@ -1,7 +1,10 @@
 import argparse
 import random
 from collections import defaultdict
-from queue import PriorityQueue
+import heapq
+import os
+import pickle
+from functools import partial
 
 import numpy as np
 import torch
@@ -18,124 +21,142 @@ from data.config import DATASETS
 
 
 class ModelVisualizer:
-    def __init__(self, net: ReProSeg, args: argparse.Namespace, log: Log):
+    topks: dict[int, list]
+    i_to_p: dict
+    tensors_per_prototype: dict[int, list]
+
+    MIN_CLASSIFICATION_WEIGHT = 1e-3
+    MIN_ACTIVATION_SCORE = 0.1
+
+    def __init__(self, net: ReProSeg, args: argparse.Namespace, log: Log, k: int = 10):
         self.net = net
         self.args = args
         self.log = log
         self.image_shape = DATASETS[args.dataset]["img_shape"]
+        self.k = k
 
-    @torch.no_grad()
-    def visualize_prototypes(
-        self,
-        train_loader_visualization,
-        k=10,
-    ):
-        self.log.info(f"Visualizing top {k} prototypes for each class...")
+    def collect_topk_prototype_activations(self, train_loader_visualization):
+        topks_path = self.log.prototypes_dir / f"topks_k{self.k}.pkl"
+        if os.path.exists(topks_path):
+            self.log.info(f"Loading top {self.k} prototype activations from {topks_path}")
+            with open(topks_path, 'rb') as f:
+                self.topks = pickle.load(f)
+            return
 
-        self.net.eval()
+        self.log.info(f"Collecting top {self.k} prototype activations for each class...")
         classification_weights = self.net.layers.classification_layer.weight
-        # classification_weights.shape = (num_class, num_prototypes, 1, 1)
-
         prototypes_not_used = []
-        topks: dict[int, PriorityQueue] = defaultdict(lambda: PriorityQueue(maxsize=k))
+        self.topks = defaultdict(list)
 
-        MIN_CLASSIFICATION_WEIGHT = 1e-3
-        MIN_ACTIVATION_SCORE = 0.1
-
-        # Iterate through the dataset to collect top-k activations from images of each prototype
         img_iter = tqdm(
             enumerate(train_loader_visualization),
             total=len(train_loader_visualization),
             mininterval=100.0,
-            desc=f"Searching for top {k} prototype activations",
+            desc=f"Searching for top {self.k} prototype activations",
             ncols=0,
             file=self.log.tqdm_file,
         )
         for i, (xs, ys) in img_iter:
             xs, ys = xs.to(self.args.device), ys.to(self.args.device)
             _aspp, aspp_maxpooled, _out = self.net(xs)
-
             aspp_maxpooled = aspp_maxpooled.squeeze(0)
             aspp_maxpooled_sum = aspp_maxpooled.sum(dim=(1,2))
-
             for p in range(self.net.num_prototypes):
-                # iterating over each prototype's sum
-                if torch.max(classification_weights[:, p]) < MIN_CLASSIFICATION_WEIGHT:
-                    # ignore prototypes that are not relevant to any class
+                if torch.max(classification_weights[:, p]) < self.MIN_CLASSIFICATION_WEIGHT:
+                    if p not in prototypes_not_used:
+                        prototypes_not_used.append(p)
                     continue
-
-                if not topks[p].full():
-                    topks[p].put((aspp_maxpooled_sum[p].item(), i))
-                elif topks[p].queue[0][0] < aspp_maxpooled_sum[p].item():
-                    # equal scores. randomly chose one
-                    # (since dataset is not shuffled so latter images
-                    # with same scores can now also get in topk).
-                    replace_choice = random.choice([0, 1])
-                    if replace_choice > 0:
-                        topks[p].get()
-                        topks[p].put((aspp_maxpooled_sum[p].item(), i))
+                score = aspp_maxpooled_sum[p].item()
+                if len(self.topks[p]) < self.k:
+                    heapq.heappush(self.topks[p], (score, i))
+                else:
+                    heapq.heappushpop(self.topks[p], (score, i))
         self.log.info(
             f"{len(prototypes_not_used)} prototypes do not have"
-            f"any class connection > {MIN_CLASSIFICATION_WEIGHT}. "
-            "Will be ignored in visualisation.",
+            f" any class connection > {self.MIN_CLASSIFICATION_WEIGHT}. "
+            "Will be ignored in visualisation."
         )
-        already_ignored_count = len(prototypes_not_used)
-    
-        i_to_p: dict = defaultdict(list)
-        for p in topks.keys():
-            scores, img_idxs = zip(*topks[p].queue)
-            if any(np.array(scores) > MIN_ACTIVATION_SCORE):
-                for i in img_idxs:
-                    i_to_p[i].append(p)
-            else:
-                prototypes_not_used.append(p)
-        self.log.info(
-            f"{len(prototypes_not_used)-already_ignored_count} prototypes do not have"
-            f"any similarity score > {MIN_ACTIVATION_SCORE}. "
-            "Will be ignored in visualisation.",
-        )
+        # Save to file
+        with open(topks_path, 'wb') as f:
+            pickle.dump(self.topks, f)
 
-        tensors_per_prototype: dict[int, list] = defaultdict(list)
+    def map_images_to_prototypes(self):
+        i_to_p_path = self.log.prototypes_dir / f"i_to_p.pkl"
+        if os.path.exists(i_to_p_path):
+            self.log.info(f"Loading image to prototype mapping from {i_to_p_path}")
+            with open(i_to_p_path, 'rb') as f:
+                self.i_to_p = pickle.load(f)
+            return 
+        
+        self.log.info("Mapping images to prototypes based on topk activations...")
+        prototypes_not_activated = []
+        self.i_to_p = defaultdict(list)
+        for p in self.topks.keys():
+            scores, img_idxs = zip(*self.topks[p])
+            if any(np.array(scores) > self.MIN_ACTIVATION_SCORE):
+                for i in img_idxs:
+                    self.i_to_p[i].append(p)
+            else:
+                prototypes_not_activated.append(p)
+        self.log.info(
+            f"{len(prototypes_not_activated)} prototypes do not have"
+            f" any similarity score > {self.MIN_ACTIVATION_SCORE}. "
+            "Will be ignored in visualisation."
+        )
+        with open(i_to_p_path, 'wb') as f:
+            pickle.dump(self.i_to_p, f)
+
+    def collect_prototype_tensors(self, train_loader_visualization):
+        proto_dir = self.log.prototypes_dir
+        tensors_path = proto_dir / f"tensors_per_prototype_k{self.k}.pkl"
+        if os.path.exists(tensors_path):
+            self.log.info(f"Loading prototype tensors from {tensors_path}")
+            with open(tensors_path, 'rb') as f:
+                self.tensors_per_prototype = pickle.load(f)
+            return
+        
+        self.log.info(f"Collecting prototype tensors for top {self.k} activations...")
+        self.tensors_per_prototype = defaultdict(list)
         resize_image = transforms.Resize(size=tuple(self.image_shape))
         pil_to_tensor = transforms.ToTensor()
-
         img_iter = tqdm(
             enumerate(train_loader_visualization),
             total=len(train_loader_visualization),
             mininterval=100.0,
-            desc=f"Collecting top {k} activations for each prototype",
+            desc=f"Collecting top {self.k} activations for each prototype",
             ncols=0,
             file=self.log.tqdm_file,
         )
         for i, (xs, ys) in img_iter:
-            if i not in i_to_p.keys():
-                # skip images that do not have any top-k prototype activations
+            if i not in self.i_to_p.keys():
                 continue
-
-            # open original image
             img_to_open = train_loader_visualization.dataset.images[i]
-            image = pil_to_tensor(Image.open(img_to_open).convert("RGB")).to(self.args.device)
+            image = pil_to_tensor(Image.open(img_to_open).convert("RGB"))
             image = resize_image(image)
-
             xs, ys = xs.to(self.args.device), ys.to(self.args.device)
             prototype_activations = self.net.interpolate_prototype_activations(xs)
-
-            for p in i_to_p[i]:
-                alpha = prototype_activations[p]
+            for p in self.i_to_p[i]:
+                alpha = prototype_activations[p].unsqueeze(0).to(image.device)
+                alpha = alpha.where(alpha >= alpha.mean(), 0)
+                alpha /= alpha.max()
                 prototype_img = torch.cat((image, alpha), 0)
-                tensors_per_prototype[p].append(prototype_img)
+                self.tensors_per_prototype[p].append(prototype_img)
+        with open(tensors_path, 'wb') as f:
+            pickle.dump(self.tensors_per_prototype, f)
 
+    def render_prototype_activations(self):
+        self.log.info(f"Saving top {self.k} prototype activations to images...")
         all_tensors = []
         prototype_iter = tqdm(
-            tensors_per_prototype.items(),
-            total=len(tensors_per_prototype),
+            self.tensors_per_prototype.items(),
+            total=len(self.tensors_per_prototype),
             mininterval=100.0,
-            desc=f"Visualizing top {k} activations of prototypes",
+            desc=f"Visualizing top {self.k} activations of prototypes",
             ncols=0,
             file=self.log.tqdm_file,
         )
+        pil_to_tensor = transforms.ToTensor()
         for p, prototype_tensors in prototype_iter:
-            # add text next to each topk-grid, to easily see which prototype it is
             txt_image = Image.new("RGBA", self.image_shape[::-1], (0, 0, 0))
             draw = D.Draw(txt_image)
             draw.text(
@@ -144,15 +165,22 @@ class ModelVisualizer:
                 anchor="mm",
                 fill="white",
             )
-            txt_tensor = pil_to_tensor(txt_image).to(self.args.device)
+            txt_tensor = pil_to_tensor(txt_image)
             prototype_tensors.append(txt_tensor)
-            # save top-k image patches in grid
-            grid = torchvision.utils.make_grid(prototype_tensors, nrow=k + 1, padding=1)
-            torchvision.utils.save_image(grid, self.log.prototypes_dir / f"grid_top_{k}_activations_of_prototype_{p}.png")
+            grid = torchvision.utils.make_grid(prototype_tensors, nrow=self.k + 1, padding=1)
+            torchvision.utils.save_image(grid, self.log.prototypes_dir / f"grid_top_{self.k}_activations_of_prototype_{p}.png")
             all_tensors += prototype_tensors
-        
         if len(all_tensors) > 0:
-            grid = torchvision.utils.make_grid(all_tensors, nrow=k + 1, padding=1)
-            torchvision.utils.save_image(grid, self.log.prototypes_dir / f"grid_top_{k}_prototype_activations.png")
+            grid = torchvision.utils.make_grid(all_tensors, nrow=self.k + 1, padding=1)
+            torchvision.utils.save_image(grid, self.log.prototypes_dir / f"grid_top_{self.k}_prototype_activations.png")
         else:
             self.log.warning("Pretrained prototypes not visualized. Try to pretrain longer.")
+
+    @torch.no_grad()
+    def visualize_prototypes(self, train_loader_visualization):
+        self.log.info(f"Visualizing top {self.k} prototypes for each class...")
+        self.net.eval()
+        self.collect_topk_prototype_activations(train_loader_visualization)
+        self.map_images_to_prototypes()
+        self.collect_prototype_tensors(train_loader_visualization)
+        self.render_prototype_activations()

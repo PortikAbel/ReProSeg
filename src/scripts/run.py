@@ -40,7 +40,7 @@ if not model_args.skip_training:
 
 if model_args.visualize_prototypes:
     from visualize.visualizer import ModelVisualizer
-    visualizer = ModelVisualizer(net, model_args, log)
-    visualizer.visualize_prototypes(train_loader_visualization, k=model_args.visualize_top_k)
+    visualizer = ModelVisualizer(net, model_args, log, k=model_args.visualize_top_k)
+    visualizer.visualize_prototypes(train_loader_visualization)
 
 log.close()
