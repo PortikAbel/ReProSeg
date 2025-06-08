@@ -346,6 +346,10 @@ class ModelTrainerArgumentParser:
             warnings.warn(f"No loss function specified. Using JSD loss by default")
             self._args.jsd_loss = 5.0
 
+        if  self._args.model_checkpoint:
+            warnings.warn("Logging directory is set to the parent of the model checkpoint directory")
+            self._args.log_dir =  self._args.model_checkpoint.parent.parent
+
         return self._args
 
     def save_args(self, directory_path: Path) -> None:
@@ -359,8 +363,14 @@ class ModelTrainerArgumentParser:
         # If the specified directory does not exist, create it
         if not directory_path.exists():
             directory_path.mkdir(parents=True, exist_ok=True)
+        file_name = "args"
+        if (directory_path / f"{file_name}.txt").exists():
+            idx = 1
+            while (directory_path / f"{file_name}_{idx}.txt").exists():
+                idx += 1
+            file_name = f"{file_name}_{idx}"
         # Save the args in a text file
-        with (directory_path / "args.txt").open(mode="w") as f:
+        with (directory_path / f"{file_name}.txt").open(mode="w") as f:
             for arg in vars(self._args):
                 val = getattr(self._args, arg)
                 if isinstance(val, str):
@@ -369,5 +379,5 @@ class ModelTrainerArgumentParser:
                     val = f'"{val}"'
                 f.write(f"{arg}: {val}\n")
         # Pickle the args for possible reuse
-        with (directory_path / "args.pickle").open(mode="wb") as f:
+        with (directory_path / f"{file_name}.pickle").open(mode="wb") as f:
             pickle.dump(self._args, f)
