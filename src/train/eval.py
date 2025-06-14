@@ -34,10 +34,9 @@ def compute_cm(out: torch.Tensor, ys: torch.Tensor) -> torch.Tensor:
     ys_true = ys.squeeze(1)
 
     mask_labeled = ys_true != 0
-    mask_non_abstained = max_out_score > 0
     
-    y_true_flat = ys_true[mask_labeled & mask_non_abstained]
-    y_pred_flat = ys_pred[mask_labeled & mask_non_abstained]
+    y_true_flat = ys_true[mask_labeled]
+    y_pred_flat = ys_pred[mask_labeled]
 
     n_classes = out.shape[1]
     
@@ -59,3 +58,17 @@ def acc_from_cm(cm: torch.Tensor) -> float:
     total = cm.sum()
 
     return 1 if total == 0 else correct / total
+
+def iou_from_cm(cm: torch.Tensor) -> float:
+    """
+    Compute the IoU from the confusion matrix
+    :param cm: confusion matrix
+    :return: the IoU score
+    """
+    assert len(cm.shape) == 2 and cm.shape[0] == cm.shape[1]
+
+    intersection = cm.diagonal()
+    union = (cm + cm.T).sum(dim=0) - intersection
+
+    iou = intersection / union
+    return iou.mean().item() if iou.numel() > 0 else 1

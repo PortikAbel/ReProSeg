@@ -144,6 +144,7 @@ def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader,
         # Evaluate model
         eval_info = eval(args, log, net, test_loader, epoch)
         log.tb_scalar("Acc/eval-epochs", eval_info["test_accuracy"], epoch)
+        log.tb_scalar("mIoU/eval-epochs", eval_info["test_miou"], epoch)
         log.tb_scalar("Acc/train-epochs", train_info["train_accuracy"], epoch)
         log.tb_scalar("Loss/train-epochs", train_info["loss"], epoch)
         log.tb_scalar("Abstained", eval_info["abstained"], epoch)
@@ -155,11 +156,12 @@ def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader,
             if eval_info["test_accuracy"] > best_acc:
                 best_acc = eval_info["test_accuracy"]
                 log.info(f"Best accuracy so far: {best_acc}")
-                log.model_checkpoint(get_checkpoint(), "net_trained_best")
+                log.model_checkpoint(get_checkpoint(), "net_trained_best_acc")
 
-            if epoch % 30 == 0:
-                net.eval()
-                log.model_checkpoint(get_checkpoint(), f"net_trained_{epoch}")
+            if eval_info["test_miou"] > best_miou:
+                best_miou = eval_info["test_miou"]
+                log.info(f"Best mIoU so far: {best_miou}")
+                log.model_checkpoint(get_checkpoint(), "net_trained_best_miou")
 
     nonzero_weights = net.layers.classification_layer.weight[net.layers.classification_layer.weight.nonzero(as_tuple=True)]
     log.debug(f"Classifier weights:\n{net.layers.classification_layer.weight}")

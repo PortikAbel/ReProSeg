@@ -17,7 +17,6 @@ class OptimizerSchedulerManager:
             self.optimizer_classifier,
             T_0=5,
             eta_min=0.001,
-            verbose=False,
         )
 
     def load_state_dict(self, state_dict):

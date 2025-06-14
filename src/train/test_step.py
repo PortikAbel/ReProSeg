@@ -6,7 +6,7 @@ from tqdm import tqdm
 import argparse
 from model.model import ReProSeg
 from utils.log import Log
-from .eval import compute_absained, compute_cm, acc_from_cm
+from .eval import compute_absained, compute_cm, acc_from_cm, iou_from_cm
 
 
 @torch.no_grad()
@@ -35,20 +35,22 @@ def eval(
         file=log.tqdm_file,
     )
     (xs, ys) = next(iter(test_loader))
-    
+
     for _, (xs, ys) in test_iter:
         xs, ys = xs.to(args.device), ys.to(args.device)
 
         with torch.no_grad():
             _, pooled, out = net(xs, inference=True)
-            
-            cm_batch = compute_cm(out, ys)
-            acc = acc_from_cm(cm_batch)
-            cm += cm_batch
 
             abstained += compute_absained(out, ys)
+            cm_batch = compute_cm(out, ys)
+            cm_batch = cm_batch[1:, 1:]  # ignore unlabeled class
+            cm += cm_batch
 
-            test_iter.set_postfix_str(f"Acc: {acc:.3f}", refresh=False)
+            acc = acc_from_cm(cm_batch)
+            iou = iou_from_cm(cm_batch)
+
+            test_iter.set_postfix_str(f"Acc: {acc:.3f}, mIoU: {iou:.3f}", refresh=False)
 
         del out
         del pooled
@@ -65,6 +67,7 @@ def eval(
     eval_info["num non-zero prototypes"] = num_nonzero_prototypes
     eval_info["confusion_matrix"] = cm
     eval_info["test_accuracy"] = acc_from_cm(cm)
+    eval_info["test_miou"] = iou_from_cm(cm)
 
     return eval_info
 

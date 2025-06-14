@@ -1,4 +1,3 @@
-import numpy as np
 from torch.utils.data import Dataset
 from torchvision.transforms.v2 import Compose
 
