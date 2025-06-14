@@ -5,7 +5,7 @@ import torch
 import torch.utils
 from torch.utils.data import Dataset, DataLoader
 import torchvision
-from torchvision.transforms.v2 import Compose, Lambda, ToImage
+from torchvision.transforms.v2 import Compose
 
 from data.config import DATASETS
 from data.dataset import TwoAugSupervisedDataset

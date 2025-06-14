@@ -114,7 +114,10 @@ class Transforms:
     
     def filter_cityscapes_classes(self, classes: list[Cityscapes.CityscapesClass]):
         filtered_classes = [classes[0]] + [c for c in classes if not c.ignore_in_eval]
-        map_classes: list = torch.tensor([0 if c.ignore_in_eval else filtered_classes.index(c) for c in classes], dtype=torch.int64)
+        map_classes: list = torch.tensor(
+            [0 if c.ignore_in_eval else filtered_classes.index(c) for c in classes],
+            dtype=torch.int64
+        )
         self.base_target = transforms.Compose([
             self.base_target,
             transforms.Lambda(np.vectorize(lambda c: map_classes[c])),

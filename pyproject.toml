@@ -19,4 +19,13 @@ requires = ["setuptools>=42"]
 build-backend = "setuptools.build_meta"
 
 [dependency-groups]
-dev = []
+dev = [
+    "mypy>=1.16.0",
+    "ruff>=0.11.13",
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "B"]

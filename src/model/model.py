@@ -69,7 +69,10 @@ class ReProSegLayers(nn.Module):
             log.info(f"Number of prototypes: {self.num_prototypes}")
         else:
             self.num_prototypes = args.num_features
-            log.info(f"Number of prototypes set from {first_add_on_layer_in_channels} to {self.num_prototypes}. Extra 1x1 conv layer added. Not recommended.")
+            log.info(
+                f"Number of prototypes set from {first_add_on_layer_in_channels} to {self.num_prototypes}. "
+                "Extra 1x1 conv layer added. Not recommended."
+            )
             self.add_on_layers = nn.Sequential(
                 nn.Conv2d(
                     in_channels=first_add_on_layer_in_channels,
@@ -149,7 +152,9 @@ class ReProSeg(nn.Module):
         torch.nn.init.normal_(
             self.layers.classification_layer.weight, mean=1.0, std=0.1
         )
-        self._log.info(f"Classification layer initialized with mean {torch.mean(self.layers.classification_layer.weight).item()}")
+        self._log.info(
+            f"Classification layer initialized with mean {torch.mean(self.layers.classification_layer.weight).item()}"
+        )
         if self._args.bias:
             torch.nn.init.constant_(self.layers.classification_layer.bias, val=0.0)
 

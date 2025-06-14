@@ -54,7 +54,6 @@ def eval(
 
         del out
         del pooled
-        del ys_pred
 
     abstained /= len(test_iter)
     log.info(f"model abstained from a decision for {abstained.item()*100}% of images")

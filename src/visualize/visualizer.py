@@ -79,7 +79,7 @@ class ModelVisualizer:
             pickle.dump(self.topks, f)
 
     def map_images_to_prototypes(self):
-        i_to_p_path = self.log.prototypes_dir / f"i_to_p.pkl"
+        i_to_p_path = self.log.prototypes_dir / "i_to_p.pkl"
         if os.path.exists(i_to_p_path):
             self.log.info(f"Loading image to prototype mapping from {i_to_p_path}")
             with open(i_to_p_path, 'rb') as f:
@@ -90,7 +90,7 @@ class ModelVisualizer:
         prototypes_not_activated = []
         self.i_to_p = defaultdict(list)
         for p in self.topks.keys():
-            scores, img_idxs = zip(*self.topks[p])
+            scores, img_idxs = zip(*self.topks[p], strict=True)
             if any(np.array(scores) > self.MIN_ACTIVATION_SCORE):
                 for i in img_idxs:
                     self.i_to_p[i].append(p)
@@ -159,7 +159,10 @@ class ModelVisualizer:
             txt_tensor = prototype_text(p, self.image_shape[::-1])
             prototype_tensors.append(txt_tensor)
             grid = torchvision.utils.make_grid(prototype_tensors, nrow=self.k + 1, padding=1)
-            torchvision.utils.save_image(grid, self.log.prototypes_dir / f"grid_top_{self.k}_activations_of_prototype_{p}.png")
+            torchvision.utils.save_image(
+                grid,
+                self.log.prototypes_dir / f"grid_top_{self.k}_activations_of_prototype_{p}.png"
+            )
             all_tensors += prototype_tensors
         if len(all_tensors) > 0:
             grid = torchvision.utils.make_grid(all_tensors, nrow=self.k + 1, padding=1)

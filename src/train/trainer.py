@@ -32,7 +32,8 @@ def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader,
                 and torch.mean(net.layers.classification_layer.weight).item() < 3.0
                 and torch.count_nonzero(torch.relu(net.layers.classification_layer.weight - 1e-5)).float().item()
                     > 0.8 * (args.num_prototypes * args.num_classes)
-            ):  # assume that the linear classification layer is not yet trained (e.g. when loading a pretrained backbone only)
+            ):  # assume that the linear classification layer is not yet trained 
+                # (e.g. when loading a pretrained backbone only)
                 log.warning("We assume that the classification layer is not yet trained. We re-initialize it...")
                 net.init_classifier_weights()
 
@@ -100,6 +101,7 @@ def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader,
         )
 
     best_acc = 0.0
+    best_miou = 0.0
 
     for epoch in range(1, args.epochs + 1):
         if epoch <= args.epochs_finetune and (
@@ -115,7 +117,10 @@ def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader,
             # unfreeze backbone
             net.unfreeze()
 
-        log.info(f"Epoch {epoch} first layers of backbone frozen: {net.train_phase in [TrainPhase.FINETUNE, TrainPhase.FREEZE_FIRST_LAYERS]}")
+        log.info(
+            f"Epoch {epoch} first layers of backbone frozen: "
+            f"{net.train_phase in [TrainPhase.FINETUNE, TrainPhase.FREEZE_FIRST_LAYERS]}"
+        )
         if (epoch == args.epochs or epoch % 30 == 0) and args.epochs > 1:
             # SET SMALL WEIGHTS TO ZERO
             with torch.no_grad():
@@ -163,7 +168,9 @@ def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader,
                 log.info(f"Best mIoU so far: {best_miou}")
                 log.model_checkpoint(get_checkpoint(), "net_trained_best_miou")
 
-    nonzero_weights = net.layers.classification_layer.weight[net.layers.classification_layer.weight.nonzero(as_tuple=True)]
+    nonzero_weights = net.layers.classification_layer.weight[
+        net.layers.classification_layer.weight.nonzero(as_tuple=True)
+    ]
     log.debug(f"Classifier weights:\n{net.layers.classification_layer.weight}")
     log.debug(f"Classifier weights nonzero:\n{nonzero_weights}\n{nonzero_weights.shape}")
     log.debug(f"Classifier bias:\n{net.layers.classification_layer.bias}")

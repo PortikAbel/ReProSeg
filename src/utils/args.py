@@ -343,11 +343,11 @@ class ModelTrainerArgumentParser:
             and not self._args.unif_loss
             and not self._args.variance_loss
         ):
-            warnings.warn(f"No loss function specified. Using JSD loss by default")
+            warnings.warn("No loss function specified. Using JSD loss by default", stacklevel=2)
             self._args.jsd_loss = 5.0
 
         if  self._args.model_checkpoint:
-            warnings.warn("Logging directory is set to the parent of the model checkpoint directory")
+            warnings.warn("Logging directory is set to the parent of the model checkpoint directory", stacklevel=2)
             self._args.log_dir =  self._args.model_checkpoint.parent.parent
 
         return self._args
