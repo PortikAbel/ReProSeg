@@ -1,23 +1,21 @@
 import argparse
-import random
 from collections import defaultdict
 import heapq
 import os
 import pickle
-from functools import partial
 
 import numpy as np
 import torch
 import torchvision
 import torchvision.transforms as transforms
 from PIL import Image
-from PIL import ImageDraw as D
 from tqdm import tqdm
 
 
 from model.model import ReProSeg
 from utils.log import Log
 from data.config import DATASETS
+from .utils import activations_to_alpha, prototype_text, draw_activation_minmax_text_on_image
 
 
 class ModelVisualizer:
@@ -134,12 +132,14 @@ class ModelVisualizer:
             image = pil_to_tensor(Image.open(img_to_open).convert("RGB"))
             image = resize_image(image)
             xs, ys = xs.to(self.args.device), ys.to(self.args.device)
-            prototype_activations = self.net.interpolate_prototype_activations(xs)
+            prototype_activations = self.net.interpolate_prototype_activations(xs).to(image.device)
             for p in self.i_to_p[i]:
-                alpha = prototype_activations[p].unsqueeze(0).to(image.device)
-                alpha = alpha.where(alpha >= alpha.mean(), 0)
-                alpha /= alpha.max()
+                alpha = activations_to_alpha(prototype_activations[p])
                 prototype_img = torch.cat((image, alpha), 0)
+                prototype_img = draw_activation_minmax_text_on_image(
+                    prototype_img,
+                    prototype_activations[p],
+                )
                 self.tensors_per_prototype[p].append(prototype_img)
         with open(tensors_path, 'wb') as f:
             pickle.dump(self.tensors_per_prototype, f)
@@ -155,17 +155,8 @@ class ModelVisualizer:
             ncols=0,
             file=self.log.tqdm_file,
         )
-        pil_to_tensor = transforms.ToTensor()
         for p, prototype_tensors in prototype_iter:
-            txt_image = Image.new("RGBA", self.image_shape[::-1], (0, 0, 0))
-            draw = D.Draw(txt_image)
-            draw.text(
-                tuple(s // 2 for s in self.image_shape[::-1]),
-                f"Prototype {p}",
-                anchor="mm",
-                fill="white",
-            )
-            txt_tensor = pil_to_tensor(txt_image)
+            txt_tensor = prototype_text(p, self.image_shape[::-1])
             prototype_tensors.append(txt_tensor)
             grid = torchvision.utils.make_grid(prototype_tensors, nrow=self.k + 1, padding=1)
             torchvision.utils.save_image(grid, self.log.prototypes_dir / f"grid_top_{self.k}_activations_of_prototype_{p}.png")
