@@ -23,7 +23,7 @@ class ModelVisualizer:
     i_to_p: dict
     tensors_per_prototype: dict[int, list]
 
-    MIN_CLASSIFICATION_WEIGHT = 1e-3
+    MIN_CLASSIFICATION_WEIGHT = 10
     MIN_ACTIVATION_SCORE = 0.1
 
     def __init__(self, net: ReProSeg, args: argparse.Namespace, log: Log, k: int = 10):
