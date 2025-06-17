@@ -39,11 +39,13 @@ def compute_cm(out: torch.Tensor, ys: torch.Tensor) -> torch.Tensor:
     y_pred_flat = ys_pred[mask_labeled]
 
     n_classes = out.shape[1]
-    
-    return torch.bincount(
-            y_true_flat * n_classes + y_pred_flat,
-            minlength=n_classes**2
-        ).view(n_classes, n_classes).to(ys.device)
+
+    cm = torch.bincount(
+        y_true_flat * n_classes + y_pred_flat,
+        minlength=n_classes**2
+    ).view(n_classes, n_classes).to(ys.device)
+
+    return cm[1:, 1:]  # Exclude the background class (0)
 
 
 def acc_from_cm(cm: torch.Tensor) -> float:
@@ -59,11 +61,11 @@ def acc_from_cm(cm: torch.Tensor) -> float:
 
     return 1 if total == 0 else correct / total
 
-def intersection_and_union_from_cm(cm: torch.Tensor) -> float:
+def intersection_and_union_from_cm(cm: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """
-    Compute the IoU from the confusion matrix
+    Compute the intersection and union from the confusion matrix
     :param cm: confusion matrix
-    :return: the IoU score
+    :return: intersection and union tensors
     """
     assert len(cm.shape) == 2 and cm.shape[0] == cm.shape[1]
 
@@ -71,3 +73,15 @@ def intersection_and_union_from_cm(cm: torch.Tensor) -> float:
     union = (cm + cm.T).sum(dim=0) - intersection
 
     return intersection, union
+
+
+def miou_from_cm(cm: torch.Tensor) -> float:
+    """
+    Compute the mean Intersection over Union (IoU) from the confusion matrix
+    :param cm: confusion matrix
+    :return: mean IoU score
+    """
+    intersection, union = intersection_and_union_from_cm(cm)
+    iou = intersection / union
+
+    return iou.mean().item() if union.sum() > 0 else 0.0

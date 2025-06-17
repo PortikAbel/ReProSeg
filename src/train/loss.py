@@ -1,10 +1,18 @@
 import torch
 import torch.nn.functional as F
+import tqdm
 
 from utils.log import Log
 from model.model import TrainPhase
 
 class LossWeights:
+    alignment: float
+    jsd: float
+    tanh: float
+    uniformity: float
+    variance: float
+    classification: float
+
     def __init__(
         self,
         args,
@@ -19,18 +27,17 @@ class LossWeights:
 
 def calculate_loss(
     log: Log,
-    aspp_features,
-    pooled,
-    out,
-    ys1,
+    aspp_features: torch.Tensor,
+    pooled: torch.Tensor,
+    out: torch.Tensor,
+    ys: torch.Tensor,
     weights: LossWeights,
     train_phase: TrainPhase,
-    criterion,
-    train_iter,
+    criterion: torch.nn.Module,
+    train_iter: tqdm.tqdm,
     iteration=0,
     print=True,
-):
-    ys = torch.cat([ys1, ys1])
+) -> torch.Tensor:
     af1, af2 = aspp_features.chunk(2)
     pooled1, pooled2 = pooled.chunk(2)
 
@@ -85,7 +92,7 @@ def calculate_loss(
     return loss
 
 
-def jensen_shannon_divergence(x):
+def jensen_shannon_divergence(x: torch.Tensor) -> torch.Tensor:
     assert x.dim() == 4
     x = x.flatten(start_dim=2)  # Flatten to (batch_size, num_prototypes, height*width)
 
@@ -99,12 +106,12 @@ def jensen_shannon_divergence(x):
     return torch.exp(-jsd).mean()
 
 
-def log_tanh_loss(x, EPS=1e-10):
+def log_tanh_loss(x: torch.Tensor, EPS=1e-10) -> torch.Tensor:
     return -torch.log(torch.tanh(torch.sum(x, dim=(0,2,3))) + EPS).mean()
 
 
 # Extra uniform loss from https://www.tongzhouwang.info/hypersphere/.
-def uniform_loss(x, t=2, EPS=1e-10):
+def uniform_loss(x: torch.Tensor, t=2, EPS=1e-10) -> torch.Tensor:
     # print(
     #   "sum elements: ", torch.sum(torch.pow(x,2), dim=1).shape,
     #   torch.sum(torch.pow(x,2), dim=1),
@@ -116,12 +123,12 @@ def uniform_loss(x, t=2, EPS=1e-10):
     return loss
 
 
-def variance_loss(x, gamma=1, EPS=1e-12):
+def variance_loss(x: torch.Tensor, gamma=1, EPS=1e-12) -> torch.Tensor:
     return (gamma - (x.var(dim=0) + EPS).sqrt()).clamp(min=0).mean()
 
 
 # from https://gitlab.com/mipl/carl/-/blob/main/losses.py
-def align_loss(inputs, targets, EPS=1e-12):
+def align_loss(inputs: torch.Tensor, targets: torch.Tensor, EPS=1e-12) -> torch.Tensor:
     assert inputs.shape == targets.shape
     assert not targets.requires_grad
 

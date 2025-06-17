@@ -64,6 +64,7 @@ def train(
         
         # Perform a forward pass through the network
         aspp_features, pooled, out = net(torch.cat([xs1, xs2]))
+        ys = torch.cat([ys, ys])
         prototype_activations[i, :, :, :, :] = pooled
 
         loss = calculate_loss(
@@ -91,9 +92,9 @@ def train(
             if net.train_phase is not TrainPhase.PRETRAIN:
                 cm = compute_cm(out, ys)
                 total_acc += acc_from_cm(cm)
-                i, u = intersection_and_union_from_cm(cm)
-                total_intersections_by_class += i
-                total_unions_by_class += u
+                intersections, unions = intersection_and_union_from_cm(cm)
+                total_intersections_by_class += intersections
+                total_unions_by_class += unions
 
         if net.train_phase is not TrainPhase.PRETRAIN:
             with torch.no_grad():
