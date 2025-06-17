@@ -59,7 +59,7 @@ def acc_from_cm(cm: torch.Tensor) -> float:
 
     return 1 if total == 0 else correct / total
 
-def iou_from_cm(cm: torch.Tensor) -> float:
+def intersection_and_union_from_cm(cm: torch.Tensor) -> float:
     """
     Compute the IoU from the confusion matrix
     :param cm: confusion matrix
@@ -70,5 +70,4 @@ def iou_from_cm(cm: torch.Tensor) -> float:
     intersection = cm.diagonal()
     union = (cm + cm.T).sum(dim=0) - intersection
 
-    iou = intersection / union
-    return iou.mean().item() if iou.numel() > 0 else 1
+    return intersection, union

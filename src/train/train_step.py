@@ -4,6 +4,7 @@ from tqdm import tqdm
 import argparse
 from model.model import ReProSeg, TrainPhase
 from model.optimizers import OptimizerSchedulerManager
+from train.eval import compute_cm, acc_from_cm, intersection_and_union_from_cm
 from train.loss import LossWeights, calculate_loss
 from utils.log import Log
 
@@ -27,6 +28,8 @@ def train(
     train_info = dict()
     total_loss = 0.0
     total_acc = 0.0
+    total_intersections_by_class = torch.zeros(args.num_classes - 1).to(args.device)
+    total_unions_by_class = torch.zeros(args.num_classes - 1).to(args.device)
 
     iters = len(train_loader)
     # Show progress on progress bar.
@@ -63,7 +66,7 @@ def train(
         aspp_features, pooled, out = net(torch.cat([xs1, xs2]))
         prototype_activations[i, :, :, :, :] = pooled
 
-        loss, acc = calculate_loss(
+        loss = calculate_loss(
             log,
             aspp_features,
             pooled,
@@ -83,8 +86,14 @@ def train(
         optimizer_scheduler_manager.step(net.train_phase, epoch - 1 + (i / iters))
 
         with torch.no_grad():
-            total_acc += acc
             total_loss += loss.item()
+
+            if net.train_phase is not TrainPhase.PRETRAIN:
+                cm = compute_cm(out, ys)
+                total_acc += acc_from_cm(cm)
+                i, u = intersection_and_union_from_cm(cm)
+                total_intersections_by_class += i
+                total_unions_by_class += u
 
         if net.train_phase is not TrainPhase.PRETRAIN:
             with torch.no_grad():
@@ -100,8 +109,10 @@ def train(
                         torch.clamp(net.layers.classification_layer.bias.data, min=0.0)
                     )
 
-    train_info["train_accuracy"] = total_acc / float(i + 1)
     train_info["loss"] = total_loss / float(i + 1)
+    train_info["train_accuracy"] = total_acc / float(i + 1)
+    train_info["train_miou"] = (total_intersections_by_class / total_unions_by_class).mean().item()
+    train_info["train_iou_by_class"] = (total_intersections_by_class / total_unions_by_class).detach().cpu().numpy()
     train_info["prototype_activations"] = (
         prototype_activations.view((-1, net.layers.num_prototypes))
         .detach()

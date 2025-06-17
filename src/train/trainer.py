@@ -149,8 +149,9 @@ def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader,
         # Evaluate model
         eval_info = eval(args, log, net, test_loader, epoch)
         log.tb_scalar("Acc/eval-epochs", eval_info["test_accuracy"], epoch)
-        log.tb_scalar("mIoU/eval-epochs", eval_info["test_miou"], epoch)
         log.tb_scalar("Acc/train-epochs", train_info["train_accuracy"], epoch)
+        log.tb_scalar("mIoU/train-epochs", train_info["train_miou"], epoch)
+        log.tb_scalar("mIoU/eval-epochs", eval_info["test_miou"], epoch)
         log.tb_scalar("Loss/train-epochs", train_info["loss"], epoch)
         log.tb_scalar("Abstained", eval_info["abstained"], epoch)
 

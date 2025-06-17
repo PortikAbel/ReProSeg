@@ -3,7 +3,6 @@ import torch.nn.functional as F
 
 from utils.log import Log
 from model.model import TrainPhase
-from .eval import compute_cm, acc_from_cm
 
 class LossWeights:
     def __init__(
@@ -53,14 +52,11 @@ def calculate_loss(
         loss += weights.uniformity * uni_loss
         loss += weights.variance * var_loss
 
-    acc = 0.0
     if train_phase is not TrainPhase.PRETRAIN:
         softmax_inputs = torch.log1p(out**2)
         class_loss = criterion(F.log_softmax((softmax_inputs), dim=1), ys.squeeze())
 
         loss += weights.classification * class_loss
-
-        acc = acc_from_cm(compute_cm(out, ys))
 
     if print:
         with torch.no_grad():
@@ -73,8 +69,7 @@ def calculate_loss(
                     f"LV:{var_loss.item():.3f}, " +
                     f"LC:{class_loss.item():.3f}, " +
                     f"L:{loss.item():.3f}, " +
-                    f"num_scores>0.1:{torch.count_nonzero(torch.relu(pooled-0.1),dim=1).float().mean().item():.1f}" +
-                    f", Ac:{acc:.3f}"
+                    f"num_scores>0.1:{torch.count_nonzero(torch.relu(pooled-0.1),dim=1).float().mean().item():.1f}"
                 ),
                 refresh=False,
             )
@@ -87,7 +82,7 @@ def calculate_loss(
             log.tb_scalar(f"Loss/{phase_string}/LC", class_loss.item(), iteration)
             log.tb_scalar(f"Loss/{phase_string}/L", loss.item(), iteration)
 
-    return loss, acc
+    return loss
 
 
 def jensen_shannon_divergence(x):

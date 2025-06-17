@@ -22,7 +22,7 @@ def eval(
     net.eval()
     eval_info = dict()
 
-    n_classes = args.num_classes
+    n_classes = args.num_classes - 1
     cm = torch.zeros((n_classes, n_classes), dtype=int).to(args.device)
     abstained = 0.0
     
