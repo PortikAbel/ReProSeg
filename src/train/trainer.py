@@ -22,7 +22,7 @@ def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader,
     # Initialize or load model
     with torch.no_grad():
         if args.model_checkpoint is not None:
-            checkpoint = torch.load(args.model_checkpoint, map_location=args.device)
+            checkpoint = torch.load(args.model_checkpoint, map_location=args.device, weights_only=False)
             net.load_state_dict(checkpoint["model_state_dict"], strict=True)
             log.info("Pretrained network loaded")
             optimizer_scheduler_manager.load_state_dict(checkpoint)

@@ -9,7 +9,7 @@ def compute_absained(out: torch.Tensor, ys: torch.Tensor) -> float:
     :param abstained: current number of abstained pixels
     :return: updated number of abstained pixels
     """
-    max_out_score = torch.max(out, dim=1)
+    max_out_score = torch.max(out, dim=1).values
 
     mask_labeled = ys.squeeze(1) == 0
 
