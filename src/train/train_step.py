@@ -96,8 +96,6 @@ def train(
                 total_intersections_by_class += intersections
                 total_unions_by_class += unions
 
-        if net.train_phase is not TrainPhase.PRETRAIN:
-            with torch.no_grad():
                 net.layers.classification_layer.weight.copy_(
                     torch.where(
                         net.layers.classification_layer.weight < 1e-3,
