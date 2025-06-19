@@ -95,7 +95,7 @@ def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader,
     best_acc = 0.0
     best_miou = 0.0
 
-    for epoch in range(1, args.epochs + 1):
+    for epoch in range(args.epoch_start, args.epochs + 1):
         if epoch <= args.epochs_finetune and (
             args.epochs_pretrain > 0 or args.model_checkpoint is not None
         ):

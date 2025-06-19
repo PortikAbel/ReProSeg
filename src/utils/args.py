@@ -149,6 +149,13 @@ def define_parser() -> argparse.ArgumentParser:
         "more depends on size of dataset)",
     )
     net_parameter_group.add_argument(
+        "--epoch_start",
+        type=np.uint16,
+        default=1,
+        help="The epoch to start training from. "
+        "Useful when resuming training from a checkpoint.",
+    )
+    net_parameter_group.add_argument(
         "--num_features",
         type=int,
         default=0,
