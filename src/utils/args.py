@@ -121,12 +121,6 @@ def define_parser() -> argparse.ArgumentParser:
         "(e.g. if dataset is very different from ImageNet)",
     )
     net_parameter_group.add_argument(
-        "--epochs",
-        type=np.uint16,
-        default=60,
-        help="The number of epochs ReProSeg should be trained (second training stage)",
-    )
-    net_parameter_group.add_argument(
         "--epochs_pretrain",
         type=np.uint16,
         default=10,
@@ -134,7 +128,13 @@ def define_parser() -> argparse.ArgumentParser:
         "Recommended to train at least until the align loss < 1",
     )
     net_parameter_group.add_argument(
-        "--freeze_epochs",
+        "--epochs",
+        type=np.uint16,
+        default=60,
+        help="The number of epochs ReProSeg should be trained (second training stage)",
+    )
+    net_parameter_group.add_argument(
+        "--epochs_freeze",
         type=np.uint16,
         default=10,
         help="Number of epochs where pretrained features_net will be frozen while "

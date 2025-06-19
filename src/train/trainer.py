@@ -102,7 +102,7 @@ def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader,
             # during fine-tuning, only train classification layer and freeze rest.
             # usually done for a few epochs (at least 1, more depends on size of dataset)
             net.finetune()
-        elif epoch <= args.freeze_epochs:
+        elif epoch <= args.epochs_freeze:
             # freeze first layers of backbone, train rest
             net.freeze()
         else:
