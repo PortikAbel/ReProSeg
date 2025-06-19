@@ -151,13 +151,13 @@ def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader,
             net.eval()
             log.model_checkpoint(get_checkpoint(), "net_trained_last")
 
-            if eval_info["test_accuracy"] > best_acc:
-                best_acc = eval_info["test_accuracy"]
+            if train_info["train_accuracy"] > best_acc:
+                best_acc = train_info["train_accuracy"]
                 log.info(f"Best accuracy so far: {best_acc}")
                 log.model_checkpoint(get_checkpoint(), "net_trained_best_acc")
 
-            if eval_info["test_miou"] > best_miou:
-                best_miou = eval_info["test_miou"]
+            if train_info["train_miou"] > best_miou:
+                best_miou = train_info["train_miou"]
                 log.info(f"Best mIoU so far: {best_miou}")
                 log.model_checkpoint(get_checkpoint(), "net_trained_best_miou")
 
