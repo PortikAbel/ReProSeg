@@ -9,6 +9,8 @@ import argparse
 from model.model import ReProSeg, TrainPhase
 from model.optimizers import OptimizerSchedulerManager
 from utils.log import Log
+from train.criterion.dice import DiceLoss
+from train.criterion.weighted_nll import WeightedNLLLoss
 from train.train_step import train
 from train.test_step import eval
 
@@ -41,19 +43,10 @@ def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader,
             net.init_add_on_weights()
             net.init_classifier_weights()
 
-    # Define classification loss function
-    # Infer class weights from the dataset
-    class_counts_path = Path(__file__).parent.parent / "data" / "class_counts.npy"
-    if class_counts_path.is_file():
-        class_counts = np.load(class_counts_path)
-        log.info(f"Loaded class counts from {class_counts_path}: {class_counts}")
+    if args.criterion == "dice":
+        criterion = DiceLoss(args, log)
     else:
-        from data.count_class_distribution import count_class_distribution
-        class_counts = count_class_distribution(args, log, class_counts_path)
-        log.info(f"Calculated class counts: {class_counts}")
-    class_weights = 1 / class_counts
-    class_weights = torch.tensor(class_weights, device=args.device, dtype=torch.float32)
-    criterion = nn.NLLLoss(weight=class_weights, ignore_index=0, reduction="mean").to(args.device)
+        criterion = WeightedNLLLoss(args, log)
 
     # Forward one batch through the backbone to get the latent output size
     with torch.no_grad():

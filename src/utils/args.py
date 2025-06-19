@@ -253,6 +253,14 @@ def define_parser() -> argparse.ArgumentParser:
         help="Classification loss regulates that the classification layer predicts the labels correctly.",
     )
 
+    parser.add_argument(
+        "--criterion",
+        type=str,
+        choices=["weighted_nll", "dice"],
+        default="weighted_nll",
+        help="Criterion to use for training."
+    )
+
     visualization_group = parser.add_argument_group(
         "Visualization", "Specifies which visualizations should be generated"
     )
