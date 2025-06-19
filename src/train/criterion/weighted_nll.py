@@ -18,7 +18,7 @@ class WeightedNLLLoss(nn.Module):
         self.nll_loss = nn.NLLLoss(weight=self.class_weights, ignore_index=self.ignore_index, reduction=self.reduction).to(self.device)
 
     def _get_class_weights(self, args, log):
-        class_counts_path = Path(__file__).parent.parent / "data" / "class_counts.npy"
+        class_counts_path = Path(__file__).parent.parent.parent / "data" / "class_counts.npy"
         if class_counts_path.is_file():
             class_counts = np.load(class_counts_path)
             log.info(f"Loaded class counts from {class_counts_path}: {class_counts}")
