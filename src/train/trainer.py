@@ -86,11 +86,12 @@ def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader,
 
     # SECOND TRAINING PHASE re-initialize optimizers and schedulers
     # for second training phase
-    optimizer_scheduler_manager = OptimizerSchedulerManager(
-        net,
-        len(train_loader) * args.epochs,
-        args.lr_net,
-    )
+    if args.epoch_start <= 1:
+        optimizer_scheduler_manager = OptimizerSchedulerManager(
+            net,
+            len(train_loader) * args.epochs,
+            args.lr_net,
+        )
 
     best_acc = 0.0
     best_miou = 0.0
