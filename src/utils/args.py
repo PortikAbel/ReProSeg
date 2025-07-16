@@ -270,6 +270,15 @@ def define_parser() -> argparse.ArgumentParser:
             on test data and the learned prototypes.""",
     )
 
+    interpretability_group = parser.add_argument_group(
+        "Interpretability", "Specifies which interpretability metrics should be generated"
+    )
+    interpretability_group.add_argument(
+        "--consistency_score",
+        action="store_true",
+        help="""Flag that indicates whether to compute the consistency score""",
+    )
+
     return parser
 
 

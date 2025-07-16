@@ -42,4 +42,9 @@ if model_args.visualize_prototypes:
     visualizer = ModelVisualizer(net, model_args, log, k=model_args.visualize_top_k)
     visualizer.visualize_prototypes(train_loader_visualization)
 
+if model_args.consistency_score:
+    from visualize.interpretability import ModelInterpretability
+    interpretability = ModelInterpretability(net, model_args, log)
+    visualizer.calculate_consistency_score(train_loader_visualization)    
+
 log.close()
