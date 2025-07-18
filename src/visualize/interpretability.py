@@ -193,10 +193,12 @@ class ModelInterpretability:
             ncols=0,
             file=self.log.tqdm_file,
         )
+
+        object_part_ids = set()
         for i, (xs, ys) in img_iter:
             img_to_open = train_loader_visualization.dataset.images[i]
-            self.log.info(f"Processing image {i}")
-            # Replace 'leftImg8bit' in the directory path
+            # self.log.info(f"Processing image {i} ({img_to_open})")
+            # Replace 'leftImg8bit' in the directory path to find panoptic labels
             parts = list(Path(img_to_open).parts)
             parts[parts.index("leftImg8bit")] = "gtFinePanopticParts"
 
@@ -209,16 +211,19 @@ class ModelInterpretability:
             # Combine updated directory with new filename
             panoptic_labels = path_to_panoptic_labels.with_name(new_filename)
             if panoptic_labels.exists():
-                self.log.info(panoptic_labels)
+                # self.log.info(f"panoptic labels found: {panoptic_labels}")
 
                 # panoptic labels format:
                 # 10^5 * semantic_id + 10^2 * instance_id + part_id
                 panoptic_labels_image = Image.open(panoptic_labels)
-                image_array = np.array(panoptic_labels_image)
+                panoptic_labels_array = np.array(panoptic_labels_image)
+                panoptic_labels_array_filtered = ((panoptic_labels_array//100000)*100000 + 
+                                                  panoptic_labels_array%100).astype(np.int32)
+
                 # Flatten and get unique values with their counts
-                unique_values, counts = np.unique(image_array, return_counts=True)
+                unique_values, counts = np.unique(panoptic_labels_array_filtered, return_counts=True)
+                # Filter out values that belong to semantic class void (i.e., those less than or equal to 100000)
+                object_part_ids.update({x for x in unique_values if x > 100000})
 
-                # Combine into a dictionary (optional)
-                value_counts = dict(zip(unique_values, counts))
+        # print(object_part_ids)                
 
-                print(unique_values)
