@@ -182,14 +182,14 @@ class ModelInterpretability:
         self.render_prototype_activations()
 
     @torch.no_grad()
-    def calculate_consistency_score(self, train_loader_visualization):
-        self.log.info("Calculating consistency score for each prototype...")
+    def get_panoptic_parts_ids(self, train_loader_visualization):
+        self.log.info("Collecting the panoptic object part ids...")
         self.net.eval()
         img_iter = tqdm(
             enumerate(train_loader_visualization),
             total=len(train_loader_visualization),
             mininterval=100.0,
-            desc=f"Collecting top {self.k} activations for each prototype",
+            desc=f"Collecting panoptic object part ids",
             ncols=0,
             file=self.log.tqdm_file,
         )
@@ -225,5 +225,9 @@ class ModelInterpretability:
                 # Filter out values that belong to semantic class void (i.e., those less than or equal to 100000)
                 object_part_ids.update({x for x in unique_values if x > 100000})
 
-        # print(object_part_ids)                
+        self.panoptic_parts_ids = sorted(object_part_ids)     
+
+    def calculate_consistency_score(self, train_loader_visualization):
+        self.get_panoptic_parts_ids(train_loader_visualization)
+        self.log.info(self.panoptic_parts_ids)
 
