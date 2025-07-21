@@ -34,10 +34,8 @@ class ModelInterpretability:
         self.image_shape = DATASETS[args.dataset]["img_shape"]
         self.k = k
 
-    @torch.no_grad()
     def get_panoptic_parts_ids(self, train_loader_visualization):
         self.log.info("Collecting the panoptic object part ids...")
-        self.net.eval()
         img_iter = tqdm(
             enumerate(train_loader_visualization),
             total=len(train_loader_visualization),
@@ -73,7 +71,7 @@ class ModelInterpretability:
                 panoptic_labels_array_filtered = ((panoptic_labels_array//100000)*100000 + 
                                                   panoptic_labels_array%100).astype(np.int32)
                 
-                self.log.info(f"Processing panoptic labels {panoptic_labels} with shape {panoptic_labels_array_filtered.shape}")
+                # self.log.info(f"Processing panoptic labels {panoptic_labels} with shape {panoptic_labels_array_filtered.shape}")
 
                 # Flatten and get unique values with their counts
                 unique_values, counts = np.unique(panoptic_labels_array_filtered, return_counts=True)
@@ -82,8 +80,39 @@ class ModelInterpretability:
 
         self.panoptic_parts_ids = sorted(object_part_ids)     
 
+    # returns the panoptic labels for a given image
+    def get_panoptic_mask_for_img(self, img_to_open):
+        self.log.info(f"Getting panoptic labels for image ({img_to_open})")
+
+        # self.log.info(f"Processing image {i} ({img_to_open})")
+        # Replace 'leftImg8bit' in the directory path to find panoptic labels
+        parts = list(Path(img_to_open).parts)
+        parts[parts.index("leftImg8bit")] = "gtFinePanopticParts"
+
+        # Create the new path object with updated directory
+        path_to_panoptic_labels = Path(*parts)
+
+        # Replace 'leftImg8bit' in the filename and change extension to .tif
+        new_filename = path_to_panoptic_labels.name.replace("leftImg8bit", "gtFinePanopticParts").replace(".png", ".tif")
+
+        # Combine updated directory with new filename
+        panoptic_labels = path_to_panoptic_labels.with_name(new_filename)
+        if panoptic_labels.exists():
+            # self.log.info(f"panoptic labels found: {panoptic_labels}")
+
+            # panoptic labels format:
+            # 10^5 * semantic_id + 10^2 * instance_id + part_id
+            panoptic_labels_image = Image.open(panoptic_labels)
+            panoptic_labels_array = np.array(panoptic_labels_image)
+            panoptic_labels_array_filtered = ((panoptic_labels_array//100000)*100000 + 
+                                                panoptic_labels_array%100).astype(np.int32)
+            return panoptic_labels_array_filtered
+        else:
+            return None
+
+    @torch.no_grad()
     def calculate_consistency_score(self, train_loader_visualization):
-        self.get_panoptic_parts_ids(train_loader_visualization)
+        # self.get_panoptic_parts_ids(train_loader_visualization)
         # self.log.info(self.panoptic_parts_ids)
 
         resize_image = transforms.Resize(size=tuple(self.image_shape))
@@ -102,6 +131,10 @@ class ModelInterpretability:
 
         for i, (xs, ys) in img_iter:
             img_to_open = train_loader_visualization.dataset.images[i]
+            panoptic_labels = self.get_panoptic_mask_for_img(img_to_open)
+            panoptic_labels = torch.tensor(panoptic_labels, dtype=torch.int32).unsqueeze(0) if panoptic_labels is not None else None
+            panoptic_labels = resize_image(panoptic_labels) if panoptic_labels is not None else None
+            self.log.info(f"Panoptic labels: ({panoptic_labels.shape})")
             self.log.info(f"Processing image {i} ({img_to_open}) with all the prototypes")
             image = pil_to_tensor(Image.open(img_to_open).convert("RGB"))
             image = resize_image(image)
@@ -110,5 +143,5 @@ class ModelInterpretability:
             for p in range(self.net.num_prototypes):
                 # getting activation of prototype p for image i
                 alpha = activations_to_alpha(prototype_activations[p])
-                self.log.info(f"Prototype {p} activation shape: {alpha.shape}")
+                # self.log.info(f"Prototype {p} activation shape: {alpha.shape}")
 
