@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import torchvision
 import torchvision.transforms as transforms
+from torchvision.transforms import InterpolationMode
 from PIL import Image
 from tqdm import tqdm
 
@@ -113,9 +114,12 @@ class ModelInterpretability:
     @torch.no_grad()
     def calculate_consistency_score(self, train_loader_visualization):
         # self.get_panoptic_parts_ids(train_loader_visualization)
-        # self.log.info(self.panoptic_parts_ids)
+        # for each prototype, we will maintain a dictionary of average activation scores
+        #   for each panoptic part id (dict. key: part id, value: list of per image average activation scores)
+        self.prototype_consistency_scores = [defaultdict(list) for _ in range(self.net.num_prototypes)] 
 
         resize_image = transforms.Resize(size=tuple(self.image_shape))
+        resize_panoptic_labels = transforms.Resize(size=tuple(self.image_shape), interpolation=InterpolationMode.NEAREST)
         pil_to_tensor = transforms.ToTensor()
 
         self.log.info("Computing consistency scores of prototypes...")
@@ -131,11 +135,12 @@ class ModelInterpretability:
 
         for i, (xs, ys) in img_iter:
             img_to_open = train_loader_visualization.dataset.images[i]
+            self.log.info(f"Processing image {i} ({img_to_open}) with all the prototypes")
             panoptic_labels = self.get_panoptic_mask_for_img(img_to_open)
             panoptic_labels = torch.tensor(panoptic_labels, dtype=torch.int32).unsqueeze(0) if panoptic_labels is not None else None
-            panoptic_labels = resize_image(panoptic_labels) if panoptic_labels is not None else None
-            self.log.info(f"Panoptic labels: ({panoptic_labels.shape})")
-            self.log.info(f"Processing image {i} ({img_to_open}) with all the prototypes")
+            panoptic_labels = resize_panoptic_labels(panoptic_labels) if panoptic_labels is not None else None
+            panoptic_labels = panoptic_labels.squeeze().numpy() if panoptic_labels is not None else None
+            unique_values, _ = np.unique(panoptic_labels, return_counts=True)
             image = pil_to_tensor(Image.open(img_to_open).convert("RGB"))
             image = resize_image(image)
             xs, ys = xs.to(self.args.device), ys.to(self.args.device)
@@ -143,5 +148,4 @@ class ModelInterpretability:
             for p in range(self.net.num_prototypes):
                 # getting activation of prototype p for image i
                 alpha = activations_to_alpha(prototype_activations[p])
-                # self.log.info(f"Prototype {p} activation shape: {alpha.shape}")
 
