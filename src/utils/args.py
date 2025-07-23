@@ -278,6 +278,14 @@ def define_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="""Flag that indicates whether to compute the consistency score""",
     )
+    
+    interpretability_group.add_argument(
+        "--consistency_threshold",
+        type=float,
+        default=0.7,
+        help="""Prototypes with at least one average per object part activation above 
+        this threshold will be considered consistent.""",
+    )
 
     return parser
 
