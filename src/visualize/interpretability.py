@@ -36,6 +36,7 @@ class ModelInterpretability:
         self.consisistency_threshold = consistency_threshold
 
 
+    # TODO: move this to dataloader?
     # returns the panoptic labels for a given image
     def get_panoptic_mask_for_img(self, img_to_open):
 
@@ -63,6 +64,16 @@ class ModelInterpretability:
             return panoptic_labels_array_filtered
         else:
             return None
+
+    def get_number_of_active_prototypes(self):
+        self.number_of_active_prototypes = 0
+        for p in range(self.net.num_prototypes):
+            # skip prototype if it has low classification weight
+            if torch.max(self.net.layers.classification_layer.weight[:, p]) < self.MIN_CLASSIFICATION_WEIGHT:
+                # self.log.info(f"Prototype {p} skipped due to low classification weight")
+                continue
+            self.number_of_active_prototypes += 1
+
 
     def compute_average_activation_per_prototype(self):
         for d in self.prototype_object_part_activations:
@@ -107,6 +118,10 @@ class ModelInterpretability:
             xs, ys = xs.to(self.args.device), ys.to(self.args.device)
             prototype_activations = self.net.interpolate_prototype_activations(xs).to(image.device)
             for p in range(self.net.num_prototypes):
+                # skip prototype if it has low classification weight
+                # if torch.max(self.net.layers.classification_layer.weight[:, p]) < self.MIN_CLASSIFICATION_WEIGHT:
+                #     continue
+
                 # getting activation of prototype p for image i
                 alpha = activations_to_alpha(prototype_activations[p])
 
@@ -153,7 +168,9 @@ class ModelInterpretability:
             for d in self.prototype_object_part_activations
         )
 
-        normalized_consistency_score = count / self.net.num_prototypes
-        self.log.info(f"Prototype consistency score: {normalized_consistency_score:.3f} prototypes with per object part activation > {self.consisistency_threshold}")
+        self.get_number_of_active_prototypes()
+        self.log.info(f"Number of active prototypes: {self.number_of_active_prototypes}")
+        normalized_consistency_score = count / self.number_of_active_prototypes
+        self.log.info(f"Prototype consistency score: {count} prototypes with per object part activation > {self.consisistency_threshold}")
 
 

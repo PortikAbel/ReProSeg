@@ -8,6 +8,8 @@ def count_class_distribution(args, log, save_path):
         train_loader,
         _test_loader,
         train_loader_visualization,
+        _valid_loader_visualization,
+         
     ) = get_dataloaders(log, args)
 
     num_classes = len(train_loader.dataset.dataset.classes)

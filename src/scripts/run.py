@@ -23,6 +23,7 @@ log.info(
     train_loader,
     test_loader,
     train_loader_visualization,
+    valid_loader_visualization,
 ) = get_dataloaders(log, model_args)
 
 
@@ -47,6 +48,6 @@ if model_args.visualize_prototypes:
 if model_args.consistency_score:
     from visualize.interpretability import ModelInterpretability
     interpretability = ModelInterpretability(net, model_args, log, consistency_threshold=model_args.consistency_threshold)
-    interpretability.compute_prototype_consistency_score(train_loader_visualization)    
+    interpretability.compute_prototype_consistency_score(valid_loader_visualization)    
 
 log.close()

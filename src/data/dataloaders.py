@@ -21,6 +21,7 @@ def get_dataloaders(log: Log, args: Namespace) -> tuple[DataLoader, ...]:
         train_set,
         test_set,
         train_set_visualization,
+        valid_set_visualization,
     ) = get_datasets(log, args)
 
     # Determine if GPU should be used
@@ -60,11 +61,18 @@ def get_dataloaders(log: Log, args: Namespace) -> tuple[DataLoader, ...]:
         shuffle=False,
         drop_last=False,
     )
+    valid_loader_visualization = create_dataloader(
+        dataset=valid_set_visualization,
+        batch_size=1,
+        shuffle=False,
+        drop_last=False,
+    )
 
     return (
         train_loader,
         test_loader,
         train_loader_visualization,
+        valid_loader_visualization,
     )
 
 
@@ -107,4 +115,19 @@ def get_datasets(log: Log, args: Namespace) -> tuple[TwoAugSupervisedDataset, Da
             target_transform=transforms.base_target,
         )
 
-    return (train_set_augment, test_set, train_visualization_set)
+        valid_visualization_set = torchvision.datasets.Cityscapes(
+            root=dataset_config["data_dir"],
+            split="val",
+            mode="fine",
+            target_type="semantic",
+            transform=Compose([transforms.base_image, transforms.image_normalization]),
+            target_transform=transforms.base_target,
+        )
+
+    return (
+        train_set_augment,
+        test_set,
+        train_visualization_set,
+        valid_visualization_set,
+    )
+
