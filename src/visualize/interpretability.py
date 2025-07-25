@@ -93,7 +93,7 @@ class ModelInterpretability:
         self.prototype_object_part_activations = [defaultdict(list) for _ in range(self.net.num_prototypes)] 
 
         resize_image = transforms.Resize(size=tuple(self.image_shape))
-        resize_panoptic_labels = transforms.Resize(size=tuple(self.image_shape), interpolation=InterpolationMode.NEAREST)
+        resize_panoptic_labels = transforms.Resize(size=tuple(self.image_shape), interpolation=InterpolationMode.NEAREST_EXACT)
         pil_to_tensor = transforms.ToTensor()
 
         self.log.info("Computing per image average object part activations of prototypes...")
