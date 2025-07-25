@@ -107,7 +107,18 @@ class ModelInterpretability:
             file=self.log.tqdm_file,
         )
 
+        # check if these semantic labels are present (we only have object part notations for these)
+        # 11/24: person, 12/25: rider, 13/26: car, 14/27: truck, 15/28: bus
+        target_classes_with_panoptic_labels = torch.tensor([11, 12, 13, 14, 15])
+
         for i, (xs, ys) in img_iter:
+            # Check if labels contain any of the target classes with panoptic labels
+            found = torch.isin(ys, target_classes_with_panoptic_labels).any()
+
+            if not found: 
+                print(f"Image skipped becuse none of the semantic classes with object part labels available found.")
+                continue
+
             img_to_open = train_loader_visualization.dataset.images[i]
             panoptic_labels = self.get_panoptic_mask_for_img(img_to_open)
             panoptic_labels = torch.tensor(panoptic_labels, dtype=torch.int32).unsqueeze(0) if panoptic_labels is not None else None
@@ -118,6 +129,7 @@ class ModelInterpretability:
             xs, ys = xs.to(self.args.device), ys.to(self.args.device)
             prototype_activations = self.net.interpolate_prototype_activations(xs).to(image.device)
             for p in range(self.net.num_prototypes):
+                # TODO: do we need this?
                 # skip prototype if it has low classification weight
                 # if torch.max(self.net.layers.classification_layer.weight[:, p]) < self.MIN_CLASSIFICATION_WEIGHT:
                 #     continue
