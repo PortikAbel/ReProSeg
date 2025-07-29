@@ -1,0 +1,35 @@
+{
+    "batch_size": {
+      "type": "choice",
+      "value": [4, 8, 16]
+    },
+    "lr": {
+      "type": "loguniform",
+      "value": [1e-5, 1e-1]
+    },
+    "lr_block": {
+      "type": "loguniform",
+      "value": [1e-6, 1e-3]
+    },
+    "lr_net": {
+      "type": "loguniform",
+      "value": [1e-6, 1e-3]
+    },
+    "weight_decay": {
+      "type": "choice",
+      "value": [0.0, 1e-4, 1e-3]
+    },
+    "align_loss": {
+      "type": "choice",
+      "value": [0.0, 0.5, 1.0]
+    },
+    "tanh_loss": {
+      "type": "choice",
+      "value": [0.0, 0.1, 0.5]
+    },
+    "jsd_loss": {
+      "type": "choice",
+      "value": [0.0, 0.1, 0.5]
+    }
+  }
+  
