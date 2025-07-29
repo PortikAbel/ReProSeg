@@ -1,0 +1,12 @@
+experimentName: reproseg_hyperopt
+trialCommand: python main.py
+trialCodeDirectory: ${oc.env:PROJECT_ROOT}
+trialConcurrency: 1
+maxTrialNumber: 20
+searchSpaceFile: search_space.json
+tuner:
+  name: TPE
+  classArgs:
+    optimize_mode: minimize
+trainingService:
+  platform: local
