@@ -3,6 +3,7 @@ from datetime import datetime
 import warnings
 from pathlib import Path
 import pickle
+from omegaconf import DictConfig
 
 import random
 import torch
@@ -391,3 +392,13 @@ class ModelTrainerArgumentParser:
         # Pickle the args for possible reuse
         with (directory_path / f"{file_name}.pickle").open(mode="wb") as f:
             pickle.dump(self._args, f)
+
+
+class ConfigWrapper:
+    def __init__(self, cfg: DictConfig):
+        # Copy all config entries as attributes
+        for key, value in cfg.items():
+            setattr(self, key, value)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.__dict__})"
