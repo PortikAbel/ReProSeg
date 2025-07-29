@@ -10,9 +10,10 @@ from data.config import DATASETS
 from data.dataset import TwoAugSupervisedDataset
 from data.transforms import Transforms
 from utils.log import Log
+from utils.args import ConfigWrapper
 
 
-def get_dataloaders(log: Log, args: Namespace) -> tuple[DataLoader, ...]:
+def get_dataloaders(log: Log, args: ConfigWrapper) -> tuple[DataLoader, ...]:
     """
     Get data loaders
     """

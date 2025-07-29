@@ -394,6 +394,7 @@ class ModelTrainerArgumentParser:
             pickle.dump(self._args, f)
 
 
+# omegaconf wrapper so custom type objects can be added later (eg. tensors, np arrays)
 class ConfigWrapper:
     def __init__(self, cfg: DictConfig):
         # Copy all config entries as attributes

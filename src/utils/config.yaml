@@ -3,8 +3,8 @@ seed: 1                           # Random seed. Note: nondeterminism may still 
 num_workers: 8                    # Number of workers in dataloaders.
 
 # GPU Settings
-gpu_ids: ""                       # ID of GPU(s). Can be comma-separated (e.g., "0,1").
-disable_gpu: true                # Disable GPU usage and force CPU if set.
+gpu_ids: "2"                      # ID of GPU(s). Can be comma-separated (e.g., "0,1").
+disable_gpu: false                # Disable GPU usage and force CPU if set.
 
 # Logging
 log_dir: ${oc.env:LOG_ROOT}/reproseg/${now:%Y-%m-%d-%H-%M-%S}  # Directory to save logs and outputs.
@@ -19,7 +19,7 @@ disable_normalize: false          # Disable normalization of images if set.
 net: deeplab_v3                   # Backbone network (e.g., "deeplab_v3").
 model_checkpoint: null            # Path to pretrained ReProSeg checkpoint to resume from.
 
-skip_training: true              # Skips training and only visualizes prototypes and predictions.
+skip_training: false              # Skips training and only visualizes prototypes and predictions.
 
 # Network Parameters
 batch_size: 64                    # Minibatch size (will be multiplied by the number of GPUs).
