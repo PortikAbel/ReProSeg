@@ -8,6 +8,7 @@ from omegaconf import DictConfig, OmegaConf
 from pathlib import Path
 
 import torch
+import nni
 import warnings
 
 
@@ -20,7 +21,7 @@ def set_rand_state(seed: int):
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
-def set_device(gpu_ids: str, disable_gpu: bool = False) -> tuple[torch.device, list]:
+def set_device(log: Log, gpu_ids: str, disable_gpu: bool = False) -> tuple[torch.device, list]:
     """
     Set the device to use for training.
 
@@ -37,21 +38,44 @@ def set_device(gpu_ids: str, disable_gpu: bool = False) -> tuple[torch.device, l
         return torch.device(f"cuda:{gpu_ids}"), device_ids
     if len(device_ids) == 0:
         device = torch.device("cuda")
-        print("CUDA device set without id specification", flush=True)
+        log.info("CUDA device set without id specification")
         device_ids.append(torch.cuda.current_device())
         return device, device_ids
-    print(
+    log.info(
         "This code should work with multiple GPUs "
         "but we didn't test that, so we recommend to use only 1 GPU.",
         flush=True,
     )
     return torch.device("cuda:" + str(device_ids[0])), device_ids
 
+def set_default_jsd_loss(args: ConfigWrapper, log: Log) -> ConfigWrapper:
+    if (
+        args.jsd_loss == 0.0
+        and args.tanh_loss == 0.0
+        and args.unif_loss == 0.0
+        and args.variance_loss == 0.0
+    ):
+        log.info("No loss function specified. Using JSD loss by default")
+        args.jsd_loss = 5.0
+    return args
+
+
+# updates hydra omega conf params based on the nni parameters:
+def update_hydra_config(cfg: DictConfig, nni_params: dict) -> DictConfig: 
+    for key, value in nni_params.items():
+        if key in cfg:
+            cfg[key] = value
+    return cfg 
+
 @hydra.main(version_base=None, config_path="../utils", config_name="config.yaml")
 def main(cfg: DictConfig):
-
-    # Setup logger
+     # Setup logger
     log = Log(cfg.log_dir, __name__)
+
+    nni_params = nni.get_next_parameter()
+    if nni_params:
+        cfg = update_hydra_config(cfg, nni_params)
+
     log.info(f"Config:\n{OmegaConf.to_yaml(cfg)}")
 
     # wrap omegaconf object so custom type objects can be added later
@@ -61,22 +85,15 @@ def main(cfg: DictConfig):
     set_rand_state(args.seed)
 
     # Set device
-    args.device, args.device_ids = set_device(args.gpu_ids, args.disable_gpu)
-    log.info(f"Device used: {type(args.device)} {f'with id {args.device_ids}' if len(args.device_ids) > 0 else ''}")
+    args.device, args.device_ids = set_device(log, args.gpu_ids, args.disable_gpu)
+    log.info(f"Device used: {args.device} {f'with id {args.device_ids}' if len(args.device_ids) > 0 else ''}")
 
     # Load checkpoint-specific logging directory
     if args.model_checkpoint is not None:
         args.log_dir = str(Path(args.model_checkpoint).parent.parent)
     
     # Handle default jsd loss fallback
-    if (
-        args.jsd_loss == 0.0
-        and args.tanh_loss == 0.0
-        and args.unif_loss == 0.0
-        and args.variance_loss == 0.0
-    ):
-        log.info("No loss function specified. Using JSD loss by default")
-        args.jsd_loss = 5.0
+    args = set_default_jsd_loss(args, log)
 
     # Create the dataloaders
     train_loader = DoubleAugmentDataLoader(args)

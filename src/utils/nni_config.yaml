@@ -1,6 +1,7 @@
 experimentName: reproseg_hyperopt
-trialCommand: python main.py
-trialCodeDirectory: ${oc.env:PROJECT_ROOT}
+trialCommand: python /home/annamari/ReProSeg/src/scripts/run.py 
+# TODO: (not high priority) read path somehow from .env
+trialCodeDirectory: .
 trialConcurrency: 1
 maxTrialNumber: 20
 searchSpaceFile: search_space.json
