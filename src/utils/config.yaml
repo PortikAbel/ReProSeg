@@ -1,9 +1,13 @@
+hydra:
+  run:
+    dir: ${oc.env:LOG_ROOT}/reproseg/${now:%Y-%m-%d-%H-%M-%S}  # hydra output dir
+
 # Seed and Dataloader
 seed: 1                           # Random seed. Note: nondeterminism may still occur. See PyTorch docs on randomness.
 num_workers: 8                    # Number of workers in dataloaders.
 
 # GPU Settings
-gpu_ids: "2"                      # ID of GPU(s). Can be comma-separated (e.g., "0,1").
+gpu_ids: 0                      # ID of GPU(s). Can be comma-separated (e.g., "0,1").
 disable_gpu: false                # Disable GPU usage and force CPU if set.
 
 # Logging
@@ -22,11 +26,11 @@ model_checkpoint: null            # Path to pretrained ReProSeg checkpoint to re
 skip_training: false              # Skips training and only visualizes prototypes and predictions.
 
 # Network Parameters
-batch_size: 64                    # Minibatch size (will be multiplied by the number of GPUs).
+batch_size: 8                    # Minibatch size (will be multiplied by the number of GPUs).
 train_backbone_during_pretrain: false  # Whether to train the full backbone during pretraining.
-epochs_pretrain: 10               # Epochs for prototype pretraining (stage 1).
-epochs: 60                        # Total training epochs (stage 2).
-epochs_freeze: 10                 # Epochs where backbone is frozen and only classifier is trained.
+epochs_pretrain: 10              # Epochs for prototype pretraining (stage 1).
+epochs: 60                       # Total training epochs (stage 2).
+epochs_freeze: 10                # Epochs where backbone is frozen and only classifier is trained.
 epochs_finetune: 3                # Finetuning epochs with frozen backbone.
 epoch_start: 1                    # Starting epoch (for resuming).
 num_features: 0                   # Number of prototypes. 0 = use backbone output channels.
