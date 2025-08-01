@@ -9,6 +9,7 @@ from model.optimizers import OptimizerSchedulerManager
 from train.eval import compute_cm, acc_from_cm, intersection_and_union_from_cm
 from train.loss import LossWeights, calculate_loss
 from utils.log import Log
+import nni
 
 
 def train(
@@ -89,6 +90,8 @@ def train(
 
         with torch.no_grad():
             total_loss += loss.item()
+
+            nni.report_intermediate_result(loss.item())
 
             if net.train_phase is not TrainPhase.PRETRAIN:
                 cm = compute_cm(out, ys)

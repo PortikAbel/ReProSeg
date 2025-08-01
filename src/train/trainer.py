@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import nni
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
@@ -146,7 +147,8 @@ def train_model(net: ReProSeg, train_loader: DataLoader, test_loader: DataLoader
         log.tb_scalar("mIoU/train-epochs", train_info["train_miou"], epoch)
         log.tb_scalar("mIoU/eval-epochs", eval_info["test_miou"], epoch)
         log.tb_scalar("Loss/train-epochs", train_info["loss"], epoch)
-        log.tb_scalar("Abstained", eval_info["abstained"], epoch)
+
+        nni.report_final_result(train_info["train_accuracy"])
 
         with torch.no_grad():
             net.eval()
