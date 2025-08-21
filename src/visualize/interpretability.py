@@ -33,7 +33,7 @@ class ModelInterpretability:
         self.args = args
         self.log = log
         self.image_shape = DATASETS[args.dataset]["img_shape"]
-        self.consisistency_threshold = consistency_threshold
+        self.consistency_threshold = consistency_threshold
 
 
     # TODO: move this to dataloader?
@@ -116,7 +116,7 @@ class ModelInterpretability:
             found = torch.isin(ys, target_classes_with_panoptic_labels).any()
 
             if not found: 
-                print(f"Image skipped becuse none of the semantic classes with object part labels available found.")
+                print(f"Image skipped because none of the semantic classes with object part labels available found.")
                 continue
 
             img_to_open = train_loader_visualization.dataset.images[i]
@@ -183,6 +183,13 @@ class ModelInterpretability:
         self.get_number_of_active_prototypes()
         self.log.info(f"Number of active prototypes: {self.number_of_active_prototypes}")
         normalized_consistency_score = count / self.number_of_active_prototypes
-        self.log.info(f"Prototype consistency score: {count} prototypes with per object part activation > {self.consisistency_threshold}")
+            any(value > self.consistency_threshold for value in d.values())
+            for d in self.prototype_object_part_activations
+        )
+
+        self.get_number_of_active_prototypes()
+        self.log.info(f"Number of active prototypes: {self.number_of_active_prototypes}")
+        normalized_consistency_score = count / self.number_of_active_prototypes
+        self.log.info(f"Prototype consistency score: {count} prototypes with per object part activation > {self.consistency_threshold}")
 
 
