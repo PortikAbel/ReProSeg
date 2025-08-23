@@ -44,7 +44,7 @@ def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader,
             net.init_classifier_weights()
 
     if args.criterion == "dice":
-        criterion = DiceLoss(args, log)
+        criterion = DiceLoss()
     else:
         criterion = WeightedNLLLoss(args, log)
 

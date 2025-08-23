@@ -30,5 +30,6 @@ class WeightedNLLLoss(nn.Module):
         class_weights = torch.tensor(class_weights, device=args.device, dtype=torch.float32)
         return class_weights
 
-    def forward(self, input, target):
+    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        input = nn.functional.log_softmax(input, dim=1)
         return self.nll_loss(input, target)

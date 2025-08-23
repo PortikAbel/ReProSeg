@@ -61,7 +61,7 @@ def calculate_loss(
 
     if train_phase is not TrainPhase.PRETRAIN:
         softmax_inputs = torch.log1p(out**2)
-        class_loss = criterion(F.log_softmax((softmax_inputs), dim=1), ys.squeeze())
+        class_loss = criterion(softmax_inputs, ys.squeeze())
 
         loss += weights.classification * class_loss
 
