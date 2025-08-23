@@ -58,7 +58,7 @@ def get_dataloaders(log: Log, args: Namespace) -> tuple[DataLoader, DataLoader, 
     )
     train_loader_visualization = create_dataloader(
         dataset=train_set_visualization,
-        batch_size=1,
+        batch_size=args.batch_size,
         shuffle=False,
         drop_last=False,
     )
