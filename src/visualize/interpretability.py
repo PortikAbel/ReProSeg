@@ -1,13 +1,9 @@
 import argparse
 from collections import defaultdict
-import heapq
-import os
-import pickle
 from pathlib import Path
 
 import numpy as np
 import torch
-import torchvision
 import torchvision.transforms as transforms
 from torchvision.transforms import InterpolationMode
 from PIL import Image
@@ -17,7 +13,7 @@ from tqdm import tqdm
 from model.model import ReProSeg
 from utils.log import Log
 from data.config import DATASETS
-from .utils import activations_to_alpha, prototype_text, draw_activation_minmax_text_on_image
+from .utils import activations_to_alpha
 
 
 class ModelInterpretability:
@@ -176,13 +172,6 @@ class ModelInterpretability:
         self.compute_average_activation_per_prototype()
 
         count = sum(
-            any(value > self.consisistency_threshold for value in d.values())
-            for d in self.prototype_object_part_activations
-        )
-
-        self.get_number_of_active_prototypes()
-        self.log.info(f"Number of active prototypes: {self.number_of_active_prototypes}")
-        normalized_consistency_score = count / self.number_of_active_prototypes
             any(value > self.consistency_threshold for value in d.values())
             for d in self.prototype_object_part_activations
         )
@@ -192,4 +181,4 @@ class ModelInterpretability:
         normalized_consistency_score = count / self.number_of_active_prototypes
         self.log.info(f"Prototype consistency score: {count} prototypes with per object part activation > {self.consistency_threshold}")
 
-
+        return normalized_consistency_score
