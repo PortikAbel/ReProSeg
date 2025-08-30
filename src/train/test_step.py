@@ -26,7 +26,7 @@ def eval(
     n_classes: int = args.num_classes - 1
     cm = torch.zeros((n_classes, n_classes), dtype=torch.int32).to(args.device)
     abstained = 0.0
-    
+
     test_iter = tqdm(
         enumerate(test_loader),
         total=len(test_loader),
@@ -56,7 +56,7 @@ def eval(
         del pooled
 
     abstained /= len(test_iter)
-    log.info(f"model abstained from a decision for {abstained*100}% of images")
+    log.info(f"model abstained from a decision for {abstained * 100}% of images")
 
     num_nonzero_prototypes = torch.count_nonzero(F.relu(net.layers.classification_layer.weight - 1e-3)).item()
     num_prototypes = torch.numel(net.layers.classification_layer.weight)
@@ -69,5 +69,3 @@ def eval(
     eval_info["test_miou"] = miou_from_cm(cm)
 
     return eval_info
-
-

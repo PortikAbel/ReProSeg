@@ -11,10 +11,7 @@ class TwoAugSupervisedDataset(Dataset):
         self.dataset = dataset
         self.transform_base_image = transforms.base_image
         self.transform1 = transforms.geometry_augmentation
-        self.transform2 = Compose([
-            transforms.color_augmentation,
-            transforms.image_normalization
-        ])
+        self.transform2 = Compose([transforms.color_augmentation, transforms.image_normalization])
         self.transform_base_target = transforms.base_target
         self.transform_shrink_target = transforms.shrink_target
 
@@ -33,7 +30,7 @@ class TwoAugSupervisedDataset(Dataset):
 
     def __len__(self):
         return len(self.dataset)
-    
+
     @property
     def classes(self):
         return self.dataset.classes

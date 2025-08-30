@@ -19,7 +19,7 @@ class TrainPhase(Enum):
     """
     Enum to define the training phase.
     """
-    
+
     PRETRAIN = 0
     """
     Pretraining phase.
@@ -29,7 +29,7 @@ class TrainPhase(Enum):
     """
     Finetuning phase.
     """
-    
+
     FREEZE_FIRST_LAYERS = 2
     """
     Freeze first layers of the backbone.
@@ -51,16 +51,14 @@ class ReProSegLayers(nn.Module):
         )
         self.feature_net = features
         self.aspp_convs = aspp_convs
-        
+
         self.shared_weights = self.aspp_convs[0][0].weight
         # set shared weights to all aspp convolutions
         for conv in self.aspp_convs:
             conv[0].weight.data = self.shared_weights
 
-        first_add_on_layer_in_channels = [
-            m for m in aspp_convs.modules() if isinstance(m, nn.Conv2d)
-        ][-1].out_channels
-        
+        first_add_on_layer_in_channels = [m for m in aspp_convs.modules() if isinstance(m, nn.Conv2d)][-1].out_channels
+
         # the sum of prototype activations should be 1 for each patch in each scale
         self.add_on_layers: nn.Module = nn.Softmax(dim=1)
 
@@ -82,7 +80,7 @@ class ReProSegLayers(nn.Module):
                     padding=0,
                     bias=False,
                 ),
-                self.add_on_layers
+                self.add_on_layers,
             )
 
         self.max_pool = nn.AdaptiveMaxPool3d((1, None, None))
@@ -99,7 +97,7 @@ class ReProSeg(nn.Module):
         assert args.num_classes > 0
         self._args = args
         self._log = log
-        
+
         self.layers = ReProSegLayers(args, log)
         self.num_prototypes = self.layers.num_prototypes
 
@@ -116,15 +114,14 @@ class ReProSeg(nn.Module):
         if inference:
             # ignore all prototypes that have 0.1 similarity or lower
             pooled = torch.where(pooled < 0.1, 0.0, pooled)
-        
+
         out = self.layers.classification_layer(pooled)
 
         if inference:
-            out = F.interpolate(out, size=xs.shape[2:], mode='bilinear')
+            out = F.interpolate(out, size=xs.shape[2:], mode="bilinear")
 
         return aspp_features, pooled, out
-    
-    
+
     def interpolate_prototype_activations(self, xs: torch.Tensor) -> torch.Tensor:
         assert xs.shape[0] == 1, "Only one image can be processed at a time for interpolation."
 
@@ -134,24 +131,22 @@ class ReProSeg(nn.Module):
         activations = activations.permute(1, 0, 2, 3)  # (scales x num_prototypes x h x w)
         max_scale = torch.argmax(activations, dim=(0))
         scales = activations.shape[0]
-        
+
         interpolated_activations = torch.zeros(original_shape, device=activations.device)
         upscale = transforms.Resize(size=original_shape, interpolation=transforms.InterpolationMode.NEAREST_EXACT)
         for scale in range(scales):
-            activations[scale, max_scale!=scale]=0
+            activations[scale, max_scale != scale] = 0
             padding = scale + 1
-            max_pool = torch.nn.MaxPool2d(kernel_size=2*padding+1, padding=padding, stride=1)
+            max_pool = torch.nn.MaxPool2d(kernel_size=2 * padding + 1, padding=padding, stride=1)
             scaled_activations = upscale(max_pool(activations[scale].unsqueeze(0))).squeeze(0)
             interpolated_activations = torch.maximum(interpolated_activations, scaled_activations)
         return interpolated_activations
-    
+
     def init_add_on_weights(self):
         self.layers.add_on_layers.apply(init_weights_xavier)
 
     def init_classifier_weights(self):
-        torch.nn.init.normal_(
-            self.layers.classification_layer.weight, mean=1.0, std=0.1
-        )
+        torch.nn.init.normal_(self.layers.classification_layer.weight, mean=1.0, std=0.1)
         self._log.info(
             f"Classification layer initialized with mean {torch.mean(self.layers.classification_layer.weight).item()}"
         )
@@ -230,9 +225,7 @@ class ReProSeg(nn.Module):
         ]
 
         if self._args.optimizer == "Adam":
-            optimizer_net = torch.optim.AdamW(
-                paramlist_net, lr=self._args.lr, weight_decay=self._args.weight_decay
-            )
+            optimizer_net = torch.optim.AdamW(paramlist_net, lr=self._args.lr, weight_decay=self._args.weight_decay)
             optimizer_classifier = torch.optim.AdamW(
                 paramlist_classifier,
                 lr=self._args.lr,
@@ -252,9 +245,7 @@ class ReProSeg(nn.Module):
         for param in self.layers.classification_layer.parameters():
             param.requires_grad = False
         for param in self.param_groups["to_freeze"]:
-            param.requires_grad = (
-                True  # can be set to False when you want to freeze more layers
-            )
+            param.requires_grad = True  # can be set to False when you want to freeze more layers
         for param in self.param_groups["backbone"]:
             # can be set to True when you want to train whole backbone
             # (e.g. if dataset is very different from ImageNet)
@@ -308,12 +299,10 @@ class NonNegConv1x1(nn.Module):
     ) -> None:
         factory_kwargs = {"device": device, "dtype": dtype}
         super(NonNegConv1x1, self).__init__()
-        
+
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.weight = nn.Parameter(
-            torch.empty((out_channels, in_channels, 1, 1), **factory_kwargs)
-        )
+        self.weight = nn.Parameter(torch.empty((out_channels, in_channels, 1, 1), **factory_kwargs))
         if bias:
             self.bias = nn.Parameter(torch.empty(out_channels, **factory_kwargs))
         else:
@@ -323,4 +312,3 @@ class NonNegConv1x1(nn.Module):
         weight = torch.relu(self.weight)
         # TODO shouldn't be the bias also non-negative?
         return F.conv2d(input_, weight, self.bias, stride=1, padding=0)
-    

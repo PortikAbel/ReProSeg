@@ -20,9 +20,7 @@ model_urls = {
 }
 
 
-def conv3x3(
-    in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1
-) -> nn.Conv2d:
+def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1) -> nn.Conv2d:
     """3x3 convolution with padding"""
     return nn.Conv2d(
         in_planes,
@@ -190,16 +188,13 @@ class ResNet_features(nn.Module):
             stride = [stride] * len(layers)
         if len(layers) != len(stride):
             raise ValueError(
-                f"The same number of layers and stride must be specified, "
-                f"but got {len(layers)} != {len(stride)}"
+                f"The same number of layers and stride must be specified, but got {len(layers)} != {len(stride)}"
             )
 
         self.in_planes = 64
 
         # the first convolutional layer before the structured sequence of blocks
-        self.conv1 = nn.Conv2d(
-            in_channels, 64, kernel_size=7, stride=2, padding=3, bias=False
-        )
+        self.conv1 = nn.Conv2d(in_channels, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
         self.max_pool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -212,16 +207,28 @@ class ResNet_features(nn.Module):
         self.block = block
         self.layers = layers
         self.layer1 = self._make_layer(
-            block=block, planes=64, num_blocks=self.layers[0], stride=stride[0],
+            block=block,
+            planes=64,
+            num_blocks=self.layers[0],
+            stride=stride[0],
         )
         self.layer2 = self._make_layer(
-            block=block, planes=128, num_blocks=self.layers[1], stride=stride[1],
+            block=block,
+            planes=128,
+            num_blocks=self.layers[1],
+            stride=stride[1],
         )
         self.layer3 = self._make_layer(
-            block=block, planes=256, num_blocks=self.layers[2], stride=stride[2],
+            block=block,
+            planes=256,
+            num_blocks=self.layers[2],
+            stride=stride[2],
         )
         self.layer4 = self._make_layer(
-            block=block, planes=512, num_blocks=self.layers[3], stride=stride[3],
+            block=block,
+            planes=512,
+            num_blocks=self.layers[3],
+            stride=stride[3],
         )
 
         # initialize the parameters
@@ -308,13 +315,7 @@ class ResNet_features(nn.Module):
         return template.format(self.num_layers() + 1)
 
 
-def _resnet_features(
-    arch: str,
-    layers: list,
-    block: type[nn.Module] = BasicBlock,
-    pretrained: bool = False,
-    **kwargs
-):
+def _resnet_features(arch: str, layers: list, block: type[nn.Module] = BasicBlock, pretrained: bool = False, **kwargs):
     model = ResNet_features(block, layers, **kwargs)
 
     if pretrained:
@@ -347,9 +348,7 @@ def resnet50_features(pretrained=False, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    return _resnet_features(
-        "resnet50", [3, 4, 6, 3], Bottleneck, pretrained=pretrained, **kwargs
-    )
+    return _resnet_features("resnet50", [3, 4, 6, 3], Bottleneck, pretrained=pretrained, **kwargs)
 
 
 def resnet50_features_inat(pretrained=False, **kwargs):
@@ -405,9 +404,7 @@ def resnet101_features(pretrained=False, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    return _resnet_features(
-        "resnet101", [3, 4, 23, 3], Bottleneck, pretrained=pretrained, **kwargs
-    )
+    return _resnet_features("resnet101", [3, 4, 23, 3], Bottleneck, pretrained=pretrained, **kwargs)
 
 
 def resnet152_features(pretrained=False, **kwargs):
@@ -415,6 +412,4 @@ def resnet152_features(pretrained=False, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    return _resnet_features(
-        "resnet152", [3, 8, 36, 3], Bottleneck, pretrained=pretrained, **kwargs
-    )
+    return _resnet_features("resnet152", [3, 8, 36, 3], Bottleneck, pretrained=pretrained, **kwargs)

@@ -7,11 +7,11 @@ from PIL import ImageDraw as D
 def activations_to_alpha(activations: torch.Tensor) -> torch.Tensor:
     """
     Convert activation scores to alpha values for visualization.
-    
+
     Args:
         activations (torch.Tensor): Activation scores.
         min_activation_score (float): Minimum activation score to consider.
-        
+
     Returns:
         torch.Tensor: Alpha values for visualization.
     """
@@ -24,7 +24,7 @@ def activations_to_alpha(activations: torch.Tensor) -> torch.Tensor:
 def prototype_text(p: int, shape: tuple) -> torch.Tensor:
     """
     Generate a tensor representing the prototype text.
-    
+
     Returns:
         torch.Tensor: A tensor with the prototype text.
     """

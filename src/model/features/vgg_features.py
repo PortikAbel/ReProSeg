@@ -108,16 +108,12 @@ class VGG_features(nn.Module):
         return template.format(self.num_layers() + 3, self.batch_norm)
 
 
-def _vgg_features(
-    arch: str, cfg: str, batch_norm: bool, pretrained: bool = False, **kwargs: Any
-):
+def _vgg_features(arch: str, cfg: str, batch_norm: bool, pretrained: bool = False, **kwargs: Any):
     if pretrained:
         kwargs["init_weights"] = False
     model = VGG_features(cfgs[cfg], batch_norm=batch_norm, **kwargs)
     if pretrained:
-        my_dict = model_zoo.load_url(
-            model_urls[arch], model_dir=str(pretrained_models_dir)
-        )
+        my_dict = model_zoo.load_url(model_urls[arch], model_dir=str(pretrained_models_dir))
         keys_to_remove = set()
         for key in my_dict:
             if key.startswith("classifier"):

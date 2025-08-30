@@ -8,9 +8,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 
 class BasicLog(logging.Logger):
-    def __init__(
-        self, log_dir: Path, name: str, disable_console: bool = False
-    ):  # Store log in log_dir
+    def __init__(self, log_dir: Path, name: str, disable_console: bool = False):  # Store log in log_dir
         super().__init__(name)
         self._log_dir = log_dir
 
@@ -23,9 +21,7 @@ class BasicLog(logging.Logger):
             # make log file empty if it already exists
             self._log_file.write_text("")
 
-        log_formatter = logging.Formatter(
-            "[%(asctime)s - %(levelname)-7s] %(message)s", "%Y-%m-%d %H:%M:%S"
-        )
+        log_formatter = logging.Formatter("[%(asctime)s - %(levelname)-7s] %(message)s", "%Y-%m-%d %H:%M:%S")
 
         file_handler = logging.FileHandler(self._log_file)
         file_handler.setFormatter(log_formatter)
@@ -36,9 +32,7 @@ class BasicLog(logging.Logger):
             stream_handler.setFormatter(log_formatter)
             self.addHandler(stream_handler)
 
-        warnings.showwarning = lambda message, *_: self.warning(
-            f"{type(message).__name__}: {message}"
-        )
+        warnings.showwarning = lambda message, *_: self.warning(f"{type(message).__name__}: {message}")
 
         self.info(f"Log dir: {self.log_dir}")
 
@@ -112,9 +106,7 @@ class Log(BasicLog):
     Object for managing the log directory
     """
 
-    def __init__(
-        self, log_dir: Path, name: str, disable_console: bool = False
-    ):  # Store log in log_dir
+    def __init__(self, log_dir: Path, name: str, disable_console: bool = False):  # Store log in log_dir
         super().__init__(log_dir, name, disable_console)
 
         # Ensure the directories exist
@@ -137,15 +129,15 @@ class Log(BasicLog):
     @property
     def metadata_dir(self):
         return self._log_dir / "metadata"
-    
+
     @property
     def tensorboard_dir(self):
         return self._log_dir / "tensorboard"
-    
+
     @property
     def prototypes_dir(self):
         return self._log_dir / "prototypes"
-    
+
     def tb_scalar(self, tag, value, step):
         self._tensorboard_writer.add_scalar(tag, value, step)
 

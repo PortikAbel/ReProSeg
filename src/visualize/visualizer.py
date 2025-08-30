@@ -37,7 +37,7 @@ class ModelVisualizer:
         topks_path = self.log.prototypes_dir / f"topks_k{self.k}.pkl"
         if os.path.exists(topks_path):
             self.log.info(f"Loading top {self.k} prototype activations from {topks_path}")
-            with open(topks_path, 'rb') as f:
+            with open(topks_path, "rb") as f:
                 self.topks = pickle.load(f)
             return
 
@@ -58,7 +58,7 @@ class ModelVisualizer:
             xs, ys = xs.to(self.args.device), ys.to(self.args.device)
             _aspp, aspp_maxpooled, _out = self.net(xs)
             aspp_maxpooled = aspp_maxpooled.squeeze(0)
-            aspp_maxpooled_sum = aspp_maxpooled.sum(dim=(1,2))
+            aspp_maxpooled_sum = aspp_maxpooled.sum(dim=(1, 2))
             for p in range(self.net.num_prototypes):
                 if torch.max(classification_weights[:, p]) < self.MIN_CLASSIFICATION_WEIGHT:
                     if p not in prototypes_not_used:
@@ -75,17 +75,17 @@ class ModelVisualizer:
             "Will be ignored in visualisation."
         )
         # Save to file
-        with open(topks_path, 'wb') as f:
+        with open(topks_path, "wb") as f:
             pickle.dump(self.topks, f)
 
     def map_images_to_prototypes(self):
         i_to_p_path = self.log.prototypes_dir / "i_to_p.pkl"
         if os.path.exists(i_to_p_path):
             self.log.info(f"Loading image to prototype mapping from {i_to_p_path}")
-            with open(i_to_p_path, 'rb') as f:
+            with open(i_to_p_path, "rb") as f:
                 self.i_to_p = pickle.load(f)
-            return 
-        
+            return
+
         self.log.info("Mapping images to prototypes based on topk activations...")
         prototypes_not_activated = []
         self.i_to_p = defaultdict(list)
@@ -101,7 +101,7 @@ class ModelVisualizer:
             f" any similarity score > {self.MIN_ACTIVATION_SCORE}. "
             "Will be ignored in visualisation."
         )
-        with open(i_to_p_path, 'wb') as f:
+        with open(i_to_p_path, "wb") as f:
             pickle.dump(self.i_to_p, f)
 
     def collect_prototype_tensors(self, train_loader_visualization):
@@ -109,10 +109,10 @@ class ModelVisualizer:
         tensors_path = proto_dir / f"tensors_per_prototype_k{self.k}.pkl"
         if os.path.exists(tensors_path):
             self.log.info(f"Loading prototype tensors from {tensors_path}")
-            with open(tensors_path, 'rb') as f:
+            with open(tensors_path, "rb") as f:
                 self.tensors_per_prototype = pickle.load(f)
             return
-        
+
         self.log.info(f"Collecting prototype tensors for top {self.k} activations...")
         self.tensors_per_prototype = defaultdict(list)
         resize_image = transforms.Resize(size=tuple(self.image_shape))
@@ -141,7 +141,7 @@ class ModelVisualizer:
                     prototype_activations[p],
                 )
                 self.tensors_per_prototype[p].append(prototype_img)
-        with open(tensors_path, 'wb') as f:
+        with open(tensors_path, "wb") as f:
             pickle.dump(self.tensors_per_prototype, f)
 
     def render_prototype_activations(self):
@@ -160,8 +160,7 @@ class ModelVisualizer:
             prototype_tensors.append(txt_tensor)
             grid = torchvision.utils.make_grid(prototype_tensors, nrow=self.k + 1, padding=1)
             torchvision.utils.save_image(
-                grid,
-                self.log.prototypes_dir / f"grid_top_{self.k}_activations_of_prototype_{p}.png"
+                grid, self.log.prototypes_dir / f"grid_top_{self.k}_activations_of_prototype_{p}.png"
             )
             all_tensors += prototype_tensors
         if len(all_tensors) > 0:

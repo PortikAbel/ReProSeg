@@ -1,5 +1,4 @@
 from argparse import Namespace
-from typing import cast
 
 import numpy as np
 import torch
@@ -108,9 +107,4 @@ def get_datasets(log: Log, args: Namespace) -> tuple[TwoAugSupervisedDataset, Da
             target_transform=transforms.base_target,
         )
 
-    return (
-        train_set_augment,
-        test_set,
-        train_visualization_set
-    )
-
+    return (train_set_augment, test_set, train_visualization_set)

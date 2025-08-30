@@ -11,6 +11,7 @@ class DatasetConfig(TypedDict):
     mean: tuple[float, float, float]
     std: tuple[float, float, float]
 
+
 DATASETS: dict[str, DatasetConfig] = {}
 
 DATASETS["CityScapes"] = {

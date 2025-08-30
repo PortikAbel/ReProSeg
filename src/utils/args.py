@@ -10,6 +10,7 @@ import numpy as np
 
 from utils.environment import get_env
 
+
 def define_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         "Train ReProSeg",
@@ -33,8 +34,7 @@ def define_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--skip_training",
         action="store_true",
-        help="Flag that skips training and only visualizes the prototypes "
-        "and predictions.",
+        help="Flag that skips training and only visualizes the prototypes and predictions.",
     )
 
     gpu_group = parser.add_argument_group("GPU", "Specifies the GPU settings")
@@ -52,13 +52,12 @@ def define_parser() -> argparse.ArgumentParser:
 
     log_group = parser.add_argument_group(
         "Logging",
-        "Specifies the directory where the log files "
-        "and other outputs should be saved",
+        "Specifies the directory where the log files and other outputs should be saved",
     )
     log_group.add_argument(
         "--log_dir",
         type=Path,
-        default=(Path(get_env("LOG_ROOT")) / "reproseg" / datetime.now().strftime('%Y-%m-%d-%H-%M-%S')).resolve(),
+        default=(Path(get_env("LOG_ROOT")) / "reproseg" / datetime.now().strftime("%Y-%m-%d-%H-%M-%S")).resolve(),
         help="The directory in which train progress should be logged",
     )
     log_group.add_argument(
@@ -67,9 +66,7 @@ def define_parser() -> argparse.ArgumentParser:
         help="Flag to save the model in each epoch",
     )
 
-    dataset_group = parser.add_argument_group(
-        "Dataset", "Specifies the dataset to use and its hyperparameters"
-    )
+    dataset_group = parser.add_argument_group("Dataset", "Specifies the dataset to use and its hyperparameters")
     dataset_group.add_argument(
         "--dataset",
         type=str,
@@ -95,14 +92,9 @@ def define_parser() -> argparse.ArgumentParser:
         "--net",
         type=str,
         default="deeplab_v3",
-        help="Base network used as backbone of ReProSeg. "
-        "Default is deeplab_v3",
+        help="Base network used as backbone of ReProSeg. Default is deeplab_v3",
     )
-    net_group.add_argument(
-        "--model_checkpoint",
-        type=Path,
-        help="The state dict of (pre)trained ReProSeg."
-    )
+    net_group.add_argument("--model_checkpoint", type=Path, help="The state dict of (pre)trained ReProSeg.")
 
     net_parameter_group = parser.add_argument_group(
         "Network parameters", "Specifies the used network's hyperparameters"
@@ -117,8 +109,7 @@ def define_parser() -> argparse.ArgumentParser:
     net_parameter_group.add_argument(
         "--train_backbone_during_pretrain",
         action="store_true",
-        help="To train the whole backbone during pretrain "
-        "(e.g. if dataset is very different from ImageNet)",
+        help="To train the whole backbone during pretrain (e.g. if dataset is very different from ImageNet)",
     )
     net_parameter_group.add_argument(
         "--epochs_pretrain",
@@ -152,8 +143,7 @@ def define_parser() -> argparse.ArgumentParser:
         "--epoch_start",
         type=np.uint16,
         default=1,
-        help="The epoch to start training from. "
-        "Useful when resuming training from a checkpoint.",
+        help="The epoch to start training from. Useful when resuming training from a checkpoint.",
     )
     net_parameter_group.add_argument(
         "--num_features",
@@ -173,13 +163,10 @@ def define_parser() -> argparse.ArgumentParser:
     net_parameter_group.add_argument(
         "--bias",
         action="store_true",
-        help="Flag that indicates whether to include a trainable bias in the "
-        "linear classification layer.",
+        help="Flag that indicates whether to include a trainable bias in the linear classification layer.",
     )
 
-    optimizer_group = parser.add_argument_group(
-        "Optimizer", "Specifies the optimizer to use and its hyperparameters"
-    )
+    optimizer_group = parser.add_argument_group("Optimizer", "Specifies the optimizer to use and its hyperparameters")
     optimizer_group.add_argument(
         "--optimizer",
         type=str,
@@ -190,22 +177,19 @@ def define_parser() -> argparse.ArgumentParser:
         "--lr",
         type=float,
         default=0.05,
-        help="The optimizer learning rate for training the weights "
-        "from prototypes to classes",
+        help="The optimizer learning rate for training the weights from prototypes to classes",
     )
     optimizer_group.add_argument(
         "--lr_block",
         type=float,
         default=0.0005,
-        help="The optimizer learning rate for training the last convolutional "
-        "layers of the backbone",
+        help="The optimizer learning rate for training the last convolutional layers of the backbone",
     )
     optimizer_group.add_argument(
         "--lr_net",
         type=float,
         default=0.0005,
-        help="The optimizer learning rate for the backbone. "
-        "Usually similar as lr_block.",
+        help="The optimizer learning rate for the backbone. Usually similar as lr_block.",
     )
     optimizer_group.add_argument(
         "--weight_decay",
@@ -214,9 +198,7 @@ def define_parser() -> argparse.ArgumentParser:
         help="Weight decay used in the optimizer",
     )
 
-    loss_group = parser.add_argument_group(
-        "Loss", "Specifies the loss function to use and its hyperparameters"
-    )
+    loss_group = parser.add_argument_group("Loss", "Specifies the loss function to use and its hyperparameters")
     loss_group.add_argument(
         "--align_loss",
         type=float,
@@ -227,15 +209,13 @@ def define_parser() -> argparse.ArgumentParser:
         "--jsd_loss",
         type=float,
         default=0.0,
-        help="Jensen-Shannon divergence loss regulates that the "
-        "distribution of the prototypes are pairwise disjoint.",
+        help="Jensen-Shannon divergence loss regulates that the distribution of the prototypes are pairwise disjoint.",
     )
     loss_group.add_argument(
         "--tanh_loss",
         type=float,
         default=0.0,
-        help="tanh loss regulates that every prototype should be at "
-        "least once present in a mini-batch.",
+        help="tanh loss regulates that every prototype should be at least once present in a mini-batch.",
     )
     loss_group.add_argument(
         "--unif_loss",
@@ -250,8 +230,7 @@ def define_parser() -> argparse.ArgumentParser:
         "--variance_loss",
         type=float,
         default=0.0,
-        help="Regularizer term that enforces variance of features from "
-        "https://arxiv.org/abs/2105.04906",
+        help="Regularizer term that enforces variance of features from https://arxiv.org/abs/2105.04906",
     )
     loss_group.add_argument(
         "--classification_loss",
@@ -265,7 +244,7 @@ def define_parser() -> argparse.ArgumentParser:
         type=str,
         choices=["weighted_nll", "dice"],
         default="weighted_nll",
-        help="Criterion to use for training."
+        help="Criterion to use for training.",
     )
 
     visualization_group = parser.add_argument_group(
@@ -328,8 +307,7 @@ def set_device(gpu_ids: str, disable_gpu: bool = False) -> tuple[torch.device, l
         device_ids.append(torch.cuda.current_device())
         return device, device_ids
     print(
-        "This code should work with multiple GPUs "
-        "but we didn't test that, so we recommend to use only 1 GPU.",
+        "This code should work with multiple GPUs but we didn't test that, so we recommend to use only 1 GPU.",
         flush=True,
     )
     return torch.device("cuda:" + str(device_ids[0])), device_ids
@@ -361,9 +339,9 @@ class ModelTrainerArgumentParser:
             warnings.warn("No loss function specified. Using JSD loss by default", stacklevel=2)
             self._args.jsd_loss = 5.0
 
-        if  self._args.model_checkpoint:
+        if self._args.model_checkpoint:
             warnings.warn("Logging directory is set to the parent of the model checkpoint directory", stacklevel=2)
-            self._args.log_dir =  self._args.model_checkpoint.parent.parent
+            self._args.log_dir = self._args.model_checkpoint.parent.parent
 
         return self._args
 

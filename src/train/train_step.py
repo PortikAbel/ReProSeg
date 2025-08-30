@@ -2,7 +2,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 from tqdm import tqdm
-from typing import Dict
 
 import argparse
 from model.model import ReProSeg, TrainPhase
@@ -10,6 +9,7 @@ from model.optimizers import OptimizerSchedulerManager
 from train.eval import compute_cm, acc_from_cm, intersection_and_union_from_cm
 from train.loss import LossWeights, calculate_loss
 from utils.log import Log
+
 
 def train(
     args: argparse.Namespace,
@@ -55,16 +55,14 @@ def train(
 
     log.debug(f"Training phase: {net.train_phase.name}")
 
-    prototype_activations = torch.empty(
-        (iters, 2 * train_loader.batch_size, net.layers.num_prototypes, *args.wshape)
-    )
+    prototype_activations = torch.empty((iters, 2 * train_loader.batch_size, net.layers.num_prototypes, *args.wshape))
     # Iterate through the data set to update leaves, prototypes and network
     for i, (xs1, xs2, ys) in train_iter:
         xs1, xs2, ys = xs1.to(args.device), xs2.to(args.device), ys.to(args.device)
-        
+
         # Reset the gradients
         optimizer_scheduler_manager.reset_gradients()
-        
+
         # Perform a forward pass through the network
         aspp_features, pooled, out = net(torch.cat([xs1, xs2]))
         ys = torch.cat([ys, ys])
@@ -116,11 +114,7 @@ def train(
     train_info["train_miou"] = (total_intersections_by_class / total_unions_by_class).mean().item()
     train_info["train_iou_by_class"] = (total_intersections_by_class / total_unions_by_class).detach().cpu().numpy()
     train_info["prototype_activations"] = (
-        prototype_activations.view((-1, net.layers.num_prototypes))
-        .detach()
-        .cpu()
-        .numpy()
+        prototype_activations.view((-1, net.layers.num_prototypes)).detach().cpu().numpy()
     )
 
     return train_info
-

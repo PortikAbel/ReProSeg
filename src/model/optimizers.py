@@ -1,7 +1,8 @@
 from torch.optim.lr_scheduler import CosineAnnealingLR, CosineAnnealingWarmRestarts
 
 from model.model import ReProSeg, TrainPhase
-    
+
+
 class OptimizerSchedulerManager:
     def __init__(self, model: ReProSeg, t_max_backbone, lr_backbone):
         self.optimizer_net, self.optimizer_classifier = model.get_optimizers()

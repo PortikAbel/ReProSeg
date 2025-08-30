@@ -5,6 +5,7 @@ import tqdm
 from utils.log import Log
 from model.model import TrainPhase
 
+
 class LossWeights:
     alignment: float
     jsd: float
@@ -69,14 +70,14 @@ def calculate_loss(
         with torch.no_grad():
             train_iter.set_postfix_str(
                 (
-                    f"LA:{a_loss_pf.item():.2f}, " +
-                    f"LJ:{jsd_loss.item():.3f}, " +
-                    f"LT:{tanh_loss.item():.3f}, " +
-                    f"LU:{uni_loss.item():.3f}, " +
-                    f"LV:{var_loss.item():.3f}, " +
-                    f"LC:{class_loss.item():.3f}, " +
-                    f"L:{loss.item():.3f}, " +
-                    f"num_scores>0.1:{torch.count_nonzero(torch.relu(pooled-0.1),dim=1).float().mean().item():.1f}"
+                    f"LA:{a_loss_pf.item():.2f}, "
+                    + f"LJ:{jsd_loss.item():.3f}, "
+                    + f"LT:{tanh_loss.item():.3f}, "
+                    + f"LU:{uni_loss.item():.3f}, "
+                    + f"LV:{var_loss.item():.3f}, "
+                    + f"LC:{class_loss.item():.3f}, "
+                    + f"L:{loss.item():.3f}, "
+                    + f"num_scores>0.1:{torch.count_nonzero(torch.relu(pooled - 0.1), dim=1).float().mean().item():.1f}"
                 ),
                 refresh=False,
             )
@@ -99,15 +100,15 @@ def jensen_shannon_divergence(x: torch.Tensor) -> torch.Tensor:
     w = F.softmax(x.sum(dim=-1, keepdim=True), dim=1)
     m = x.mul(w).sum(dim=1, keepdim=True).expand_as(x)
     m = F.log_softmax(m, dim=-1)
-    
+
     x = F.log_softmax(x, dim=-1)
-    jsd = F.kl_div(x, m, reduction='none', log_target=True).sum(dim=-1).mul(w.squeeze()).sum(dim=-1)
+    jsd = F.kl_div(x, m, reduction="none", log_target=True).sum(dim=-1).mul(w.squeeze()).sum(dim=-1)
 
     return torch.exp(-jsd).mean()
 
 
 def log_tanh_loss(x: torch.Tensor, EPS=1e-10) -> torch.Tensor:
-    return -torch.log(torch.tanh(torch.sum(x, dim=(0,2,3))) + EPS).mean()
+    return -torch.log(torch.tanh(torch.sum(x, dim=(0, 2, 3))) + EPS).mean()
 
 
 # Extra uniform loss from https://www.tongzhouwang.info/hypersphere/.

@@ -13,11 +13,10 @@ from train.criterion.weighted_nll import WeightedNLLLoss
 from train.train_step import train
 from train.test_step import eval
 
-def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader, log: Log, args: argparse.Namespace):
+
+def train_model(net: ReProSeg, train_loader: DataLoader, test_loader: DataLoader, log: Log, args: argparse.Namespace):
     optimizer_scheduler_manager = OptimizerSchedulerManager(
-        net,
-        len(train_loader) * args.epochs_pretrain,
-        args.lr_block
+        net, len(train_loader) * args.epochs_pretrain, args.lr_block
     )
 
     # Initialize or load model
@@ -32,8 +31,8 @@ def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader,
                 torch.mean(net.layers.classification_layer.weight).item() > 1.0
                 and torch.mean(net.layers.classification_layer.weight).item() < 3.0
                 and torch.count_nonzero(torch.relu(net.layers.classification_layer.weight - 1e-5)).float().item()
-                    > 0.8 * (args.num_prototypes * args.num_classes)
-            ):  # assume that the linear classification layer is not yet trained 
+                > 0.8 * (args.num_prototypes * args.num_classes)
+            ):  # assume that the linear classification layer is not yet trained
                 # (e.g. when loading a pretrained backbone only)
                 log.warning("We assume that the classification layer is not yet trained. We re-initialize it...")
                 net.init_classifier_weights()
@@ -57,9 +56,8 @@ def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader,
         xs1 = xs1.to(args.device)
         _aspp_features, pooled, _out = net(xs1)
         args.wshape = np.array(pooled.shape)[-2:]
-        log.debug(f"ASPP features output shape: {_aspp_features.shape}")        
+        log.debug(f"ASPP features output shape: {_aspp_features.shape}")
         log.debug(f"pooled ASPP output shape: {pooled.shape}")
-
 
     # PRETRAINING PROTOTYPES PHASE
     for epoch in range(1, args.epochs_pretrain + 1):
@@ -100,9 +98,7 @@ def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader,
     best_miou = 0.0
 
     for epoch in range(args.epoch_start, args.epochs + 1):
-        if epoch <= args.epochs_finetune and (
-            args.epochs_pretrain > 0 or args.model_checkpoint is not None
-        ):
+        if epoch <= args.epochs_finetune and (args.epochs_pretrain > 0 or args.model_checkpoint is not None):
             # during fine-tuning, only train classification layer and freeze rest.
             # usually done for a few epochs (at least 1, more depends on size of dataset)
             net.finetune()

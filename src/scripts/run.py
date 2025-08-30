@@ -15,8 +15,7 @@ model_trainer_argument_parser.save_args(log.metadata_dir)
 
 # Log which device was actually used
 log.info(
-    f"Device used: {model_args.device} "
-    f"{f'with id {model_args.device_ids}' if len(model_args.device_ids) > 0 else ''}",
+    f"Device used: {model_args.device} {f'with id {model_args.device_ids}' if len(model_args.device_ids) > 0 else ''}",
 )
 
 # Obtain the dataloaders
@@ -33,6 +32,7 @@ net = net.to(device=model_args.device)
 
 if not model_args.skip_training:
     from train.trainer import train_model
+
     try:
         train_model(net, train_loader, test_loader, log, model_args)
     except Exception as e:
@@ -40,6 +40,7 @@ if not model_args.skip_training:
 
 if model_args.visualize_prototypes:
     from visualize.visualizer import ModelVisualizer
+
     visualizer = ModelVisualizer(net, model_args, log, k=model_args.visualize_top_k)
     visualizer.visualize_prototypes(train_loader_visualization)
 

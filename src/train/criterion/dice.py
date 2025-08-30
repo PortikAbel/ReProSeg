@@ -1,6 +1,7 @@
 import torch.nn as nn
 from torch import Tensor
 
+
 class DiceLoss(nn.Module):
     def __init__(self, smooth=1e-6):
         super(DiceLoss, self).__init__()
@@ -15,7 +16,5 @@ class DiceLoss(nn.Module):
         targets = targets.contiguous().view(-1)
 
         intersection = (inputs * targets).sum()
-        dice = (2. * intersection + self.smooth) / (
-            inputs.sum() + targets.sum() + self.smooth
-        )
+        dice = (2.0 * intersection + self.smooth) / (inputs.sum() + targets.sum() + self.smooth)
         return 1 - dice

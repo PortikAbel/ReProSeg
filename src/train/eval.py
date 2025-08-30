@@ -34,16 +34,17 @@ def compute_cm(out: torch.Tensor, ys: torch.Tensor) -> torch.Tensor:
     ys_true = ys.squeeze(1)
 
     mask_labeled = ys_true != 0
-    
+
     y_true_flat = ys_true[mask_labeled]
     y_pred_flat = ys_pred[mask_labeled]
 
     n_classes = out.shape[1]
 
-    cm = torch.bincount(
-        y_true_flat * n_classes + y_pred_flat,
-        minlength=n_classes**2
-    ).view(n_classes, n_classes).to(ys.device)
+    cm = (
+        torch.bincount(y_true_flat * n_classes + y_pred_flat, minlength=n_classes**2)
+        .view(n_classes, n_classes)
+        .to(ys.device)
+    )
 
     return cm[1:, 1:]  # Exclude the background class (0)
 
@@ -60,6 +61,7 @@ def acc_from_cm(cm: torch.Tensor) -> float:
     total = cm.sum()
 
     return 1.0 if total == 0 else (correct / total).item()
+
 
 def intersection_and_union_from_cm(cm: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """
