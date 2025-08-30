@@ -1,0 +1,11 @@
+{
+  "lr": {
+    "_type": "loguniform",
+    "_value": [1e-5, 1e-1]
+  },
+  "tanh_loss": {
+    "_type": "choice",
+    "_value": [0.0, 0.1, 0.5]
+  }
+}
+  

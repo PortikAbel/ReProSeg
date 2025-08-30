@@ -1,47 +1,133 @@
 from data.dataloaders import get_dataloaders
 from model.model import ReProSeg
-from utils.args import ModelTrainerArgumentParser
 from utils.log import Log
+from utils.args import ConfigWrapper
+
+import hydra
+from omegaconf import DictConfig, OmegaConf
+from pathlib import Path
+
+import torch
+import nni
+import warnings
 
 
-model_trainer_argument_parser = ModelTrainerArgumentParser()
-model_args = model_trainer_argument_parser.get_args()
+def set_rand_state(seed: int):
+    import random
+    import numpy as np
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
-# Create a logger
-log = Log(model_args.log_dir, __name__)
+def set_device(log: Log, gpu_ids: str, disable_gpu: bool = False) -> tuple[torch.device, list]:
+    """
+    Set the device to use for training.
 
-# Log the run arguments
-model_trainer_argument_parser.save_args(log.metadata_dir)
+    :param gpu_ids: GPU ids separated with comma
+    :param disable_gpu: Whether to disable GPU. Defaults to ``False``.
+    :return: The device to use for training
+    """
 
-# Log which device was actually used
-log.info(
-    f"Device used: {model_args.device} {f'with id {model_args.device_ids}' if len(model_args.device_ids) > 0 else ''}",
-)
+    device_ids = [int(gpu_id) for gpu_id in (gpu_ids.split(",") if gpu_ids else [])]
 
-# Obtain the dataloaders
-(
-    train_loader,
-    test_loader,
-    train_loader_visualization,
-) = get_dataloaders(log, model_args)
+    if disable_gpu or not torch.cuda.is_available():
+        return torch.device("cpu"), []
+    if len(device_ids) == 1:
+        return torch.device(f"cuda:{gpu_ids}"), device_ids
+    if len(device_ids) == 0:
+        device = torch.device("cuda")
+        log.info("CUDA device set without id specification")
+        device_ids.append(torch.cuda.current_device())
+        return device, device_ids
+    log.info(
+        "This code should work with multiple GPUs "
+        "but we didn't test that, so we recommend to use only 1 GPU.",
+        flush=True,
+    )
+    return torch.device("cuda:" + str(device_ids[0])), device_ids
+
+def set_default_jsd_loss(args: ConfigWrapper, log: Log) -> ConfigWrapper:
+    if (
+        args.jsd_loss == 0.0
+        and args.tanh_loss == 0.0
+        and args.unif_loss == 0.0
+        and args.variance_loss == 0.0
+    ):
+        log.info("No loss function specified. Using JSD loss by default")
+        args.jsd_loss = 5.0
+    return args
 
 
-# Create a ReProSeg model
-net = ReProSeg(args=model_args, log=log)
-net = net.to(device=model_args.device)
+# updates hydra omega conf params based on the nni parameters:
+def update_hydra_config(cfg: DictConfig, nni_params: dict) -> DictConfig: 
+    for key, value in nni_params.items():
+        if key in cfg:
+            cfg[key] = value
+    return cfg 
 
-if not model_args.skip_training:
-    from train.trainer import train_model
+@hydra.main(version_base=None, config_path="../utils", config_name="config.yaml")
+def main(cfg: DictConfig):
+     # Setup logger
+    log = Log(cfg.log_dir, __name__)
 
-    try:
-        train_model(net, train_loader, test_loader, log, model_args)
-    except Exception as e:
-        log.exception(e)
+    nni_params = nni.get_next_parameter()
+    if nni_params:
+        cfg = update_hydra_config(cfg, nni_params)
 
-if model_args.visualize_prototypes:
-    from visualize.visualizer import ModelVisualizer
+    log.info(f"Config:\n{OmegaConf.to_yaml(cfg)}")
 
-    visualizer = ModelVisualizer(net, model_args, log, k=model_args.visualize_top_k)
-    visualizer.visualize_prototypes(train_loader_visualization)
+    # wrap omegaconf object so custom type objects can be added later
+    args = ConfigWrapper(cfg)
 
-log.close()
+    # Set random seed
+    set_rand_state(args.seed)
+
+    # Set device
+    args.device, args.device_ids = set_device(log, args.gpu_ids, args.disable_gpu)
+    log.info(f"Device used: {args.device} {f'with id {args.device_ids}' if len(args.device_ids) > 0 else ''}")
+
+    # Load checkpoint-specific logging directory
+    if args.model_checkpoint is not None:
+        args.log_dir = str(Path(args.model_checkpoint).parent.parent)
+    
+    # Handle default jsd loss fallback
+    args = set_default_jsd_loss(args, log)
+
+    # Data loaders
+    (
+        train_loader,
+        test_loader,
+        train_loader_visualization,
+        valid_loader_visualization,
+    ) = get_dataloaders(log, args)
+
+    # Model
+    net = ReProSeg(args=args, log=log).to(device=args.device)
+
+    if not args.skip_training:
+        from train.trainer import train_model
+
+        try:
+            train_model(net, train_loader, test_loader, log, args)
+        except Exception as e:
+            log.exception(e)
+
+    if args.visualize_prototypes:
+        from visualize.visualizer import ModelVisualizer
+
+        visualizer = ModelVisualizer(net, args, log, k=args.visualize_top_k)
+        visualizer.visualize_prototypes(train_loader_visualization)
+
+    if args.consistency_score:
+        from visualize.interpretability import ModelInterpretability
+        interpretability = ModelInterpretability(
+            net, args, log, consistency_threshold=args.consistency_threshold)
+        interpretability.compute_prototype_consistency_score(valid_loader_visualization)
+
+    log.close()
+
+
+if __name__ == "__main__":
+    main()
