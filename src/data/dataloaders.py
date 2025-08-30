@@ -23,6 +23,8 @@ def get_dataloaders(log: Log, args: Namespace) -> tuple[DataLoader, ...]:
         train_set_visualization,
     ) = get_datasets(log, args)
 
+    args.num_classes = len(train_set.classes)
+
     # Determine if GPU should be used
     cuda = not args.disable_gpu and torch.cuda.is_available()
     sampler = None
@@ -68,7 +70,7 @@ def get_dataloaders(log: Log, args: Namespace) -> tuple[DataLoader, ...]:
     )
 
 
-def get_datasets(log: Log, args: Namespace) -> tuple[TwoAugSupervisedDataset, Dataset, Dataset]:
+def get_datasets(log: Log, args: Namespace) -> tuple[TwoAugSupervisedDataset, Dataset, Dataset, Dataset]:
     """
     Load the proper dataset based on the parsed arguments
     """
