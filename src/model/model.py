@@ -62,7 +62,7 @@ class ReProSegLayers(nn.Module):
         ][-1].out_channels
         
         # the sum of prototype activations should be 1 for each patch in each scale
-        self.add_on_layers = nn.Softmax(dim=1)
+        self.add_on_layers: nn.Module = nn.Softmax(dim=1)
 
         if args.num_features == 0:
             self.num_prototypes = first_add_on_layer_in_channels

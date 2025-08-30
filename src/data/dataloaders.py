@@ -1,8 +1,8 @@
 from argparse import Namespace
+from typing import cast
 
 import numpy as np
 import torch
-import torch.utils
 from torch.utils.data import Dataset, DataLoader
 import torchvision
 from torchvision.transforms.v2 import Compose
@@ -13,7 +13,7 @@ from data.transforms import Transforms
 from utils.log import Log
 
 
-def get_dataloaders(log: Log, args: Namespace) -> tuple[DataLoader, DataLoader, list[str]]:
+def get_dataloaders(log: Log, args: Namespace) -> tuple[DataLoader, ...]:
     """
     Get data loaders
     """
@@ -22,7 +22,6 @@ def get_dataloaders(log: Log, args: Namespace) -> tuple[DataLoader, DataLoader, 
         train_set,
         test_set,
         train_set_visualization,
-        train_indices,
     ) = get_datasets(log, args)
 
     # Determine if GPU should be used
@@ -30,7 +29,7 @@ def get_dataloaders(log: Log, args: Namespace) -> tuple[DataLoader, DataLoader, 
     sampler = None
     to_shuffle_train_set = True
 
-    def create_dataloader(dataset, batch_size, shuffle, drop_last) -> DataLoader:
+    def create_dataloader(dataset: Dataset, batch_size: int, shuffle: bool, drop_last: bool) -> DataLoader:
         return DataLoader(
             dataset,
             # batch size is np.uint16, so we need to convert it to int
@@ -63,10 +62,6 @@ def get_dataloaders(log: Log, args: Namespace) -> tuple[DataLoader, DataLoader, 
         drop_last=False,
     )
 
-    args.num_classes = len(train_loader.dataset.dataset.classes)
-
-    log.info(f"Num classes (k) = {args.num_classes} {[c.name for c in train_loader.dataset.dataset.classes[:5]],} etc.")
-
     return (
         train_loader,
         test_loader,
@@ -74,7 +69,7 @@ def get_dataloaders(log: Log, args: Namespace) -> tuple[DataLoader, DataLoader, 
     )
 
 
-def get_datasets(log: Log, args: Namespace) -> tuple[TwoAugSupervisedDataset, Dataset, list[int]]:
+def get_datasets(log: Log, args: Namespace) -> tuple[TwoAugSupervisedDataset, Dataset, Dataset]:
     """
     Load the proper dataset based on the parsed arguments
     """
@@ -93,12 +88,7 @@ def get_datasets(log: Log, args: Namespace) -> tuple[TwoAugSupervisedDataset, Da
         filtered_classes = transforms.filter_cityscapes_classes(train_set.classes)
         train_set.classes = filtered_classes
 
-        train_indices = list(range(len(train_set)))
-
-        train_set = torch.utils.data.Subset(
-            TwoAugSupervisedDataset(train_set, transforms),
-            indices=train_indices,
-        )
+        train_set_augment = TwoAugSupervisedDataset(train_set, transforms)
 
         test_set = torchvision.datasets.Cityscapes(
             root=dataset_config["data_dir"],
@@ -119,9 +109,8 @@ def get_datasets(log: Log, args: Namespace) -> tuple[TwoAugSupervisedDataset, Da
         )
 
     return (
-        train_set,
+        train_set_augment,
         test_set,
-        train_visualization_set,
-        train_indices
+        train_visualization_set
     )
 

@@ -1,5 +1,8 @@
+import numpy as np
 import torch
+import torch.nn as nn
 from tqdm import tqdm
+from typing import Dict
 
 import argparse
 from model.model import ReProSeg, TrainPhase
@@ -14,7 +17,7 @@ def train(
     net: ReProSeg,
     train_loader,
     optimizer_scheduler_manager: OptimizerSchedulerManager,
-    criterion,
+    criterion: nn.Module,
     epoch,
     progress_prefix: str = "Train Epoch",
 ):
@@ -25,7 +28,7 @@ def train(
         progress_prefix = "Pretrain Epoch"
 
     # Store info about the procedure
-    train_info = dict()
+    train_info: dict[str, float | np.ndarray] = {}
     total_loss = 0.0
     total_acc = 0.0
     total_intersections_by_class = torch.zeros(args.num_classes - 1).to(args.device)

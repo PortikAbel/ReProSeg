@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
@@ -20,10 +21,10 @@ def eval(
 ) -> dict:
     net = net.to(args.device)
     net.eval()
-    eval_info = dict()
+    eval_info: dict[str, float | np.ndarray] = {}
 
-    n_classes = args.num_classes - 1
-    cm = torch.zeros((n_classes, n_classes), dtype=int).to(args.device)
+    n_classes: int = args.num_classes - 1
+    cm = torch.zeros((n_classes, n_classes), dtype=torch.int32).to(args.device)
     abstained = 0.0
     
     test_iter = tqdm(
@@ -55,15 +56,15 @@ def eval(
         del pooled
 
     abstained /= len(test_iter)
-    log.info(f"model abstained from a decision for {abstained.item()*100}% of images")
+    log.info(f"model abstained from a decision for {abstained*100}% of images")
 
     num_nonzero_prototypes = torch.count_nonzero(F.relu(net.layers.classification_layer.weight - 1e-3)).item()
     num_prototypes = torch.numel(net.layers.classification_layer.weight)
     log.info(f"sparsity ratio: {(num_prototypes - num_nonzero_prototypes) / num_prototypes}")
 
-    eval_info["abstained"] = abstained.item()
+    eval_info["abstained"] = abstained
     eval_info["num non-zero prototypes"] = num_nonzero_prototypes
-    eval_info["confusion_matrix"] = cm
+    eval_info["confusion_matrix"] = cm.detach().cpu().numpy()
     eval_info["test_accuracy"] = acc_from_cm(cm)
     eval_info["test_miou"] = miou_from_cm(cm)
 

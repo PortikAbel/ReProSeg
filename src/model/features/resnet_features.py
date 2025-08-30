@@ -311,14 +311,14 @@ class ResNet_features(nn.Module):
 def _resnet_features(
     arch: str,
     layers: list,
-    block: nn.Module = BasicBlock,
+    block: type[nn.Module] = BasicBlock,
     pretrained: bool = False,
     **kwargs
 ):
     model = ResNet_features(block, layers, **kwargs)
 
     if pretrained:
-        my_dict = model_zoo.load_url(model_urls[arch], model_dir=pretrained_models_dir)
+        my_dict = model_zoo.load_url(model_urls[arch], model_dir=pretrained_models_dir.as_posix())
         my_dict.pop("fc.weight")
         my_dict.pop("fc.bias")
         model.load_state_dict(my_dict, strict=False)

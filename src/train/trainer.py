@@ -2,7 +2,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from pathlib import Path
 
 import argparse
 
@@ -43,10 +42,14 @@ def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader,
             net.init_add_on_weights()
             net.init_classifier_weights()
 
-    if args.criterion == "dice":
-        criterion = DiceLoss()
-    else:
-        criterion = WeightedNLLLoss(args, log)
+    criterion: nn.Module
+    match args.criterion:
+        case "dice":
+            criterion = DiceLoss()
+        case "weighted_nll":
+            criterion = WeightedNLLLoss(args, log)
+        case _:
+            raise NotImplementedError(f"criterion {args.criterion} not implemented")
 
     # Forward one batch through the backbone to get the latent output size
     with torch.no_grad():
@@ -127,7 +130,7 @@ def train_model(net:ReProSeg, train_loader: DataLoader, test_loader: DataLoader,
                 log.debug(f"Classifier weights:\n{cls_w}\n{cls_w.shape}")
                 if args.bias:
                     cls_b = net.layers.classification_layer.bias
-                    log.debug(f"Classifier bias: {cls_b}", flush=True)
+                    log.debug(f"Classifier bias: {cls_b}")
                 torch.set_printoptions(profile="default")
 
         train_info = train(

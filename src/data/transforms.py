@@ -5,12 +5,14 @@ import torch
 import torchvision.transforms.v2 as transforms
 from torchvision.datasets import Cityscapes
 
+from data.config import DatasetConfig
+
 
 class AugmentGeometry(transforms.Compose):
     def __init__(self, img_shape: Tuple[int, int] = (256, 256)):
         super().__init__([
             transforms.Resize(size=(img_shape[0] + 8, img_shape[1] + 8)),
-            transforms.RandomAffine(degrees=20, translate=(0.1, 0.1), shear=(0.5, 0.5)),
+            transforms.RandomAffine(degrees=(-20, 20), translate=(0.1, 0.1), shear=(0.5, 0.5)),
             transforms.RandomHorizontalFlip(),
             transforms.RandomResizedCrop(
                 size=(img_shape[0], img_shape[1]),
@@ -78,7 +80,7 @@ class Transforms:
         - Resize target to the size of model output
     """
 
-    def __init__(self, dataset_cfg: dict):
+    def __init__(self, dataset_cfg: DatasetConfig):
         img_shape = dataset_cfg["img_shape"]
         mean = dataset_cfg["mean"]
         std = dataset_cfg["std"]
@@ -114,7 +116,7 @@ class Transforms:
     
     def filter_cityscapes_classes(self, classes: list[Cityscapes.CityscapesClass]):
         filtered_classes = [classes[0]] + [c for c in classes if not c.ignore_in_eval]
-        map_classes: list = torch.tensor(
+        map_classes: torch.Tensor = torch.tensor(
             [0 if c.ignore_in_eval else filtered_classes.index(c) for c in classes],
             dtype=torch.int64
         )

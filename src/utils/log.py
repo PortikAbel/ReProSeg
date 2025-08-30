@@ -52,7 +52,7 @@ class BasicLog(logging.Logger):
         msg: typing.Any,
         args,
         exc_info=None,
-        extra: typing.Mapping[str, object] = None,
+        extra: typing.Mapping[str, object] | None = None,
         stack_info: bool = False,
         stacklevel: int = 1,
     ):
@@ -85,7 +85,7 @@ class BasicLog(logging.Logger):
 
     def exception(
         self,
-        msg: Exception,
+        msg: object,
         *args,
         exc_info=True,
         stack_info=False,
@@ -116,7 +116,6 @@ class Log(BasicLog):
         self, log_dir: Path, name: str, disable_console: bool = False
     ):  # Store log in log_dir
         super().__init__(log_dir, name, disable_console)
-        self._logs = dict()
 
         # Ensure the directories exist
         self.metadata_dir.mkdir(parents=True, exist_ok=True)

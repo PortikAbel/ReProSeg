@@ -9,7 +9,6 @@ class TwoAugSupervisedDataset(Dataset):
 
     def __init__(self, dataset: Dataset, transforms: Transforms):
         self.dataset = dataset
-        self.classes = dataset.classes
         self.transform_base_image = transforms.base_image
         self.transform1 = transforms.geometry_augmentation
         self.transform2 = Compose([
@@ -34,3 +33,7 @@ class TwoAugSupervisedDataset(Dataset):
 
     def __len__(self):
         return len(self.dataset)
+    
+    @property
+    def classes(self):
+        return self.dataset.classes

@@ -51,7 +51,7 @@ def calculate_loss(
     var_loss = (variance_loss(embv1) + variance_loss(embv2)) / 2.0
     class_loss = torch.tensor(0.0)
 
-    loss = 0.0
+    loss = torch.tensor(0.0, device=aspp_features.device)
     if train_phase is not TrainPhase.FINETUNE:
         loss += weights.alignment * a_loss_pf
         loss += weights.jsd * jsd_loss

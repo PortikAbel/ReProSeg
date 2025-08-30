@@ -16,7 +16,7 @@ def compute_absained(out: torch.Tensor, ys: torch.Tensor) -> float:
     pixel_count = torch.prod(torch.tensor(max_out_score.shape))
     abstained_pixels = pixel_count - torch.count_nonzero(max_out_score[mask_labeled])
 
-    return abstained_pixels / pixel_count
+    return (abstained_pixels / pixel_count).item()
 
 
 def compute_cm(out: torch.Tensor, ys: torch.Tensor) -> torch.Tensor:
@@ -59,7 +59,7 @@ def acc_from_cm(cm: torch.Tensor) -> float:
     correct = cm.diagonal().sum()
     total = cm.sum()
 
-    return 1 if total == 0 else correct / total
+    return 1.0 if total == 0 else (correct / total).item()
 
 def intersection_and_union_from_cm(cm: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """
