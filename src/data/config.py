@@ -25,6 +25,7 @@ def _get_cityscapes_config() -> DatasetConfig:
 
 DATASETS: dict[str, DatasetConfig] = {}
 
+
 # Lazy loading of dataset configurations
 def get_dataset_config(dataset_name: str) -> DatasetConfig:
     """Get dataset configuration by name, loading it lazily if not already loaded."""
@@ -33,5 +34,5 @@ def get_dataset_config(dataset_name: str) -> DatasetConfig:
             DATASETS[dataset_name] = _get_cityscapes_config()
         else:
             raise ValueError(f"Unknown dataset: {dataset_name}")
-    
+
     return DATASETS[dataset_name]
