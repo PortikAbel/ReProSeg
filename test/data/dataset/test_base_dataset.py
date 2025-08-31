@@ -6,7 +6,7 @@ import pytest
 import torch
 
 from data.dataset.base import Dataset
-from data.config import DATASETS
+from data.config import get_dataset_config
 
 
 class TestBaseDataset:
@@ -23,7 +23,7 @@ class TestBaseDataset:
 
         assert dataset.name == self.dataset_name
         assert dataset.split == self.split
-        assert dataset.config == DATASETS[self.dataset_name]
+        assert dataset.config == get_dataset_config(self.dataset_name)
         assert dataset.dataset is not None
         assert dataset.transforms is not None
 
@@ -34,8 +34,8 @@ class TestBaseDataset:
                 Dataset("InvalidDataset", self.split)  # type: ignore
                 raise AssertionError("Should have raised NotImplementedError")
             except NotImplementedError as e:
-                assert "'InvalidDataset'" in str(e)
-                assert "not implemented" in str(e)
+                assert "InvalidDataset" in str(e)
+                assert "Unknown dataset" in str(e)
 
     def test_supported_dataset_literal(self, mock_env_data_root, mock_cityscapes_constructor):
         """Test that the SupportedDataset literal type works correctly."""
@@ -231,7 +231,7 @@ class TestBaseDataset:
         # Verify that other properties are still accessible
         assert dataset.name == self.dataset_name
         assert dataset.split == self.split
-        assert dataset.config == DATASETS[self.dataset_name]
+        assert dataset.config == get_dataset_config(self.dataset_name)
         assert dataset.transforms is not None
 
         # Verify that the dataset can still be indexed

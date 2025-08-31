@@ -3,7 +3,7 @@ from torchvision.datasets import Cityscapes
 from torchvision.transforms.v2 import Transform, Compose
 
 from data import SupportedDataset, SupportedSplit
-from data.config import DATASETS, DatasetConfig
+from data.config import get_dataset_config, DatasetConfig
 from data.transforms import Transforms
 
 
@@ -16,13 +16,8 @@ class Dataset(TorchDataset):
 
     def __init__(self, dataset_name: SupportedDataset, split: SupportedSplit):
         # Validate dataset name first
-        if dataset_name not in DATASETS:
-            raise NotImplementedError(
-                f"Dataset '{dataset_name}' not implemented. Available datasets: {list(DATASETS.keys())}"
-            )
-
+        self.config = get_dataset_config(dataset_name)
         self.name = dataset_name
-        self.config = DATASETS[dataset_name]
         self.split = split
         # Initialize transforms first, before creating the dataset
         self.transforms = Transforms(self.config)

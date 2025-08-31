@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 from model.model import ReProSeg
 from utils.log import Log
-from data.config import DATASETS
+from data.config import get_dataset_config
 from .utils import activations_to_alpha, prototype_text, draw_activation_minmax_text_on_image
 
 
@@ -30,7 +30,7 @@ class ModelVisualizer:
         self.net = net
         self.args = args
         self.log = log
-        self.image_shape = DATASETS[args.dataset]["img_shape"]
+        self.image_shape = get_dataset_config(args.dataset)["img_shape"]
         self.k = k
 
     def collect_topk_prototype_activations(self, train_loader_visualization):

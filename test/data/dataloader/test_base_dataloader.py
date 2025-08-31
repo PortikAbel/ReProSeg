@@ -177,8 +177,8 @@ class TestBaseDataLoader:
             with pytest.raises(NotImplementedError) as exc_info:
                 DataLoader("train", args)
 
-            assert "'InvalidDataset'" in str(exc_info.value)
-            assert "not implemented" in str(exc_info.value)
+            assert "InvalidDataset" in str(exc_info.value)
+            assert "Unknown dataset" in str(exc_info.value)
 
     def test_class_attributes_accessibility(self, mock_env_data_root, mock_cityscapes_constructor):
         """Test that class attributes are accessible and correctly typed."""
