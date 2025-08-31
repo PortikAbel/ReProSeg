@@ -178,7 +178,7 @@ class TestDoubleAugmentDataLoader:
                 DoubleAugmentDataLoader(args)
 
             assert "InvalidDataset" in str(exc_info.value)
-            assert "Unknown dataset" in str(exc_info.value)
+            assert "is not implemented" in str(exc_info.value)
 
     def test_constructor_signature_compatibility(self, mock_env_data_root, mock_cityscapes_constructor):
         """Test that constructor signature matches expected interface."""

@@ -178,7 +178,7 @@ class TestBaseDataLoader:
                 DataLoader("train", args)
 
             assert "InvalidDataset" in str(exc_info.value)
-            assert "Unknown dataset" in str(exc_info.value)
+            assert "is not implemented" in str(exc_info.value)
 
     def test_class_attributes_accessibility(self, mock_env_data_root, mock_cityscapes_constructor):
         """Test that class attributes are accessible and correctly typed."""

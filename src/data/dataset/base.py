@@ -5,6 +5,7 @@ from torchvision.transforms.v2 import Transform, Compose
 from data import SupportedDataset, SupportedSplit
 from data.config import get_dataset_config, DatasetConfig
 from data.transforms import Transforms
+from utils.errors import DatasetNotImplementedError
 
 
 class Dataset(TorchDataset):
@@ -46,7 +47,7 @@ class Dataset(TorchDataset):
 
                 return data
             case _:
-                raise NotImplementedError(f"Dataset {self.name} not implemented")
+                raise DatasetNotImplementedError(self.name)
 
     @property
     def classes(self):

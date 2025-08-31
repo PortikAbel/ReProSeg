@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import TypedDict
 
 from utils.environment import get_env
+from utils.errors import DatasetNotImplementedError
 
 
 class DatasetConfig(TypedDict):
@@ -33,6 +34,6 @@ def get_dataset_config(dataset_name: str) -> DatasetConfig:
         if dataset_name == "CityScapes":
             DATASETS[dataset_name] = _get_cityscapes_config()
         else:
-            raise ValueError(f"Unknown dataset: {dataset_name}")
+            raise DatasetNotImplementedError(dataset_name)
 
     return DATASETS[dataset_name]

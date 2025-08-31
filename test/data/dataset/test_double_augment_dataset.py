@@ -238,3 +238,4 @@ class TestDoubleAugmentDataset:
             raise AssertionError("Should have raised NotImplementedError")
         except NotImplementedError as e:
             assert "InvalidDataset" in str(e)
+            assert "is not implemented" in str(e)

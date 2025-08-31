@@ -35,7 +35,7 @@ class TestBaseDataset:
                 raise AssertionError("Should have raised NotImplementedError")
             except NotImplementedError as e:
                 assert "InvalidDataset" in str(e)
-                assert "Unknown dataset" in str(e)
+                assert "is not implemented" in str(e)
 
     def test_supported_dataset_literal(self, mock_env_data_root, mock_cityscapes_constructor):
         """Test that the SupportedDataset literal type works correctly."""
