@@ -21,6 +21,9 @@ build-backend = "setuptools.build_meta"
 [dependency-groups]
 dev = [
     "mypy>=1.16.0",
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+    "pytest-mock>=3.14.1",
     "ruff>=0.11.13",
 ]
 
@@ -30,6 +33,10 @@ line-length = 120
 [tool.ruff.lint]
 select = ["E", "F", "B"]
 
+[tool.mypy]
+mypy_path = "src"
+explicit_package_bases = true
+
 [[tool.mypy.overrides]]
 module = ["torchvision.*", "tqdm.*"]
-follow_untyped_imports = true
+ignore_missing_imports = true

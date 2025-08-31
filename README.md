@@ -44,3 +44,20 @@ Representative Prototype-based Segmentation
    ```bash
    uv run python src/scripts/run.py --help
    ```
+
+## Running Tests
+
+Run the dataset unit tests:
+```bash
+# Run all tests
+uv run pytest
+
+# Run specific test file
+uv run pytest <test_file_name>
+
+# Run specific test method in a file
+uv run pytest <test_file_name>::<TestClassName>::<test_method_name>
+
+# Run with coverage
+uv run pytest --cov=src --cov-report=term
+```

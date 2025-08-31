@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms as transforms
 
-from data.config import DATASETS
+from data.config import get_dataset_config
 from utils.log import Log
 from utils.func import init_weights_xavier
 from model.segmentation_features import (
@@ -47,7 +47,7 @@ class ReProSegLayers(nn.Module):
 
         features, aspp_convs = base_architecture_to_features[args.net](
             pretrained=not args.disable_pretrained,
-            in_channels=DATASETS[args.dataset]["color_channels"],
+            in_channels=get_dataset_config(args.dataset)["color_channels"],
         )
         self.feature_net = features
         self.aspp_convs = aspp_convs

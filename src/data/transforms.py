@@ -124,7 +124,8 @@ class Transforms:
             interpolation=transforms.InterpolationMode.NEAREST_EXACT,
         )
 
-    def filter_cityscapes_classes(self, classes: list[Cityscapes.CityscapesClass]):
+    def filter_cityscapes_classes(self) -> list[Cityscapes.CityscapesClass]:
+        classes = Cityscapes.classes
         filtered_classes = [classes[0]] + [c for c in classes if not c.ignore_in_eval]
         map_classes: torch.Tensor = torch.tensor(
             [0 if c.ignore_in_eval else filtered_classes.index(c) for c in classes], dtype=torch.int64
