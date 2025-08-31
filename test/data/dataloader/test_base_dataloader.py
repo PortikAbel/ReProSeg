@@ -45,9 +45,7 @@ class TestBaseDataLoader:
         assert dataloader.pin_memory is True
 
     @patch("torch.cuda.is_available")
-    def test_pin_memory_when_cuda_not_available(
-        self, mock_cuda_available, mock_cityscapes_constructor
-    ):
+    def test_pin_memory_when_cuda_not_available(self, mock_cuda_available, mock_cityscapes_constructor):
         """Test that pin_memory is False when CUDA is not available."""
         mock_cuda_available.return_value = False
 
@@ -144,9 +142,7 @@ class TestBaseDataLoader:
             expected_length = (100 + 4 - 1) // 4  # ceiling division
             assert len(dataloader) == expected_length
 
-    def test_iteration_functionality(
-        self, mock_cityscapes_constructor, sample_image, sample_target
-    ):
+    def test_iteration_functionality(self, mock_cityscapes_constructor, sample_image, sample_target):
         """Test that DataLoader can be iterated over."""
         # Create mock tensor data that the DataLoader can handle
         mock_tensor_image = torch.randn(3, 256, 512)  # Sample image tensor

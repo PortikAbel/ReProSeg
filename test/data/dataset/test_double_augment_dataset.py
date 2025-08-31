@@ -46,9 +46,7 @@ class TestDoubleAugmentDataset:
         assert dataset.transform2.transforms[0] == dataset.transforms.color_augmentation
         assert dataset.transform2.transforms[1] == dataset.transforms.image_normalization
 
-    def test_getitem_returns_three_items(
-        self, mock_cityscapes_constructor, sample_image, sample_target
-    ):
+    def test_getitem_returns_three_items(self, mock_cityscapes_constructor, sample_image, sample_target):
         """Test that __getitem__ returns exactly three items."""
         dataset = DoubleAugmentDataset(self.dataset_name)
 
@@ -66,9 +64,7 @@ class TestDoubleAugmentDataset:
         assert augmented_image2 is not None
         assert shrunken_target is not None
 
-    def test_getitem_transform_sequence(
-        self, mock_cityscapes_constructor, sample_image, sample_target
-    ):
+    def test_getitem_transform_sequence(self, mock_cityscapes_constructor, sample_image, sample_target):
         """Test that __getitem__ applies transforms in the correct sequence."""
         dataset = DoubleAugmentDataset(self.dataset_name)
 
@@ -109,9 +105,7 @@ class TestDoubleAugmentDataset:
         assert result[1] == mock_color_transformed_image  # Second augmented image
         assert result[2] == mock_shrunken_target  # Shrunken target
 
-    def test_double_augmentation_concept(
-        self, mock_cityscapes_constructor, sample_image, sample_target
-    ):
+    def test_double_augmentation_concept(self, mock_cityscapes_constructor, sample_image, sample_target):
         """Test the core concept: two similar but independently augmented images."""
         dataset = DoubleAugmentDataset(self.dataset_name)
 
@@ -202,9 +196,7 @@ class TestDoubleAugmentDataset:
         # It should contain exactly 2 transforms (color_augmentation and image_normalization)
         assert len(dataset.transform2.transforms) == 2
 
-    def test_multiple_calls_independence(
-        self, mock_cityscapes_constructor, sample_image, sample_target
-    ):
+    def test_multiple_calls_independence(self, mock_cityscapes_constructor, sample_image, sample_target):
         """Test that multiple calls to __getitem__ work independently and produce different results."""
         dataset = DoubleAugmentDataset(self.dataset_name)
 

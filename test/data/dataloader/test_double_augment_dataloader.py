@@ -64,9 +64,7 @@ class TestDoubleAugmentDataLoader:
         # Verify it's specifically a DoubleAugmentDataset, not just the base Dataset
         assert type(dataloader.dataset).__name__ == "DoubleAugmentDataset"
 
-    def test_double_augment_dataset_functionality(
-        self, mock_cityscapes_constructor, sample_image, sample_target
-    ):
+    def test_double_augment_dataset_functionality(self, mock_cityscapes_constructor, sample_image, sample_target):
         """Test that the underlying DoubleAugmentDataset works as expected."""
         dataloader = DoubleAugmentDataLoader(self.args)
 
@@ -143,9 +141,7 @@ class TestDoubleAugmentDataLoader:
         assert hasattr(dataloader, "dataset")
         assert callable(dataloader.__iter__)
 
-    def test_iteration_with_double_augment_data(
-        self, mock_cityscapes_constructor, sample_image, sample_target
-    ):
+    def test_iteration_with_double_augment_data(self, mock_cityscapes_constructor, sample_image, sample_target):
         """Test iteration over DoubleAugmentDataLoader returns correct batch structure."""
         # Mock the underlying dataset to return sample data
         with patch.object(DoubleAugmentDataset, "__getitem__") as mock_getitem:

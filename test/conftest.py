@@ -12,6 +12,7 @@ def temp_dir() -> Generator[Path, None, None]:
     with tempfile.TemporaryDirectory() as temp_dir:
         yield Path(temp_dir)
 
+
 @pytest.fixture(autouse=True)
 def mock_env_variables(temp_dir: Path, monkeypatch):
     """Mock environment variables for testing."""
