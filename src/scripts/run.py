@@ -1,4 +1,4 @@
-from data.dataloaders import get_dataloaders
+from data.dataloader import DataLoader, DoubleAugmentDataLoader
 from model.model import ReProSeg
 from utils.args import ModelTrainerArgumentParser
 from utils.log import Log
@@ -18,12 +18,10 @@ log.info(
     f"Device used: {model_args.device} {f'with id {model_args.device_ids}' if len(model_args.device_ids) > 0 else ''}",
 )
 
-# Obtain the dataloaders
-(
-    train_loader,
-    test_loader,
-    train_loader_visualization,
-) = get_dataloaders(log, model_args)
+# Create the dataloaders
+train_loader = DoubleAugmentDataLoader(model_args)
+test_loader = DataLoader("test", model_args)
+train_loader_visualization = DataLoader("train", model_args)
 
 
 # Create a ReProSeg model
