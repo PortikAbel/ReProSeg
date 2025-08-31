@@ -17,7 +17,7 @@ class TestDoubleAugmentDataLoader:
         """Set up test fixtures before each test method."""
         self.args = Namespace(dataset="CityScapes", batch_size=4, num_workers=2, seed=42)
 
-    def test_init_basic(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_init_basic(self, mock_cityscapes_constructor):
         """Test DoubleAugmentDataLoader initialization with basic parameters."""
         dataloader = DoubleAugmentDataLoader(self.args)
 
@@ -27,7 +27,7 @@ class TestDoubleAugmentDataLoader:
         assert dataloader.batch_size == 4
         assert dataloader.num_workers == 2
 
-    def test_inheritance_from_base_dataloader(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_inheritance_from_base_dataloader(self, mock_cityscapes_constructor):
         """Test that DoubleAugmentDataLoader properly inherits from DataLoader."""
         dataloader = DoubleAugmentDataLoader(self.args)
 
@@ -37,7 +37,7 @@ class TestDoubleAugmentDataLoader:
         assert hasattr(dataloader, "to_shuffle")
         assert hasattr(dataloader, "to_drop_last")
 
-    def test_always_uses_train_split(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_always_uses_train_split(self, mock_cityscapes_constructor):
         """Test that DoubleAugmentDataLoader always uses 'train' split regardless of args."""
         # The constructor hardcodes "train" split
         dataloader = DoubleAugmentDataLoader(self.args)
@@ -45,7 +45,7 @@ class TestDoubleAugmentDataLoader:
         assert dataloader.split == "train"
         assert dataloader.dataset.split == "train"
 
-    def test_create_dataset_method_override(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_create_dataset_method_override(self, mock_cityscapes_constructor):
         """Test that _create_dataset method creates DoubleAugmentDataset."""
         dataloader = DoubleAugmentDataLoader(self.args)
 
@@ -56,7 +56,7 @@ class TestDoubleAugmentDataLoader:
         assert dataset.name == "CityScapes"
         assert dataset.split == "train"  # DoubleAugmentDataset always uses train
 
-    def test_dataset_type_is_double_augment(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_dataset_type_is_double_augment(self, mock_cityscapes_constructor):
         """Test that the created dataset is specifically DoubleAugmentDataset."""
         dataloader = DoubleAugmentDataLoader(self.args)
 
@@ -65,7 +65,7 @@ class TestDoubleAugmentDataLoader:
         assert type(dataloader.dataset).__name__ == "DoubleAugmentDataset"
 
     def test_double_augment_dataset_functionality(
-        self, mock_env_data_root, mock_cityscapes_constructor, sample_image, sample_target
+        self, mock_cityscapes_constructor, sample_image, sample_target
     ):
         """Test that the underlying DoubleAugmentDataset works as expected."""
         dataloader = DoubleAugmentDataLoader(self.args)
@@ -79,21 +79,21 @@ class TestDoubleAugmentDataLoader:
             # First two should be the augmented images, third should be the target
 
     @pytest.mark.parametrize("batch_size", [1, 8, 16])
-    def test_batch_size_propagation(self, batch_size, mock_env_data_root, mock_cityscapes_constructor):
+    def test_batch_size_propagation(self, batch_size, mock_cityscapes_constructor):
         """Test that batch_size is correctly propagated from args."""
         args = Namespace(dataset="CityScapes", batch_size=batch_size, num_workers=2, seed=42)
         dataloader = DoubleAugmentDataLoader(args)
         assert dataloader.batch_size == batch_size
 
     @pytest.mark.parametrize("num_workers", [0, 1, 4])
-    def test_num_workers_propagation(self, num_workers, mock_env_data_root, mock_cityscapes_constructor):
+    def test_num_workers_propagation(self, num_workers, mock_cityscapes_constructor):
         """Test that num_workers is correctly propagated from args."""
         args = Namespace(dataset="CityScapes", batch_size=4, num_workers=num_workers, seed=42)
         dataloader = DoubleAugmentDataLoader(args)
         assert dataloader.num_workers == num_workers
 
     @pytest.mark.parametrize("seed", [0, 42, 123])
-    def test_seed_propagation(self, seed, mock_env_data_root, mock_cityscapes_constructor):
+    def test_seed_propagation(self, seed, mock_cityscapes_constructor):
         """Test that seed is correctly propagated to worker_init_fn."""
         args = Namespace(dataset="CityScapes", batch_size=4, num_workers=2, seed=seed)
 
@@ -105,7 +105,7 @@ class TestDoubleAugmentDataLoader:
             mock_numpy_seed.assert_called_with(seed)
 
     @patch("torch.cuda.is_available")
-    def test_pin_memory_cuda_availability(self, mock_cuda_available, mock_env_data_root, mock_cityscapes_constructor):
+    def test_pin_memory_cuda_availability(self, mock_cuda_available, mock_cityscapes_constructor):
         """Test that pin_memory setting respects CUDA availability."""
         # Test when CUDA is available
         mock_cuda_available.return_value = True
@@ -117,13 +117,13 @@ class TestDoubleAugmentDataLoader:
         dataloader = DoubleAugmentDataLoader(self.args)
         assert dataloader.pin_memory is False
 
-    def test_dataset_name_propagation(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_dataset_name_propagation(self, mock_cityscapes_constructor):
         """Test that dataset name is correctly propagated to DoubleAugmentDataset."""
         dataloader = DoubleAugmentDataLoader(self.args)
 
         assert dataloader.dataset.name == "CityScapes"
 
-    def test_default_dataloader_settings(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_default_dataloader_settings(self, mock_cityscapes_constructor):
         """Test that default DataLoader settings are inherited."""
         dataloader = DoubleAugmentDataLoader(self.args)
 
@@ -133,7 +133,7 @@ class TestDoubleAugmentDataLoader:
         assert dataloader.drop_last == dataloader.to_drop_last
         assert dataloader.sampler is not None  # torch creates default sampler
 
-    def test_torch_dataloader_functionality(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_torch_dataloader_functionality(self, mock_cityscapes_constructor):
         """Test that it maintains torch DataLoader functionality."""
         dataloader = DoubleAugmentDataLoader(self.args)
 
@@ -144,7 +144,7 @@ class TestDoubleAugmentDataLoader:
         assert callable(dataloader.__iter__)
 
     def test_iteration_with_double_augment_data(
-        self, mock_env_data_root, mock_cityscapes_constructor, sample_image, sample_target
+        self, mock_cityscapes_constructor, sample_image, sample_target
     ):
         """Test iteration over DoubleAugmentDataLoader returns correct batch structure."""
         # Mock the underlying dataset to return sample data
@@ -169,7 +169,7 @@ class TestDoubleAugmentDataLoader:
                     assert batch[2].shape[0] == dataloader.batch_size  # Batch dimension
                     break  # Just test the first batch
 
-    def test_invalid_dataset_handling(self, mock_env_data_root):
+    def test_invalid_dataset_handling(self):
         """Test handling of invalid dataset names."""
         args = Namespace(dataset="InvalidDataset", batch_size=4, num_workers=2, seed=42)
 
@@ -180,7 +180,7 @@ class TestDoubleAugmentDataLoader:
             assert "InvalidDataset" in str(exc_info.value)
             assert "is not implemented" in str(exc_info.value)
 
-    def test_constructor_signature_compatibility(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_constructor_signature_compatibility(self, mock_cityscapes_constructor):
         """Test that constructor signature matches expected interface."""
         # Should accept Namespace args
         dataloader = DoubleAugmentDataLoader(self.args)

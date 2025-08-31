@@ -17,7 +17,7 @@ class TestBaseDataset:
         self.dataset_name = "CityScapes"
         self.split = "train"
 
-    def test_init_valid_dataset(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_init_valid_dataset(self, mock_cityscapes_constructor):
         """Test Dataset initialization with valid parameters."""
         dataset = Dataset(self.dataset_name, self.split)
 
@@ -27,7 +27,7 @@ class TestBaseDataset:
         assert dataset.dataset is not None
         assert dataset.transforms is not None
 
-    def test_init_invalid_dataset(self, mock_env_data_root):
+    def test_init_invalid_dataset(self):
         """Test Dataset initialization with invalid dataset name."""
         with patch("torchvision.datasets.Cityscapes"):
             try:
@@ -37,13 +37,13 @@ class TestBaseDataset:
                 assert "InvalidDataset" in str(e)
                 assert "is not implemented" in str(e)
 
-    def test_supported_dataset_literal(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_supported_dataset_literal(self, mock_cityscapes_constructor):
         """Test that the SupportedDataset literal type works correctly."""
         # This should work without any issues
         dataset = Dataset("CityScapes", self.split)
         assert dataset.name == "CityScapes"
 
-    def test_getitem(self, mock_env_data_root, mock_cityscapes_constructor, sample_image, sample_target):
+    def test_getitem(self, mock_cityscapes_constructor, sample_image, sample_target):
         """Test __getitem__ method."""
         dataset = Dataset(self.dataset_name, self.split)
 
@@ -54,7 +54,7 @@ class TestBaseDataset:
         assert result[0] == sample_image
         assert result[1] == sample_target
 
-    def test_len(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_len(self, mock_cityscapes_constructor):
         """Test __len__ method."""
         dataset = Dataset(self.dataset_name, self.split)
 
@@ -64,7 +64,7 @@ class TestBaseDataset:
         assert len(dataset) == 100
         dataset.dataset.__len__.assert_called_once()
 
-    def test_getdata_cityscapes(self, mock_env_data_root, mock_cityscapes_constructor, temp_data_dir):
+    def test_getdata_cityscapes(self, mock_cityscapes_constructor):
         """Test __getdata__ method for CityScapes dataset."""
         _dataset = Dataset(self.dataset_name, self.split)
 
@@ -78,7 +78,7 @@ class TestBaseDataset:
         assert call_kwargs["transform"] is not None
         assert call_kwargs["target_transform"] is not None
 
-    def test_classes_property(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_classes_property(self, mock_cityscapes_constructor):
         """Test classes property."""
         dataset = Dataset(self.dataset_name, self.split)
 
@@ -87,7 +87,7 @@ class TestBaseDataset:
 
         assert dataset.classes == mock_classes
 
-    def test_transform_property(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_transform_property(self, mock_cityscapes_constructor):
         """Test transform property."""
         dataset = Dataset(self.dataset_name, self.split)
 
@@ -95,7 +95,7 @@ class TestBaseDataset:
         assert transform is not None
         assert callable(transform)  # Should be callable
 
-    def test_target_transform_property(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_target_transform_property(self, mock_cityscapes_constructor):
         """Test target_transform property."""
         dataset = Dataset(self.dataset_name, self.split)
 
@@ -103,7 +103,7 @@ class TestBaseDataset:
         assert target_transform is not None
         assert callable(target_transform)  # Should be callable
 
-    def test_transforms_object_creation(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_transforms_object_creation(self, mock_cityscapes_constructor):
         """Test that Transforms object is created correctly."""
         dataset = Dataset(self.dataset_name, self.split)
 
@@ -116,7 +116,7 @@ class TestBaseDataset:
         assert hasattr(transforms, "color_augmentation")
         assert hasattr(transforms, "shrink_target")
 
-    def test_dataset_config_access(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_dataset_config_access(self, mock_cityscapes_constructor):
         """Test that dataset configuration is accessible."""
         dataset = Dataset(self.dataset_name, self.split)
 
@@ -129,12 +129,12 @@ class TestBaseDataset:
         assert "std" in config
 
     @pytest.mark.parametrize("split", ["train", "val", "test"])
-    def test_multiple_splits(self, split, mock_env_data_root, mock_cityscapes_constructor):
+    def test_multiple_splits(self, split, mock_cityscapes_constructor):
         """Test Dataset initialization with different splits."""
         dataset = Dataset(self.dataset_name, split)
         assert dataset.split == split
 
-    def test_transform_integration(self, mock_env_data_root, mock_cityscapes_constructor, sample_image):
+    def test_transform_integration(self, mock_cityscapes_constructor, sample_image):
         """Test that transforms can be applied to sample data."""
         dataset = Dataset(self.dataset_name, self.split)
 
@@ -143,7 +143,7 @@ class TestBaseDataset:
         assert transformed_image is not None
         assert isinstance(transformed_image, torch.Tensor)
 
-    def test_target_transform_integration(self, mock_env_data_root, mock_cityscapes_constructor, sample_target):
+    def test_target_transform_integration(self, mock_cityscapes_constructor, sample_target):
         """Test that target transforms can be applied to sample data."""
         dataset = Dataset(self.dataset_name, self.split)
 
@@ -152,7 +152,7 @@ class TestBaseDataset:
         assert transformed_target is not None
         assert isinstance(transformed_target, torch.Tensor)
 
-    def test_class_filtering_called(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_class_filtering_called(self, mock_cityscapes_constructor):
         """Test that filter_cityscapes_classes is called during dataset creation."""
         dataset = Dataset(self.dataset_name, self.split)
 
@@ -162,7 +162,7 @@ class TestBaseDataset:
             dataset.__getdata__()
             mock_filter.assert_called_once()
 
-    def test_filtered_classes_assigned_to_dataset(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_filtered_classes_assigned_to_dataset(self, mock_cityscapes_constructor):
         """Test that filtered classes are properly assigned to the dataset."""
         # Mock the filter_cityscapes_classes method to return specific classes
         mock_filtered_classes = ["filtered_class_1", "filtered_class_2"]
@@ -173,7 +173,7 @@ class TestBaseDataset:
             # Verify that the filtered classes were assigned to the underlying dataset
             assert dataset.dataset.classes == mock_filtered_classes
 
-    def test_class_filtering_with_ignores(self, mock_env_data_root, mock_cityscapes_classes, mock_cityscapes_dataset):
+    def test_class_filtering_with_ignores(self, mock_cityscapes_classes, mock_cityscapes_dataset):
         """Test class filtering correctly handles ignore_in_eval flag."""
         # Set the classes on our existing mock dataset
         mock_cityscapes_dataset.classes = mock_cityscapes_classes
@@ -196,7 +196,7 @@ class TestBaseDataset:
                 # Verify the filtered classes were assigned
                 assert dataset.dataset.classes == expected_filtered_classes
 
-    def test_class_filtering_integration_with_transforms(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_class_filtering_integration_with_transforms(self, mock_cityscapes_constructor):
         """Test that class filtering integrates properly with transforms."""
         dataset = Dataset(self.dataset_name, self.split)
 
@@ -208,7 +208,7 @@ class TestBaseDataset:
         filtered_classes = dataset.transforms.filter_cityscapes_classes()
         assert filtered_classes is not None
 
-    def test_class_filtering_updates_base_target_transform(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_class_filtering_updates_base_target_transform(self, mock_cityscapes_constructor):
         """Test that class filtering updates the base_target transform."""
         dataset = Dataset(self.dataset_name, self.split)
 
@@ -224,7 +224,7 @@ class TestBaseDataset:
         # The transforms should be different objects after filtering
         assert id(original_transform) != id(updated_transform)
 
-    def test_class_filtering_preserves_other_dataset_properties(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_class_filtering_preserves_other_dataset_properties(self, mock_cityscapes_constructor):
         """Test that class filtering doesn't interfere with other dataset properties."""
         dataset = Dataset(self.dataset_name, self.split)
 

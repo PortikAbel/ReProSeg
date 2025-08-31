@@ -17,7 +17,7 @@ class TestBaseDataLoader:
         """Set up test fixtures before each test method."""
         self.args = Namespace(dataset="CityScapes", batch_size=4, num_workers=2, seed=42)
 
-    def test_init_basic(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_init_basic(self, mock_cityscapes_constructor):
         """Test DataLoader initialization with basic parameters."""
         dataloader = DataLoader("train", self.args)
 
@@ -30,14 +30,14 @@ class TestBaseDataLoader:
         assert dataloader.to_drop_last is False
 
     @pytest.mark.parametrize("split", ["train", "val", "test"])
-    def test_init_with_different_splits(self, split, mock_env_data_root, mock_cityscapes_constructor):
+    def test_init_with_different_splits(self, split, mock_cityscapes_constructor):
         """Test DataLoader initialization with different splits."""
         dataloader = DataLoader(split, self.args)
         assert dataloader.split == split
         assert dataloader.dataset.split == split
 
     @patch("torch.cuda.is_available")
-    def test_pin_memory_when_cuda_available(self, mock_cuda_available, mock_env_data_root, mock_cityscapes_constructor):
+    def test_pin_memory_when_cuda_available(self, mock_cuda_available, mock_cityscapes_constructor):
         """Test that pin_memory is True when CUDA is available."""
         mock_cuda_available.return_value = True
 
@@ -46,7 +46,7 @@ class TestBaseDataLoader:
 
     @patch("torch.cuda.is_available")
     def test_pin_memory_when_cuda_not_available(
-        self, mock_cuda_available, mock_env_data_root, mock_cityscapes_constructor
+        self, mock_cuda_available, mock_cityscapes_constructor
     ):
         """Test that pin_memory is False when CUDA is not available."""
         mock_cuda_available.return_value = False
@@ -54,7 +54,7 @@ class TestBaseDataLoader:
         dataloader = DataLoader("train", self.args)
         assert dataloader.pin_memory is False
 
-    def test_dataset_creation(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_dataset_creation(self, mock_cityscapes_constructor):
         """Test that dataset is created correctly."""
         dataloader = DataLoader("train", self.args)
 
@@ -62,7 +62,7 @@ class TestBaseDataLoader:
         assert dataloader.dataset.name == "CityScapes"
         assert dataloader.dataset.split == "train"
 
-    def test_create_dataset_method(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_create_dataset_method(self, mock_cityscapes_constructor):
         """Test the _create_dataset method."""
         dataloader = DataLoader("val", self.args)
 
@@ -73,7 +73,7 @@ class TestBaseDataLoader:
         assert new_dataset.name == "CityScapes"
         assert new_dataset.split == "val"  # Should use the dataloader's split
 
-    def test_torch_dataloader_inheritance(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_torch_dataloader_inheritance(self, mock_cityscapes_constructor):
         """Test that DataLoader properly inherits from torch.utils.data.DataLoader."""
         dataloader = DataLoader("train", self.args)
 
@@ -90,7 +90,7 @@ class TestBaseDataLoader:
         assert hasattr(dataloader, "__len__")
 
     @patch("numpy.random.seed")
-    def test_worker_init_function(self, mock_numpy_seed, mock_env_data_root, mock_cityscapes_constructor):
+    def test_worker_init_function(self, mock_numpy_seed, mock_cityscapes_constructor):
         """Test that worker_init_fn is set correctly."""
         dataloader = DataLoader("train", self.args)
 
@@ -103,20 +103,20 @@ class TestBaseDataLoader:
         mock_numpy_seed.assert_called_with(42)
 
     @pytest.mark.parametrize("batch_size", [1, 8, 16, 32])
-    def test_batch_size_parameter(self, batch_size, mock_env_data_root, mock_cityscapes_constructor):
+    def test_batch_size_parameter(self, batch_size, mock_cityscapes_constructor):
         """Test that batch_size is set correctly from args."""
         args = Namespace(dataset="CityScapes", batch_size=batch_size, num_workers=2, seed=42)
         dataloader = DataLoader("train", args)
         assert dataloader.batch_size == batch_size
 
     @pytest.mark.parametrize("num_workers", [0, 1, 4, 8])
-    def test_num_workers_parameter(self, num_workers, mock_env_data_root, mock_cityscapes_constructor):
+    def test_num_workers_parameter(self, num_workers, mock_cityscapes_constructor):
         """Test that num_workers is set correctly from args."""
         args = Namespace(dataset="CityScapes", batch_size=4, num_workers=num_workers, seed=42)
         dataloader = DataLoader("train", args)
         assert dataloader.num_workers == num_workers
 
-    def test_default_shuffle_and_drop_last(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_default_shuffle_and_drop_last(self, mock_cityscapes_constructor):
         """Test that shuffle and drop_last have correct default values."""
         dataloader = DataLoader("train", self.args)
 
@@ -126,14 +126,14 @@ class TestBaseDataLoader:
         assert dataloader.to_drop_last is False
         assert dataloader.drop_last == dataloader.to_drop_last
 
-    def test_sampler_is_none(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_sampler_is_none(self, mock_cityscapes_constructor):
         """Test that sampler configuration is correct."""
         dataloader = DataLoader("train", self.args)
         # Note: torch DataLoader creates a default sampler when sampler=None is passed
         # so we just verify the sampler exists and is of expected type
         assert dataloader.sampler is not None
 
-    def test_dataset_length_propagation(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_dataset_length_propagation(self, mock_cityscapes_constructor):
         """Test that DataLoader length matches dataset length."""
         # Mock the dataset length
         with patch.object(Dataset, "__len__", return_value=100):
@@ -145,7 +145,7 @@ class TestBaseDataLoader:
             assert len(dataloader) == expected_length
 
     def test_iteration_functionality(
-        self, mock_env_data_root, mock_cityscapes_constructor, sample_image, sample_target
+        self, mock_cityscapes_constructor, sample_image, sample_target
     ):
         """Test that DataLoader can be iterated over."""
         # Create mock tensor data that the DataLoader can handle
@@ -169,7 +169,7 @@ class TestBaseDataLoader:
 
                 assert batch_count >= 1  # At least one batch was processed
 
-    def test_invalid_dataset_name_propagation(self, mock_env_data_root):
+    def test_invalid_dataset_name_propagation(self):
         """Test that invalid dataset name raises appropriate error."""
         args = Namespace(dataset="InvalidDataset", batch_size=4, num_workers=2, seed=42)
 
@@ -180,7 +180,7 @@ class TestBaseDataLoader:
             assert "InvalidDataset" in str(exc_info.value)
             assert "is not implemented" in str(exc_info.value)
 
-    def test_class_attributes_accessibility(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_class_attributes_accessibility(self, mock_cityscapes_constructor):
         """Test that class attributes are accessible and correctly typed."""
         dataloader = DataLoader("train", self.args)
 

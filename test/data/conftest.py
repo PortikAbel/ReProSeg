@@ -1,35 +1,11 @@
 """Pytest configuration and fixtures for dataset tests."""
 
-import tempfile
-from pathlib import Path
 from unittest.mock import patch, MagicMock
-from typing import Generator
 
 import pytest
 import numpy as np
 from PIL import Image
 from torchvision.datasets import Cityscapes
-
-
-@pytest.fixture
-def temp_data_dir() -> Generator[Path, None, None]:
-    """Create a temporary directory for test data."""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        yield Path(temp_dir)
-
-
-@pytest.fixture
-def mock_env_data_root(temp_data_dir: Path):
-    """Mock the DATA_ROOT environment variable."""
-    with patch("utils.environment.get_env") as mock_get_env:
-
-        def mock_env_side_effect(var_name, must_exist=True, default_value=None):
-            if var_name == "DATA_ROOT":
-                return str(temp_data_dir)
-            return default_value
-
-        mock_get_env.side_effect = mock_env_side_effect
-        yield mock_get_env
 
 
 @pytest.fixture

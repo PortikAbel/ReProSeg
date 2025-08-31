@@ -14,7 +14,7 @@ class TestDoubleAugmentDataset:
         """Set up test fixtures before each test method."""
         self.dataset_name = "CityScapes"
 
-    def test_init_hardcoded_train_split(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_init_hardcoded_train_split(self, mock_cityscapes_constructor):
         """Test that DoubleAugmentDataset always uses 'train' split."""
         dataset = DoubleAugmentDataset(self.dataset_name)
 
@@ -23,7 +23,7 @@ class TestDoubleAugmentDataset:
         assert dataset.dataset is not None
         assert dataset.transforms is not None
 
-    def test_transform_attributes_initialization(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_transform_attributes_initialization(self, mock_cityscapes_constructor):
         """Test that all transform attributes are properly initialized."""
         dataset = DoubleAugmentDataset(self.dataset_name)
 
@@ -47,7 +47,7 @@ class TestDoubleAugmentDataset:
         assert dataset.transform2.transforms[1] == dataset.transforms.image_normalization
 
     def test_getitem_returns_three_items(
-        self, mock_env_data_root, mock_cityscapes_constructor, sample_image, sample_target
+        self, mock_cityscapes_constructor, sample_image, sample_target
     ):
         """Test that __getitem__ returns exactly three items."""
         dataset = DoubleAugmentDataset(self.dataset_name)
@@ -67,7 +67,7 @@ class TestDoubleAugmentDataset:
         assert shrunken_target is not None
 
     def test_getitem_transform_sequence(
-        self, mock_env_data_root, mock_cityscapes_constructor, sample_image, sample_target
+        self, mock_cityscapes_constructor, sample_image, sample_target
     ):
         """Test that __getitem__ applies transforms in the correct sequence."""
         dataset = DoubleAugmentDataset(self.dataset_name)
@@ -110,7 +110,7 @@ class TestDoubleAugmentDataset:
         assert result[2] == mock_shrunken_target  # Shrunken target
 
     def test_double_augmentation_concept(
-        self, mock_env_data_root, mock_cityscapes_constructor, sample_image, sample_target
+        self, mock_cityscapes_constructor, sample_image, sample_target
     ):
         """Test the core concept: two similar but independently augmented images."""
         dataset = DoubleAugmentDataset(self.dataset_name)
@@ -141,17 +141,17 @@ class TestDoubleAugmentDataset:
         # The two augmented images could be different due to random augmentations
         assert result[0] != result[1]  # They should be different objects
 
-    def test_transform_property_returns_none(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_transform_property_returns_none(self, mock_cityscapes_constructor):
         """Test that transform property returns None (overrides parent)."""
         dataset = DoubleAugmentDataset(self.dataset_name)
         assert dataset.transform is None
 
-    def test_target_transform_property_returns_none(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_target_transform_property_returns_none(self, mock_cityscapes_constructor):
         """Test that target_transform property returns None (overrides parent)."""
         dataset = DoubleAugmentDataset(self.dataset_name)
         assert dataset.target_transform is None
 
-    def test_inheritance_from_base_dataset(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_inheritance_from_base_dataset(self, mock_cityscapes_constructor):
         """Test that DoubleAugmentDataset properly inherits from Dataset."""
         dataset = DoubleAugmentDataset(self.dataset_name)
 
@@ -168,7 +168,7 @@ class TestDoubleAugmentDataset:
 
         assert isinstance(dataset, Dataset)
 
-    def test_len_inherited_from_base(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_len_inherited_from_base(self, mock_cityscapes_constructor):
         """Test that __len__ method is inherited correctly from base Dataset."""
         dataset = DoubleAugmentDataset(self.dataset_name)
 
@@ -178,7 +178,7 @@ class TestDoubleAugmentDataset:
         assert len(dataset) == 50
         dataset.dataset.__len__.assert_called_once()
 
-    def test_classes_property_inherited(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_classes_property_inherited(self, mock_cityscapes_constructor):
         """Test that classes property is inherited correctly from base Dataset."""
         dataset = DoubleAugmentDataset(self.dataset_name)
 
@@ -187,7 +187,7 @@ class TestDoubleAugmentDataset:
 
         assert dataset.classes == mock_classes
 
-    def test_transform2_composition(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_transform2_composition(self, mock_cityscapes_constructor):
         """Test that transform2 is properly composed of color augmentation and normalization."""
         dataset = DoubleAugmentDataset(self.dataset_name)
 
@@ -203,7 +203,7 @@ class TestDoubleAugmentDataset:
         assert len(dataset.transform2.transforms) == 2
 
     def test_multiple_calls_independence(
-        self, mock_env_data_root, mock_cityscapes_constructor, sample_image, sample_target
+        self, mock_cityscapes_constructor, sample_image, sample_target
     ):
         """Test that multiple calls to __getitem__ work independently and produce different results."""
         dataset = DoubleAugmentDataset(self.dataset_name)
@@ -225,7 +225,7 @@ class TestDoubleAugmentDataset:
         assert (augmented_image2_first != augmented_image2_second).any()
         assert (target1 != target2).any()
 
-    def test_supported_dataset_literal_type(self, mock_env_data_root, mock_cityscapes_constructor):
+    def test_supported_dataset_literal_type(self, mock_cityscapes_constructor):
         """Test that DoubleAugmentDataset works with SupportedDataset literal type."""
         # This should work without any type errors
         dataset = DoubleAugmentDataset("CityScapes")
