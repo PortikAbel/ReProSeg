@@ -4,7 +4,7 @@ from data.dataloader import DataLoader
 
 
 def count_class_distribution(args, save_path):
-    dl = DataLoader("CityScapes", "train", args)
+    dl = DataLoader("train", args)
 
     num_classes = len(dl.dataset.classes)
     class_counts = np.zeros(num_classes, dtype=np.int64)
