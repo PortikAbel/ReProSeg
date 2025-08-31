@@ -26,7 +26,7 @@ class DataLoader(TorchDataLoader):
             sampler=None,
             pin_memory=torch.cuda.is_available(),
             num_workers=args.num_workers,
-            worker_init_fn=np.random.seed(args.seed),
+            worker_init_fn=lambda worker_id: np.random.seed(args.seed + worker_id),
             drop_last=self.to_drop_last,
         )
 
