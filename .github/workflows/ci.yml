@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "latest"
+
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: uv sync --dev
+
+    - name: Run ruff format check
+      id: ruff-format
+      run: uv run ruff format --check
+      continue-on-error: true
+
+    - name: Run ruff linting
+      id: ruff-lint
+      run: uv run ruff check
+      continue-on-error: true
+
+    - name: Run mypy type checking
+      id: mypy
+      run: uv run mypy src/
+      continue-on-error: true
+
+    - name: Run tests with pytest
+      id: pytest
+      run: uv run pytest test/
+      continue-on-error: true
+
+    - name: Check results
+      if: always()
+      run: |
+        echo "## Quality Check Results" >> $GITHUB_STEP_SUMMARY
+        echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ steps.ruff-format.outcome }}" == "success" ]; then
+          echo "| Ruff Format | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "| Ruff Format | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          echo "❌ Ruff format check failed"
+        fi
+        
+        if [ "${{ steps.ruff-lint.outcome }}" == "success" ]; then
+          echo "| Ruff Lint | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "| Ruff Lint | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          echo "❌ Ruff linting failed"
+        fi
+        
+        if [ "${{ steps.mypy.outcome }}" == "success" ]; then
+          echo "| MyPy | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "| MyPy | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          echo "❌ MyPy type checking failed"
+        fi
+        
+        if [ "${{ steps.pytest.outcome }}" == "success" ]; then
+          echo "| Pytest | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "| Pytest | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          echo "❌ Pytest tests failed"
+        fi
+        
+        # Fail the job if any check failed
+        if [ "${{ steps.ruff-format.outcome }}" != "success" ] || \
+           [ "${{ steps.ruff-lint.outcome }}" != "success" ] || \
+           [ "${{ steps.mypy.outcome }}" != "success" ] || \
+           [ "${{ steps.pytest.outcome }}" != "success" ]; then
+          echo ""
+          echo "❌ One or more quality checks failed. See above for details."
+          exit 1
+        else
+          echo ""
+          echo "✅ All quality checks passed!"
+        fi
