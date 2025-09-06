@@ -22,6 +22,7 @@ log.info(
 train_loader = DoubleAugmentDataLoader(model_args)
 test_loader = DataLoader("test", model_args)
 train_loader_visualization = DataLoader("train", model_args)
+valid_loader_visualization = DataLoader("val", model_args)
 
 
 # Create a ReProSeg model
@@ -41,5 +42,10 @@ if model_args.visualize_prototypes:
 
     visualizer = ModelVisualizer(net, model_args, log, k=model_args.visualize_top_k)
     visualizer.visualize_prototypes(train_loader_visualization)
+
+if model_args.consistency_score:
+    from visualize.interpretability import ModelInterpretability
+    interpretability = ModelInterpretability(net, model_args, log, consistency_threshold=model_args.consistency_threshold)
+    interpretability.compute_prototype_consistency_score(valid_loader_visualization)    
 
 log.close()
