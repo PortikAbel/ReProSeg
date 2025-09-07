@@ -21,10 +21,12 @@ class TestBaseDataset:
     @staticmethod
     def create_mock_filter_classes_method(filtered_classes):
         """Create a mock filter classes method that sets both classes and filter_classes attributes."""
+
         def mock_filter_classes_method(self):
             self.classes = filtered_classes
             self.filter_classes = Transform()
             return filtered_classes
+
         return mock_filter_classes_method
 
     def test_init_valid_dataset(self, mock_cityscapes_constructor):
@@ -184,16 +186,16 @@ class TestBaseDataset:
         expected_filtered_classes = [mock_cityscapes_classes[0]] + non_ignored_classes
         mock_filter_method = self.create_mock_filter_classes_method(expected_filtered_classes)
 
-        with patch("data.dataset.base.Cityscapes") as mock_cityscapes_constructor, \
-            patch("data.transforms.Transforms._filter_cityscapes_classes", mock_filter_method):
-
+        with (
+            patch("data.dataset.base.Cityscapes") as mock_cityscapes_constructor,
+            patch("data.transforms.Transforms._filter_cityscapes_classes", mock_filter_method),
+        ):
             mock_cityscapes_constructor.return_value = mock_cityscapes_dataset
 
             dataset = Dataset(self.dataset_name, self.split)
 
             # Verify the filtered classes were assigned
             assert dataset.dataset.classes == expected_filtered_classes
-
 
     def test_target_transform_contains_class_filtering(self, mock_cityscapes_constructor):
         """Test that class filtering updates the target transform."""

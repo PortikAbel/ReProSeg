@@ -22,5 +22,5 @@ class PanopticPartsDataset(Dataset):
         panoptic_mask = Image.open(panoptic_mask_path)
         panoptic_mask = self.transforms.base_target(panoptic_mask)
         panoptic_mask = panoptic_mask % 100
-        
+
         return panoptic_mask

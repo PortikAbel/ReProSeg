@@ -1,5 +1,4 @@
 import argparse
-from collections import defaultdict
 
 import numpy as np
 import torch
@@ -27,7 +26,7 @@ class ModelInterpretability:
                 else:
                     d[label] = 0.0
 
-        self.log.info(f"Average object part activation scores per prototypes computed")
+        self.log.info("Average object part activation scores per prototypes computed")
 
     @torch.no_grad()
     def get_per_image_object_part_prototype_activations(self, panoptic_parts_loader: PanopticPartsDataLoader):
@@ -41,7 +40,7 @@ class ModelInterpretability:
             enumerate(panoptic_parts_loader),
             total=len(panoptic_parts_loader),
             mininterval=100.0,
-            desc=f"Computing per image average object part activations of prototypes",
+            desc="Computing per image average object part activations of prototypes",
             ncols=0,
             file=self.log.tqdm_file,
         )
@@ -54,8 +53,8 @@ class ModelInterpretability:
             # Check if labels contain any of the target classes with panoptic labels
             found = torch.isin(ys, target_classes_with_panoptic_labels).any()
 
-            if not found: 
-                print(f"Image skipped because none of the semantic classes with object part labels available found.")
+            if not found:
+                print("Image skipped because none of the semantic classes with object part labels available found.")
                 continue
 
             xs, ys, pps = xs.to(self.args.device), ys.to(self.args.device), pps.to(self.args.device)
@@ -91,10 +90,10 @@ class ModelInterpretability:
                 average_alpha = sum_alpha / count_alpha
 
                 self.prototype_object_part_activations[p] = {
-                    label: avg_value for label, avg_value in zip(unique_labels.tolist(), average_alpha.tolist())
+                    label: avg_value
+                    for label, avg_value in zip(unique_labels.tolist(), average_alpha.tolist(), strict=False)
                 }
-        self.log.info(f"Per image prototype object part activations updated")
-
+        self.log.info("Per image prototype object part activations updated")
 
     def compute_prototype_consistency_score(self, panoptic_parts_loader: PanopticPartsDataLoader):
         self.log.info("Computing prototype consistency score...")
@@ -109,6 +108,9 @@ class ModelInterpretability:
         self.get_number_of_active_prototypes()
         self.log.info(f"Number of active prototypes: {self.number_of_active_prototypes}")
         normalized_consistency_score = count / self.number_of_active_prototypes
-        self.log.info(f"Prototype consistency score: {count} prototypes with per object part activation > {self.consistency_threshold}")
+        self.log.info(
+            f"Prototype consistency score: {count} prototypes "
+            f"with per object part activation > {self.consistency_threshold}"
+        )
 
         return normalized_consistency_score

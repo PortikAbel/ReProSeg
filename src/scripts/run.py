@@ -45,7 +45,10 @@ if model_args.visualize_prototypes:
 
 if model_args.consistency_score:
     from visualize.interpretability import ModelInterpretability
-    interpretability = ModelInterpretability(net, model_args, log, consistency_threshold=model_args.consistency_threshold)
-    interpretability.compute_prototype_consistency_score(panoptic_parts_loader)    
+
+    interpretability = ModelInterpretability(
+        net, model_args, log, consistency_threshold=model_args.consistency_threshold
+    )
+    interpretability.compute_prototype_consistency_score(panoptic_parts_loader)
 
 log.close()

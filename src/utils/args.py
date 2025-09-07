@@ -278,7 +278,7 @@ def define_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="""Flag that indicates whether to compute the consistency score""",
     )
-    
+
     interpretability_group.add_argument(
         "--consistency_threshold",
         type=float,
