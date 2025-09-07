@@ -1,4 +1,4 @@
-from data.dataloader import DataLoader, DoubleAugmentDataLoader
+from data.dataloader import DataLoader, DoubleAugmentDataLoader, PanopticPartsDataLoader
 from model.model import ReProSeg
 from utils.args import ModelTrainerArgumentParser
 from utils.log import Log
@@ -22,7 +22,7 @@ log.info(
 train_loader = DoubleAugmentDataLoader(model_args)
 test_loader = DataLoader("test", model_args)
 train_loader_visualization = DataLoader("train", model_args)
-valid_loader_visualization = DataLoader("val", model_args)
+panoptic_parts_loader = PanopticPartsDataLoader("train", model_args)
 
 
 # Create a ReProSeg model
@@ -46,6 +46,6 @@ if model_args.visualize_prototypes:
 if model_args.consistency_score:
     from visualize.interpretability import ModelInterpretability
     interpretability = ModelInterpretability(net, model_args, log, consistency_threshold=model_args.consistency_threshold)
-    interpretability.compute_prototype_consistency_score(valid_loader_visualization)    
+    interpretability.compute_prototype_consistency_score(panoptic_parts_loader)    
 
 log.close()
