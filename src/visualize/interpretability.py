@@ -13,22 +13,11 @@ from .utils import activations_to_alpha
 
 
 class ModelInterpretability:
-    MIN_CLASSIFICATION_WEIGHT = 10
-
     def __init__(self, net: ReProSeg, args: argparse.Namespace, log: Log, consistency_threshold: float = 0.7):
         self.net = net
         self.args = args
         self.log = log
         self.consistency_threshold = consistency_threshold
-
-    def get_number_of_active_prototypes(self):
-        self.number_of_active_prototypes = 0
-        for p in range(self.net.num_prototypes):
-            if torch.max(self.net.layers.classification_layer.weight[:, p]) < self.MIN_CLASSIFICATION_WEIGHT:
-                self.log.info(f"Prototype {p} skipped due to low classification weight")
-                continue
-            self.number_of_active_prototypes += 1
-
 
     def compute_average_activation_per_prototype(self):
         for d in self.prototype_object_part_activations:
@@ -45,7 +34,6 @@ class ModelInterpretability:
         # self.get_panoptic_parts_ids(train_loader_visualization)
         # for each prototype, we will maintain a dictionary of average activation scores
         #   for each panoptic part id (dict. key: part id, value: list of per image average activation scores)
-        self.prototype_object_part_activations = [defaultdict(list) for _ in range(self.net.num_prototypes)] 
 
         self.log.info("Computing per image average object part activations of prototypes...")
         self.net.eval()
@@ -72,7 +60,7 @@ class ModelInterpretability:
 
             xs, ys, pps = xs.to(self.args.device), ys.to(self.args.device), pps.to(self.args.device)
             prototype_activations = self.net.interpolate_prototype_activations(xs)
-            for p in range(self.net.num_prototypes):
+            for p in self.net.layers.classification_layer.used_prototypes:
                 # TODO: do we need this?
                 # skip prototype if it has low classification weight
                 # if torch.max(self.net.layers.classification_layer.weight[:, p]) < self.MIN_CLASSIFICATION_WEIGHT:
@@ -102,9 +90,9 @@ class ModelInterpretability:
                 # Compute average
                 average_alpha = sum_alpha / count_alpha
 
-                for label, avg_value in zip(unique_labels.tolist(), average_alpha.tolist()):
-                    self.prototype_object_part_activations[p][label].append(avg_value)
-        
+                self.prototype_object_part_activations[p] = {
+                    label: avg_value for label, avg_value in zip(unique_labels.tolist(), average_alpha.tolist())
+                }
         self.log.info(f"Per image prototype object part activations updated")
 
 
