@@ -286,6 +286,7 @@ class ReProSeg(nn.Module):
 
 class NonNegConv1x1(nn.Module):
     """Applies a 1x1 convolution to the incoming data with non-negative weights"""
+    MIN_CLASSIFICATION_WEIGHT = 10
 
     def __init__(
         self,
@@ -307,6 +308,9 @@ class NonNegConv1x1(nn.Module):
             self.register_parameter("bias", None)
 
     def forward(self, input_: torch.Tensor) -> torch.Tensor:
-        weight = torch.relu(self.weight)
-        # TODO shouldn't be the bias also non-negative?
+        weight = torch.where(self.weight < self.MIN_CLASSIFICATION_WEIGHT, 0.0, self.weight)
         return F.conv2d(input_, weight, self.bias, stride=1, padding=0)
+    
+    @property
+    def used_prototypes(self) -> torch.Tensor:
+        return (self.weight >= self.MIN_CLASSIFICATION_WEIGHT).any(dim=0).squeeze().nonzero().squeeze()

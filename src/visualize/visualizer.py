@@ -23,7 +23,6 @@ class ModelVisualizer:
     i_to_p: dict
     tensors_per_prototype: dict[int, list]
 
-    MIN_CLASSIFICATION_WEIGHT = 10
     MIN_ACTIVATION_SCORE = 0.1
 
     def __init__(self, net: ReProSeg, args: argparse.Namespace, log: Log, k: int = 10):
@@ -42,8 +41,6 @@ class ModelVisualizer:
             return
 
         self.log.info(f"Collecting top {self.k} prototype activations for each class...")
-        classification_weights = self.net.layers.classification_layer.weight
-        prototypes_not_used = []
         self.topks = defaultdict(list)
 
         img_iter = tqdm(
@@ -59,21 +56,12 @@ class ModelVisualizer:
             _aspp, aspp_maxpooled, _out = self.net(xs)
             aspp_maxpooled = aspp_maxpooled.squeeze(0)
             aspp_maxpooled_sum = aspp_maxpooled.sum(dim=(1, 2))
-            for p in range(self.net.num_prototypes):
-                if torch.max(classification_weights[:, p]) < self.MIN_CLASSIFICATION_WEIGHT:
-                    if p not in prototypes_not_used:
-                        prototypes_not_used.append(p)
-                    continue
+            for p in self.net.layers.classification_layer.used_prototypes:
                 score = aspp_maxpooled_sum[p].item()
                 if len(self.topks[p]) < self.k:
                     heapq.heappush(self.topks[p], (score, i))
                 else:
                     heapq.heappushpop(self.topks[p], (score, i))
-        self.log.info(
-            f"{len(prototypes_not_used)} prototypes do not have"
-            f" any class connection > {self.MIN_CLASSIFICATION_WEIGHT}. "
-            "Will be ignored in visualisation."
-        )
         # Save to file
         with open(topks_path, "wb") as f:
             pickle.dump(self.topks, f)
