@@ -24,3 +24,35 @@ class PanopticPartsDataset(Dataset):
         panoptic_mask = panoptic_mask % 100
 
         return panoptic_mask
+    
+    @property
+    def classes(self):
+        return [
+            "torso",
+            "head",
+            "arm",
+            "leg",
+            "rider",
+            "torso",
+            "head",
+            "arm",
+            "leg",
+            "car",
+            "window",
+            "wheel",
+            "light",
+            "license plate",
+            "chassis",
+            "truck",
+            "window",
+            "wheel",
+            "light",
+            "license plate",
+            "chassis",
+            "bus",
+            "window",
+            "wheel",
+            "light",
+            "license plate",
+            "chassis",
+        ]
