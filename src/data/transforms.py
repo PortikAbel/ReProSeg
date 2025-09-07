@@ -84,6 +84,15 @@ class Transforms:
     Shrink target transform:
         - Resize target to the size of model output
     """
+    filter_classes: transforms.Compose
+    """
+    Filter classes transform:
+        - Maps the original Cityscapes classes to a reduced set of classes
+    """
+    classes: list[Cityscapes.CityscapesClass]
+    """
+    List of filtered Cityscapes classes
+    """
 
     def __init__(self, dataset_cfg: DatasetConfig):
         img_shape = dataset_cfg["img_shape"]
@@ -124,19 +133,20 @@ class Transforms:
             interpolation=transforms.InterpolationMode.NEAREST_EXACT,
         )
 
-    def filter_cityscapes_classes(self) -> list[Cityscapes.CityscapesClass]:
-        classes = Cityscapes.classes
-        filtered_classes = [classes[0]] + [c for c in classes if not c.ignore_in_eval]
+        self.classes = Cityscapes.classes
+        if dataset_cfg.get("filter_classes", False):
+            self._filter_cityscapes_classes()
+
+    def _filter_cityscapes_classes(self) -> None:
+        filtered_classes = [self.classes[0]] + [c for c in self.classes if not c.ignore_in_eval]
         map_classes: torch.Tensor = torch.tensor(
-            [0 if c.ignore_in_eval else filtered_classes.index(c) for c in classes], dtype=torch.int64
+            [0 if c.ignore_in_eval else filtered_classes.index(c) for c in self.classes], dtype=torch.int64
         )
-        self.base_target = transforms.Compose(
+        self.filter_classes = transforms.Compose(
             [
-                self.base_target,
                 transforms.Lambda(np.vectorize(lambda c: map_classes[c])),
                 transforms.Lambda(lambda x: x.transpose(1, 2, 0)),
                 transforms.ToImage(),
             ]
         )
-
-        return filtered_classes
+        self.classes = filtered_classes

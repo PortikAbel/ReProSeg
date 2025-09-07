@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 import torch
+from torchvision.transforms.v2 import Compose, Transform
 
 from data.dataset.base import Dataset
 from data.config import get_dataset_config
@@ -16,6 +17,15 @@ class TestBaseDataset:
         """Set up test fixtures before each test method."""
         self.dataset_name = "CityScapes"
         self.split = "train"
+
+    @staticmethod
+    def create_mock_filter_classes_method(filtered_classes):
+        """Create a mock filter classes method that sets both classes and filter_classes attributes."""
+        def mock_filter_classes_method(self):
+            self.classes = filtered_classes
+            self.filter_classes = Transform()
+            return filtered_classes
+        return mock_filter_classes_method
 
     def test_init_valid_dataset(self, mock_cityscapes_constructor):
         """Test Dataset initialization with valid parameters."""
@@ -152,22 +162,14 @@ class TestBaseDataset:
         assert transformed_target is not None
         assert isinstance(transformed_target, torch.Tensor)
 
-    def test_class_filtering_called(self, mock_cityscapes_constructor):
-        """Test that filter_cityscapes_classes is called during dataset creation."""
-        dataset = Dataset(self.dataset_name, self.split)
-
-        # Verify that filter_cityscapes_classes was called
-        with patch.object(dataset.transforms, "filter_cityscapes_classes", return_value=[]) as mock_filter:
-            # Call __getdata__ explicitly to test the filtering
-            dataset.__getdata__()
-            mock_filter.assert_called_once()
-
     def test_filtered_classes_assigned_to_dataset(self, mock_cityscapes_constructor):
         """Test that filtered classes are properly assigned to the dataset."""
-        # Mock the filter_cityscapes_classes method to return specific classes
+        # Mock the _filter_cityscapes_classes method to return specific classes
         mock_filtered_classes = ["filtered_class_1", "filtered_class_2"]
 
-        with patch("data.transforms.Transforms.filter_cityscapes_classes", return_value=mock_filtered_classes):
+        mock_filter_method = self.create_mock_filter_classes_method(mock_filtered_classes)
+
+        with patch("data.transforms.Transforms._filter_cityscapes_classes", mock_filter_method):
             dataset = Dataset(self.dataset_name, self.split)
 
             # Verify that the filtered classes were assigned to the underlying dataset
@@ -178,51 +180,29 @@ class TestBaseDataset:
         # Set the classes on our existing mock dataset
         mock_cityscapes_dataset.classes = mock_cityscapes_classes
 
-        with patch("data.dataset.base.Cityscapes") as mock_cityscapes_constructor:
+        non_ignored_classes = [c for c in mock_cityscapes_classes if not c.ignore_in_eval]
+        expected_filtered_classes = [mock_cityscapes_classes[0]] + non_ignored_classes
+        mock_filter_method = self.create_mock_filter_classes_method(expected_filtered_classes)
+
+        with patch("data.dataset.base.Cityscapes") as mock_cityscapes_constructor, \
+            patch("data.transforms.Transforms._filter_cityscapes_classes", mock_filter_method):
+
             mock_cityscapes_constructor.return_value = mock_cityscapes_dataset
 
-            # Mock the filter_cityscapes_classes to return expected filtered classes
-            with patch("data.transforms.Transforms.filter_cityscapes_classes") as mock_filter:
-                # From our mock_cityscapes_classes fixture:
-                # Classes with ignore_in_eval=True: "unlabeled", "wall", "fence" (3 classes)
-                # Classes with ignore_in_eval=False: "road", "sidewalk", "building", "vegetation", "sky" (5 classes)
-                # Expected: first class + non-ignored = unlabeled + 5 non-ignored = 6 total
-                non_ignored_classes = [c for c in mock_cityscapes_classes if not c.ignore_in_eval]
-                expected_filtered_classes = [mock_cityscapes_classes[0]] + non_ignored_classes
-                mock_filter.return_value = expected_filtered_classes
+            dataset = Dataset(self.dataset_name, self.split)
 
-                dataset = Dataset(self.dataset_name, self.split)
+            # Verify the filtered classes were assigned
+            assert dataset.dataset.classes == expected_filtered_classes
 
-                # Verify the filtered classes were assigned
-                assert dataset.dataset.classes == expected_filtered_classes
 
-    def test_class_filtering_integration_with_transforms(self, mock_cityscapes_constructor):
-        """Test that class filtering integrates properly with transforms."""
+    def test_target_transform_contains_class_filtering(self, mock_cityscapes_constructor):
+        """Test that class filtering updates the target transform."""
         dataset = Dataset(self.dataset_name, self.split)
 
-        # Verify that transforms object has the filter method
-        assert hasattr(dataset.transforms, "filter_cityscapes_classes")
-        assert callable(dataset.transforms.filter_cityscapes_classes)
-
-        # Verify that the method can be called without error
-        filtered_classes = dataset.transforms.filter_cityscapes_classes()
-        assert filtered_classes is not None
-
-    def test_class_filtering_updates_base_target_transform(self, mock_cityscapes_constructor):
-        """Test that class filtering updates the base_target transform."""
-        dataset = Dataset(self.dataset_name, self.split)
-
-        # Store original transform
-        original_transform = dataset.transforms.base_target
-
-        # Call filter_cityscapes_classes
-        dataset.transforms.filter_cityscapes_classes()
-
-        # Verify that base_target transform has been updated (composition should be different)
-        updated_transform = dataset.transforms.base_target
-        assert updated_transform is not None
-        # The transforms should be different objects after filtering
-        assert id(original_transform) != id(updated_transform)
+        # Verify that target_transform contains the filter_classes transform
+        assert isinstance(dataset.target_transform, Compose)
+        assert dataset.target_transform.transforms[0] == dataset.transforms.base_target
+        assert dataset.target_transform.transforms[1] == dataset.transforms.filter_classes
 
     def test_class_filtering_preserves_other_dataset_properties(self, mock_cityscapes_constructor):
         """Test that class filtering doesn't interfere with other dataset properties."""
