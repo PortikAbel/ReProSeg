@@ -75,14 +75,14 @@ class ModelInterpretability:
     def _compute_part_activation_averages(self, alpha: torch.Tensor, pps: torch.Tensor) -> zip[tuple[int, float]]:
         """
         Compute average activation scores for a single prototype across different object parts in an image.
-        
+
         Args:
             alpha: Activation values tensor of shape (H, W) containing prototype activations
             pps: Panoptic parts tensor of shape (H, W) containing part labels for each pixel
-            
+
         Returns:
             zip: Iterator of tuples (part_label, average_activation) where:
-                - part_label (int): Unique panoptic part label 
+                - part_label (int): Unique panoptic part label
                 - average_activation (float): Mean activation score for that part
         """
         alpha_flat = alpha.view(-1)
@@ -93,19 +93,21 @@ class ModelInterpretability:
         filtered_alpha = alpha_flat[mask]
         filtered_part_labels = part_labels_flat[mask]
 
-        unique_labels, inverse_indices, count = torch.unique(filtered_part_labels, return_inverse=True, return_counts=True)
+        unique_labels, inverse_indices, count = torch.unique(
+            filtered_part_labels, return_inverse=True, return_counts=True
+        )
 
         sum_alpha = torch.zeros_like(unique_labels, dtype=torch.float)
         sum_alpha = sum_alpha.index_add(0, inverse_indices, filtered_alpha)
 
         average_alpha = sum_alpha / count
 
-        return zip(unique_labels.tolist(), average_alpha.tolist())
-    
+        return zip(unique_labels.tolist(), average_alpha.tolist(), strict=False)
+
     def _compute_if_prototype_consistent(self) -> list[bool]:
-        return list([
-            any(
-                np.mean(avgs) > self.consistency_threshold
-                for avgs in avg_part_activations.values()
-            ) for avg_part_activations in self._part_activations
-        ])
+        return list(
+            [
+                any(np.mean(avgs) > self.consistency_threshold for avgs in avg_part_activations.values())
+                for avg_part_activations in self._part_activations
+            ]
+        )

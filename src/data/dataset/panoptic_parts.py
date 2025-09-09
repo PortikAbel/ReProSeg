@@ -1,7 +1,6 @@
 from pathlib import Path
 
 from PIL import Image
-from torchvision.transforms.v2 import Transform, Compose
 
 from .base import Dataset
 
