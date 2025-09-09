@@ -101,7 +101,7 @@ def define_parser() -> argparse.ArgumentParser:
     )
     net_parameter_group.add_argument(
         "--batch_size",
-        type=np.uint16,
+        type=int,
         default=64,
         help="Batch size when training the model using minibatch gradient descent. "
         "Batch size is multiplied with number of available GPUs",

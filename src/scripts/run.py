@@ -24,6 +24,7 @@ test_loader = DataLoader("test", model_args)
 train_loader_visualization = DataLoader("train", model_args)
 panoptic_parts_loader = PanopticPartsDataLoader("train", model_args)
 
+model_args.num_classes = len(train_loader.dataset.classes)
 
 # Create a ReProSeg model
 net = ReProSeg(args=model_args, log=log)
