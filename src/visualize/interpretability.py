@@ -32,16 +32,6 @@ class ModelInterpretability:
         self.consistency_threshold = consistency_threshold
         self._part_activations = [defaultdict(list) for _ in range(self.net.num_prototypes)]
 
-    def compute_average_activation_per_prototype(self):
-        for d in self._part_activations:
-            for label, scores in d.items():
-                if len(scores) > 0:
-                    d[label] = np.mean(scores)
-                else:
-                    d[label] = 0.0
-
-        self.log.info("Average object part activation scores per prototypes computed")
-
     def _compute_prototype_activations_by_object_parts(self, panoptic_parts_loader: PanopticPartsDataLoader):
         self.log.info("Computing per image average object part activations of prototypes...")
         self.net.eval()
@@ -101,17 +91,21 @@ class ModelInterpretability:
     def compute_prototype_consistency_score(self, panoptic_parts_loader: PanopticPartsDataLoader):
         self.log.info("Computing prototype consistency score...")
         self._compute_prototype_activations_by_object_parts(panoptic_parts_loader)
-        self.compute_average_activation_per_prototype()
+        is_consistent = self._compute_if_prototype_consistent()
 
-        count = sum(
-            any(value > self.consistency_threshold for value in d.values())
-            for d in self._part_activations
-        )
+        num_consistent_prototypes = sum(is_consistent)
 
-        normalized_consistency_score = count / self.net.layers.classification_layer.used_prototypes.size(0)
         self.log.info(
-            f"Prototype consistency score: {count} prototypes "
-            f"with per object part activation > {self.consistency_threshold}"
+            f"Found {num_consistent_prototypes} consistent prototypes "
+            f"with per object part activation > {self.consistency_threshold} "
+            f"out of {len(is_consistent)}."
         )
-
-        return normalized_consistency_score
+        return num_consistent_prototypes / len(is_consistent)
+    
+    def _compute_if_prototype_consistent(self) -> list[bool]:
+        return [
+            (
+                np.mean(avgs) > self.consistency_threshold
+                for avgs in avg_part_activations.values()
+            ) for avg_part_activations in self._part_activations
+        ]
