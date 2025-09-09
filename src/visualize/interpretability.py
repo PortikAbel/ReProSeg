@@ -32,6 +32,21 @@ class ModelInterpretability:
         self.consistency_threshold = consistency_threshold
         self._part_activations = [defaultdict(list) for _ in range(self.net.num_prototypes)]
 
+    @torch.no_grad()
+    def compute_prototype_consistency_score(self, panoptic_parts_loader: PanopticPartsDataLoader):
+        self.log.info("Computing prototype consistency score...")
+        self._compute_prototype_activations_by_object_parts(panoptic_parts_loader)
+        is_consistent = self._compute_if_prototype_consistent()
+
+        num_consistent_prototypes = sum(is_consistent)
+
+        self.log.info(
+            f"Found {num_consistent_prototypes} consistent prototypes "
+            f"with per object part activation > {self.consistency_threshold} "
+            f"out of {len(is_consistent)}."
+        )
+        return num_consistent_prototypes / len(is_consistent)
+
     def _compute_prototype_activations_by_object_parts(self, panoptic_parts_loader: PanopticPartsDataLoader):
         self.log.info("Computing per image average object part activations of prototypes...")
         self.net.eval()
@@ -86,21 +101,6 @@ class ModelInterpretability:
         average_alpha = sum_alpha / count
 
         return zip(unique_labels.tolist(), average_alpha.tolist())
-
-    @torch.no_grad()
-    def compute_prototype_consistency_score(self, panoptic_parts_loader: PanopticPartsDataLoader):
-        self.log.info("Computing prototype consistency score...")
-        self._compute_prototype_activations_by_object_parts(panoptic_parts_loader)
-        is_consistent = self._compute_if_prototype_consistent()
-
-        num_consistent_prototypes = sum(is_consistent)
-
-        self.log.info(
-            f"Found {num_consistent_prototypes} consistent prototypes "
-            f"with per object part activation > {self.consistency_threshold} "
-            f"out of {len(is_consistent)}."
-        )
-        return num_consistent_prototypes / len(is_consistent)
     
     def _compute_if_prototype_consistent(self) -> list[bool]:
         return [
