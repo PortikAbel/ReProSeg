@@ -72,7 +72,7 @@ class ModelInterpretability:
                     self._part_activations[p][label].append(avg_value)
         self.log.info("Per image prototype object part activations updated")
 
-    def _compute_part_activation_averages(self, alpha: torch.Tensor, pps: torch.Tensor) -> torch.Tensor:
+    def _compute_part_activation_averages(self, alpha: torch.Tensor, pps: torch.Tensor) -> zip[tuple[int, float]]:
         """
         Compute average activation scores for a single prototype across different object parts in an image.
         
@@ -103,9 +103,9 @@ class ModelInterpretability:
         return zip(unique_labels.tolist(), average_alpha.tolist())
     
     def _compute_if_prototype_consistent(self) -> list[bool]:
-        return [
-            (
+        return list([
+            any(
                 np.mean(avgs) > self.consistency_threshold
                 for avgs in avg_part_activations.values()
             ) for avg_part_activations in self._part_activations
-        ]
+        ])
