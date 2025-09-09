@@ -287,7 +287,7 @@ class ReProSeg(nn.Module):
 class NonNegConv1x1(nn.Module):
     """Applies a 1x1 convolution to the incoming data with non-negative weights"""
 
-    MIN_CLASSIFICATION_WEIGHT = 10
+    MIN_CLASSIFICATION_WEIGHT = 0
 
     def __init__(
         self,
