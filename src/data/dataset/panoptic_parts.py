@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from PIL import Image
+from torchvision.transforms.v2 import Transform, Compose
 
 from .base import Dataset
 
@@ -21,10 +22,11 @@ class PanopticPartsDataset(Dataset):
 
         panoptic_mask = Image.open(panoptic_mask_path)
         panoptic_mask = self.transforms.base_target(panoptic_mask)
-        panoptic_mask = panoptic_mask % 100
+        panoptic_mask[panoptic_mask < 100_000] = 0
+        panoptic_mask = panoptic_mask // 100_000 * 100 + panoptic_mask % 100
 
         return panoptic_mask
-    
+
     @property
     def classes(self):
         return [
@@ -32,24 +34,20 @@ class PanopticPartsDataset(Dataset):
             "head",
             "arm",
             "leg",
-            "rider",
             "torso",
             "head",
             "arm",
             "leg",
-            "car",
             "window",
             "wheel",
             "light",
             "license plate",
             "chassis",
-            "truck",
             "window",
             "wheel",
             "light",
             "license plate",
             "chassis",
-            "bus",
             "window",
             "wheel",
             "light",
