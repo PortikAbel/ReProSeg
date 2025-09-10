@@ -61,3 +61,18 @@ uv run pytest <test_file_name>::<TestClassName>::<test_method_name>
 # Run with coverage
 uv run pytest --cov=src --cov-report=term
 ```
+
+## Code Formatting and Type Checking
+
+```bash
+# Code formatting:
+uv run ruff format [--check]
+# with --check, show potential changes without applying them.
+ 
+# Checking PEP conventions:
+uv run ruff check [--fix]
+# when the fix argument is provided, the program automatically corrects the errors it can. Typically, it cannot fix overly long lines, but if you run formatting beforehand, such errors should not occur.
+ 
+# Type checking (src - source code folder):
+uv run mypy src
+```
