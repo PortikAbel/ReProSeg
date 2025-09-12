@@ -1,5 +1,6 @@
 import argparse
 from collections import defaultdict
+from typing import Iterator
 
 import numpy as np
 import torch
@@ -72,7 +73,7 @@ class ModelInterpretability:
                     self._part_activations[p][label].append(avg_value)
         self.log.info("Collected average object part activations of prototypes from images.")
 
-    def _compute_part_activation_averages(self, alpha: torch.Tensor, pps: torch.Tensor) -> zip[tuple[int, float]]:
+    def _compute_part_activation_averages(self, alpha: torch.Tensor, pps: torch.Tensor) -> Iterator[tuple[int, float]]:
         """
         Compute average activation scores for a single prototype across different object parts in an image.
 
@@ -81,7 +82,7 @@ class ModelInterpretability:
             pps: Panoptic parts tensor of shape (H, W) containing part labels for each pixel
 
         Returns:
-            zip: Iterator of tuples (part_label, average_activation) where:
+            Iterator[tuple[int, float]]: Iterator of tuples (part_label, average_activation) where:
                 - part_label (int): Unique panoptic part label
                 - average_activation (float): Mean activation score for that part
         """
