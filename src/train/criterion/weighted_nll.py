@@ -29,7 +29,7 @@ class WeightedNLLLoss(nn.Module):
         else:
             from data.count_class_distribution import count_class_distribution
 
-            class_counts = count_class_distribution(args, log, class_counts_path)
+            class_counts = count_class_distribution(args, class_counts_path)
             log.info(f"Calculated class counts: {class_counts}")
         class_weights = 1 / class_counts
         class_weights = torch.tensor(class_weights, device=args.device, dtype=torch.float32)
