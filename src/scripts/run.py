@@ -3,6 +3,8 @@ from model.model import ReProSeg
 from utils.log import Log
 from utils.args import ConfigWrapper
 
+from dotenv import load_dotenv
+load_dotenv()  # loads .env into os.environ
 import hydra
 from omegaconf import DictConfig, OmegaConf
 from pathlib import Path
@@ -67,7 +69,7 @@ def update_hydra_config(cfg: DictConfig, nni_params: dict) -> DictConfig:
 @hydra.main(version_base=None, config_path="../utils", config_name="config.yaml")
 def main(cfg: DictConfig):
     # Setup logger
-    log = Log(cfg.log_dir, __name__)
+    log = Log(Path(cfg.log_dir), __name__)
 
     nni_params = nni.get_next_parameter()
     if nni_params:
