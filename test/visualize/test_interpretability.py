@@ -26,6 +26,9 @@ class TestModelInterpretabilityMethods:
             net=self.mock_net, args=self.mock_args, log=self.mock_log, consistency_threshold=0.7
         )
 
+    def sort_function(x):
+        return x[0]
+
     @pytest.mark.parametrize(
         "alpha_values, part_labels, expected_results",
         [
@@ -88,13 +91,12 @@ class TestModelInterpretabilityMethods:
         result = list(self.interpretability._compute_part_activation_averages(alpha_values, part_labels))
 
         # Sort both results by part label for consistent comparison
-        sort_function = lambda x: x[0]
-        result = sorted(result, key=sort_function)
-        expected_results = sorted(expected_results, key=sort_function)
+        result = sorted(result, key=self.sort_function)
+        expected_results = sorted(expected_results, key=self.sort_function)
 
         assert len(result) == len(expected_results)
 
-        for (actual_label, actual_avg), (expected_label, expected_avg) in zip(result, expected_results):
+        for (actual_label, actual_avg), (expected_label, expected_avg) in zip(result, expected_results, strict=False):
             assert actual_label == expected_label
             assert torch.isclose(torch.tensor(actual_avg), torch.tensor(expected_avg), atol=1e-6)
 
@@ -223,12 +225,12 @@ class TestModelInterpretabilityMethods:
         pps = torch.tensor([[1, 1], [2, 2]]).to(device)
 
         result = list(self.interpretability._compute_part_activation_averages(alpha, pps))
-        result = sorted(result, key=lambda x: x[0])
+        result = sorted(result, key=self.sort_function)
 
         expected = [(1, 1.5), (2, 3.5)]
 
         assert len(result) == len(expected)
-        for (actual_label, actual_avg), (expected_label, expected_avg) in zip(result, expected):
+        for (actual_label, actual_avg), (expected_label, expected_avg) in zip(result, expected, strict=False):
             assert actual_label == expected_label
             assert abs(actual_avg - expected_avg) < 1e-6
 
@@ -244,7 +246,7 @@ class TestModelInterpretabilityMethods:
         pps[5:, 5:] = 4  # Bottom-right quadrant
 
         result = list(self.interpretability._compute_part_activation_averages(alpha, pps))
-        result = sorted(result, key=lambda x: x[0])
+        result = sorted(result, key=self.sort_function)
 
         # Verify we got 4 parts
         assert len(result) == 4
