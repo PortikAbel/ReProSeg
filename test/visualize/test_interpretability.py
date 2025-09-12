@@ -43,8 +43,8 @@ class TestModelInterpretabilityMethods:
                 torch.tensor([[1.0, 2.0], [3.0, 4.0]]),
                 torch.tensor([[0, 1], [1, 2]]),
                 [
-                    (1, 2.5),   # part 1: (2.0 + 3.0) / 2 = 2.5,
-                    (2, 4.0)    # part 2: 4.0 / 1 = 4.0
+                    (1, 2.5),  # part 1: (2.0 + 3.0) / 2 = 2.5,
+                    (2, 4.0),  # part 2: 4.0 / 1 = 4.0
                 ],
             ),
             # Test case 3: Single part
@@ -64,26 +64,23 @@ class TestModelInterpretabilityMethods:
                 torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]),
                 torch.tensor([[1, 1, 2], [1, 2, 2], [3, 3, 3]]),
                 [
-                    (1, 7/3),   # part 1: (1+2+4)/3
-                    (2, 14/3),  # part 2: (3+5+6)/3
-                    (3, 24/3),  # part 3: (7+8+9)/3
+                    (1, 7 / 3),  # part 1: (1+2+4)/3
+                    (2, 14 / 3),  # part 2: (3+5+6)/3
+                    (3, 24 / 3),  # part 3: (7+8+9)/3
                 ],
             ),
             # Test case 6: Parts with single pixel
             (
                 torch.tensor([[7.5, 2.1], [9.3, 4.8]]),
                 torch.tensor([[1, 2], [3, 4]]),  # Each pixel is a different part
-                [(1, 7.5), (2, 2.1), (3, 9.3), (4, 4.8)]
+                [(1, 7.5), (2, 2.1), (3, 9.3), (4, 4.8)],
             ),
             # Test case 7: floating point precision
             (
                 torch.tensor([[0.12345678, 0.87654321], [0.11111111, 0.99999999]]),
                 torch.tensor([[1, 1], [1, 2]]),
-                [
-                    (1, (0.12345678 + 0.87654321 + 0.11111111) / 3),
-                    (2, 0.99999999)
-                ]
-            )
+                [(1, (0.12345678 + 0.87654321 + 0.11111111) / 3), (2, 0.99999999)],
+            ),
         ],
     )
     def test_compute_part_activation_averages(self, alpha_values, part_labels, expected_results):
