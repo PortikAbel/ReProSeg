@@ -9,7 +9,6 @@ from pathlib import Path
 
 import torch
 import nni
-import warnings
 
 
 def set_rand_state(seed: int):

@@ -4,7 +4,6 @@ import nni
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from omegaconf import DictConfig, OmegaConf
 
 from model.model import ReProSeg, TrainPhase
 from model.optimizers import OptimizerSchedulerManager

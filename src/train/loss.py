@@ -1,7 +1,6 @@
 import torch
 import torch.nn.functional as F
 import tqdm
-import nni
 
 from utils.log import Log
 from model.model import TrainPhase
