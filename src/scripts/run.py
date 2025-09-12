@@ -1,10 +1,12 @@
+from dotenv import load_dotenv
+
+load_dotenv()  # loads .env into os.environ
+
 from data.dataloader import DataLoader, DoubleAugmentDataLoader, PanopticPartsDataLoader
 from model.model import ReProSeg
 from utils.log import Log
 from utils.args import ConfigWrapper
 
-from dotenv import load_dotenv
-load_dotenv()  # loads .env into os.environ
 import hydra
 from omegaconf import DictConfig, OmegaConf
 from pathlib import Path
