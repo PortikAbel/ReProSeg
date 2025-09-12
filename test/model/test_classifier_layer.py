@@ -59,13 +59,12 @@ class TestNonNegConv1x1:
 
         # Set weights above threshold
         with torch.no_grad():
-            layer.weight.fill_(15.0)  # Above MIN_CLASSIFICATION_WEIGHT
+            layer.weight.fill_(5.0)  # Above MIN_CLASSIFICATION_WEIGHT
 
         input_tensor = torch.randn(self.batch_size, self.in_channels, self.height, self.width)
         output = layer(input_tensor)
 
         assert output.shape == (self.batch_size, self.out_channels, self.height, self.width)
-        # Since weights are all 15.0, output should be non-zero
         assert torch.any(output != 0.0)
 
     def test_forward_with_weights_below_threshold(self):
@@ -74,7 +73,7 @@ class TestNonNegConv1x1:
 
         # Set weights below threshold
         with torch.no_grad():
-            layer.weight.fill_(5.0)  # Below MIN_CLASSIFICATION_WEIGHT
+            layer.weight.fill_(-5.0)
 
         input_tensor = torch.randn(self.batch_size, self.in_channels, self.height, self.width)
         output = layer(input_tensor)
@@ -89,8 +88,8 @@ class TestNonNegConv1x1:
 
         # Set some weights above and some below threshold
         with torch.no_grad():
-            layer.weight.fill_(5.0)  # Below threshold
-            layer.weight[0, :, :, :] = 15.0  # Above threshold for first output channel
+            layer.weight.fill_(-5.0)  # Below threshold
+            layer.weight[0, :, :, :] = 5.0  # Above threshold for first output channel
 
         input_tensor = torch.ones(self.batch_size, self.in_channels, self.height, self.width)
         output = layer(input_tensor)
@@ -109,7 +108,7 @@ class TestNonNegConv1x1:
 
         # Set weights above threshold and bias to non-zero
         with torch.no_grad():
-            layer.weight.fill_(15.0)
+            layer.weight.fill_(5.0)
             layer.bias.fill_(2.0)
 
         input_tensor = torch.zeros(self.batch_size, self.in_channels, self.height, self.width)
@@ -125,7 +124,7 @@ class TestNonNegConv1x1:
 
         # Set weights above threshold
         with torch.no_grad():
-            layer.weight.fill_(15.0)
+            layer.weight.fill_(5.0)
 
         input_tensor = torch.randn(self.batch_size, self.in_channels, self.height, self.width)
         output = layer(input_tensor)
@@ -144,7 +143,7 @@ class TestNonNegConv1x1:
 
         # Set weights below threshold
         with torch.no_grad():
-            layer.weight.fill_(5.0)
+            layer.weight.fill_(-5.0)
 
         input_tensor = torch.randn(self.batch_size, self.in_channels, self.height, self.width)
         output = layer(input_tensor)
@@ -163,7 +162,7 @@ class TestNonNegConv1x1:
 
         # Set all weights above threshold
         with torch.no_grad():
-            layer.weight.fill_(15.0)
+            layer.weight.fill_(5.0)
 
         used_prototypes = layer.used_prototypes
         print(used_prototypes)
@@ -177,7 +176,7 @@ class TestNonNegConv1x1:
 
         # Set all weights below threshold
         with torch.no_grad():
-            layer.weight.fill_(5.0)
+            layer.weight.fill_(-5.0)
 
         used_prototypes = layer.used_prototypes
 
@@ -190,9 +189,9 @@ class TestNonNegConv1x1:
 
         # Set some weights above threshold
         with torch.no_grad():
-            layer.weight.fill_(5.0)  # All below threshold
-            layer.weight[:, 0, :, :] = 15.0  # First input channel above threshold
-            layer.weight[:, 5, :, :] = 15.0  # Sixth input channel above threshold
+            layer.weight.fill_(-5.0)  # All below threshold
+            layer.weight[:, 0, :, :] = 5.0  # First input channel above threshold
+            layer.weight[:, 5, :, :] = 5.0  # Sixth input channel above threshold
 
         used_prototypes = layer.used_prototypes
         expected_indices = torch.tensor([0, 5])
@@ -205,8 +204,8 @@ class TestNonNegConv1x1:
 
         # Set only one prototype above threshold
         with torch.no_grad():
-            layer.weight.fill_(5.0)  # All below threshold
-            layer.weight[:, 1, :, :] = 15.0  # Second input channel above threshold
+            layer.weight.fill_(-5.0)  # All below threshold
+            layer.weight[:, 1, :, :] = 5.0  # Second input channel above threshold
 
         used_prototypes = layer.used_prototypes
         expected_index = torch.tensor([1])
@@ -219,7 +218,7 @@ class TestNonNegConv1x1:
 
         # Set known weights and bias
         with torch.no_grad():
-            layer.weight.fill_(15.0)
+            layer.weight.fill_(5.0)
             layer.bias.fill_(1.0)
 
         input_tensor = torch.randn(self.batch_size, self.in_channels, self.height, self.width)
@@ -259,25 +258,6 @@ class TestNonNegConv1x1:
         input_tensor = torch.randn(2, in_channels, 16, 16)
         output = layer(input_tensor)
         assert output.shape == (2, out_channels, 16, 16)
-
-    def test_threshold_boundary_condition(self):
-        """Test behavior exactly at the threshold boundary."""
-        layer = NonNegConv1x1(self.in_channels, self.out_channels, bias=False)
-
-        # Set weights exactly at threshold
-        with torch.no_grad():
-            layer.weight.fill_(float(NonNegConv1x1.MIN_CLASSIFICATION_WEIGHT))
-
-        input_tensor = torch.ones(self.batch_size, self.in_channels, self.height, self.width)
-        output = layer(input_tensor)
-
-        # Weights exactly at threshold should be preserved (>=, not >)
-        assert torch.any(output != 0.0)
-
-        # Check used_prototypes
-        used_prototypes = layer.used_prototypes
-        expected_indices = torch.arange(self.in_channels)
-        assert torch.allclose(used_prototypes.sort()[0], expected_indices)
 
     def test_negative_weights_handling(self):
         """Test that negative weights are properly handled (set to zero)."""

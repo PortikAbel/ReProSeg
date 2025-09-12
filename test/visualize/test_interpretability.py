@@ -26,7 +26,7 @@ class TestModelInterpretabilityMethods:
             net=self.mock_net, args=self.mock_args, log=self.mock_log, consistency_threshold=0.7
         )
 
-    def sort_function(x):
+    def sort_function(self, x):
         return x[0]
 
     @pytest.mark.parametrize(
