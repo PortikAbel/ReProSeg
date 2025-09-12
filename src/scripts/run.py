@@ -15,11 +15,13 @@ import warnings
 def set_rand_state(seed: int):
     import random
     import numpy as np
+
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
+
 
 def set_device(log: Log, gpu_ids: str, disable_gpu: bool = False) -> tuple[torch.device, list]:
     """
@@ -42,34 +44,30 @@ def set_device(log: Log, gpu_ids: str, disable_gpu: bool = False) -> tuple[torch
         device_ids.append(torch.cuda.current_device())
         return device, device_ids
     log.info(
-        "This code should work with multiple GPUs "
-        "but we didn't test that, so we recommend to use only 1 GPU.",
+        "This code should work with multiple GPUs but we didn't test that, so we recommend to use only 1 GPU.",
         flush=True,
     )
     return torch.device("cuda:" + str(device_ids[0])), device_ids
 
+
 def set_default_jsd_loss(args: ConfigWrapper, log: Log) -> ConfigWrapper:
-    if (
-        args.jsd_loss == 0.0
-        and args.tanh_loss == 0.0
-        and args.unif_loss == 0.0
-        and args.variance_loss == 0.0
-    ):
+    if args.jsd_loss == 0.0 and args.tanh_loss == 0.0 and args.unif_loss == 0.0 and args.variance_loss == 0.0:
         log.info("No loss function specified. Using JSD loss by default")
         args.jsd_loss = 5.0
     return args
 
 
 # updates hydra omega conf params based on the nni parameters:
-def update_hydra_config(cfg: DictConfig, nni_params: dict) -> DictConfig: 
+def update_hydra_config(cfg: DictConfig, nni_params: dict) -> DictConfig:
     for key, value in nni_params.items():
         if key in cfg:
             cfg[key] = value
-    return cfg 
+    return cfg
+
 
 @hydra.main(version_base=None, config_path="../utils", config_name="config.yaml")
 def main(cfg: DictConfig):
-     # Setup logger
+    # Setup logger
     log = Log(cfg.log_dir, __name__)
 
     nni_params = nni.get_next_parameter()
@@ -91,7 +89,7 @@ def main(cfg: DictConfig):
     # Load checkpoint-specific logging directory
     if args.model_checkpoint is not None:
         args.log_dir = str(Path(args.model_checkpoint).parent.parent)
-    
+
     # Handle default jsd loss fallback
     args = set_default_jsd_loss(args, log)
 
@@ -121,8 +119,8 @@ def main(cfg: DictConfig):
 
     if args.consistency_score:
         from visualize.interpretability import ModelInterpretability
-        interpretability = ModelInterpretability(
-            net, args, log, consistency_threshold=args.consistency_threshold)
+
+        interpretability = ModelInterpretability(net, args, log, consistency_threshold=args.consistency_threshold)
         interpretability.compute_prototype_consistency_score(panoptic_parts_loader)
 
     log.close()
