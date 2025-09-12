@@ -26,7 +26,7 @@ model_checkpoint: null            # Path to pretrained ReProSeg checkpoint to re
 skip_training: false              # Skips training and only visualizes prototypes and predictions.
 
 # Network Parameters
-batch_size: 8                    # Minibatch size (will be multiplied by the number of GPUs).
+batch_size: 4                    # Minibatch size (will be multiplied by the number of GPUs).
 train_backbone_during_pretrain: false  # Whether to train the full backbone during pretraining.
 epochs_pretrain: 10              # Epochs for prototype pretraining (stage 1).
 epochs: 60                       # Total training epochs (stage 2).
@@ -51,7 +51,7 @@ tanh_loss: 0.0                    # Ensures each prototype is activated at least
 unif_loss: 0.0                    # Optional uniformity loss (see https://www.tongzhouwang.info/hypersphere/).
 variance_loss: 0.0                # Prototype feature variance regularizer (https://arxiv.org/abs/2105.04906).
 classification_loss: 1.0          # Standard classification loss weight.
-criterion: weighted_nll           # Loss function type: ["weighted_nll", "dice"].
+criterion: dice           # Loss function type: ["weighted_nll", "dice"].
 
 # Visualization
 visualize_prototypes: false       # Visualize top-k activations of each prototype.

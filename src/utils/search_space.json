@@ -1,11 +1,38 @@
 {
   "lr": {
     "_type": "loguniform",
-    "_value": [1e-5, 1e-1]
+    "_value": [1e-3, 1e-1]
+  },
+  "lr_block": {
+    "_type": "loguniform",
+    "_value": [1e-4, 1e-2]
+  },
+  "lr_net": {
+    "_type": "loguniform",
+    "_value": [1e-4, 1e-2]
+  },
+  "align_loss": {
+    "_type": "loguniform",
+    "_value": [1e-5, 100.0]
+  },
+  "jsd_loss": {
+    "_type": "loguniform",
+    "_value": [1e-5, 100.0]
   },
   "tanh_loss": {
+    "_type": "loguniform",
+    "_value": [1e-5, 100.0]
+  },
+  "unif_loss": {
+    "_type": "loguniform",
+    "_value": [1e-5, 100.0]
+  },
+  "variance_loss": {
+    "_type": "loguniform",
+    "_value": [1e-5, 100.0]
+  },
+  "criterion": {
     "_type": "choice",
-    "_value": [0.0, 0.1, 0.5]
+    "_value": ["weighted_nll", "dice"]
   }
 }
-  
