@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
-
 load_dotenv()  # loads .env into os.environ
+import os
 
 from data.dataloader import DataLoader, DoubleAugmentDataLoader, PanopticPartsDataLoader
 from model.model import ReProSeg
@@ -78,6 +78,10 @@ def main(cfg: DictConfig):
         cfg = update_hydra_config(cfg, nni_params)
 
     log.info(f"Config:\n{OmegaConf.to_yaml(cfg)}")
+
+    # Experiment ID
+    nni_trial_id = os.environ.get("NNI_TRIAL_JOB_ID")
+    log.info(f"NNI trial ID: {nni_trial_id}")
 
     # wrap omegaconf object so custom type objects can be added later
     args = ConfigWrapper(cfg)
