@@ -123,12 +123,10 @@ class ReProSeg(nn.Module):
         return aspp_features, pooled, out
 
     def interpolate_prototype_activations(self, xs: torch.Tensor) -> torch.Tensor:
-        assert xs.shape[0] == 1, "Only one image can be processed at a time for interpolation."
-
         original_shape = xs.shape[2:]
 
-        activations = self.forward(xs, inference=True)[0].squeeze(0)  # (num_prototypes x scales x h x w)
-        activations = activations.permute(1, 0, 2, 3)  # (scales x num_prototypes x h x w)
+        activations = self.forward(xs, inference=True)[0]  # (batch x num_prototypes x scales x h x w)
+        activations = activations.permute(2, 0, 1, 3, 4)  # (scales x batch x num_prototypes x h x w)
         max_scale = torch.argmax(activations, dim=(0))
         scales = activations.shape[0]
 
@@ -138,7 +136,7 @@ class ReProSeg(nn.Module):
             activations[scale, max_scale != scale] = 0
             padding = scale + 1
             max_pool = torch.nn.MaxPool2d(kernel_size=2 * padding + 1, padding=padding, stride=1)
-            scaled_activations = upscale(max_pool(activations[scale].unsqueeze(0))).squeeze(0)
+            scaled_activations = upscale(max_pool(activations[scale]))
             interpolated_activations = torch.maximum(interpolated_activations, scaled_activations)
         return interpolated_activations
 
@@ -289,6 +287,8 @@ class ReProSeg(nn.Module):
 class NonNegConv1x1(nn.Module):
     """Applies a 1x1 convolution to the incoming data with non-negative weights"""
 
+    MIN_CLASSIFICATION_WEIGHT = 0
+
     def __init__(
         self,
         in_channels: int,
@@ -309,6 +309,9 @@ class NonNegConv1x1(nn.Module):
             self.register_parameter("bias", None)
 
     def forward(self, input_: torch.Tensor) -> torch.Tensor:
-        weight = torch.relu(self.weight)
-        # TODO shouldn't be the bias also non-negative?
+        weight = torch.where(self.weight < self.MIN_CLASSIFICATION_WEIGHT, 0.0, self.weight)
         return F.conv2d(input_, weight, self.bias, stride=1, padding=0)
+
+    @property
+    def used_prototypes(self) -> torch.Tensor:
+        return (self.weight >= self.MIN_CLASSIFICATION_WEIGHT).any(dim=0).squeeze().nonzero().squeeze()

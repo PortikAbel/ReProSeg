@@ -34,7 +34,6 @@ class Dataset(TorchDataset):
         match self.name:
             case "CityScapes":
                 # self.log.info("Loading CityScapes test dataset")
-                classes = self.transforms.filter_cityscapes_classes()
                 data = Cityscapes(
                     root=self.config["data_dir"],
                     split=self.split,
@@ -43,7 +42,7 @@ class Dataset(TorchDataset):
                     transform=self.transform,
                     target_transform=self.target_transform,
                 )
-                data.classes = classes
+                data.classes = self.transforms.classes
 
                 return data
             case _:
@@ -61,4 +60,13 @@ class Dataset(TorchDataset):
     @property
     def target_transform(self) -> Transform:
         """Transform to be applied to the dataset targets"""
-        return self.transforms.base_target
+        match self.name:
+            case "CityScapes":
+                return Compose(
+                    [
+                        self.transforms.base_target,
+                        self.transforms.filter_classes,
+                    ]
+                )
+            case _:
+                return self.transforms.base_target

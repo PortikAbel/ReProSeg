@@ -101,7 +101,7 @@ def define_parser() -> argparse.ArgumentParser:
     )
     net_parameter_group.add_argument(
         "--batch_size",
-        type=np.uint16,
+        type=int,
         default=64,
         help="Batch size when training the model using minibatch gradient descent. "
         "Batch size is multiplied with number of available GPUs",
@@ -268,6 +268,23 @@ def define_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="""Flag that indicates whether to visualize the predictions
             on test data and the learned prototypes.""",
+    )
+
+    interpretability_group = parser.add_argument_group(
+        "Interpretability", "Specifies which interpretability metrics should be generated"
+    )
+    interpretability_group.add_argument(
+        "--consistency_score",
+        action="store_true",
+        help="""Flag that indicates whether to compute the consistency score""",
+    )
+
+    interpretability_group.add_argument(
+        "--consistency_threshold",
+        type=float,
+        default=0.7,
+        help="""Prototypes with at least one average per object part activation above 
+        this threshold will be considered consistent.""",
     )
 
     return parser
