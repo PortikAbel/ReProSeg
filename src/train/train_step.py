@@ -56,7 +56,6 @@ def train(
 
     log.debug(f"Training phase: {net.train_phase.name}")
 
-    prototype_activations = torch.empty((iters, 2 * train_loader.batch_size, net.layers.num_prototypes, *args.wshape))
     # Iterate through the data set to update leaves, prototypes and network
     for i, (xs1, xs2, ys) in train_iter:
         xs1, xs2, ys = xs1.to(args.device), xs2.to(args.device), ys.to(args.device)
@@ -67,7 +66,6 @@ def train(
         # Perform a forward pass through the network
         aspp_features, pooled, out = net(torch.cat([xs1, xs2]))
         ys = torch.cat([ys, ys])
-        prototype_activations[i, :, :, :, :] = pooled
 
         loss = calculate_loss(
             log,
@@ -116,8 +114,5 @@ def train(
     train_info["train_accuracy"] = total_acc / float(i + 1)
     train_info["train_miou"] = (total_intersections_by_class / total_unions_by_class).mean().item()
     train_info["train_iou_by_class"] = (total_intersections_by_class / total_unions_by_class).detach().cpu().numpy()
-    train_info["prototype_activations"] = (
-        prototype_activations.view((-1, net.layers.num_prototypes)).detach().cpu().numpy()
-    )
 
     return train_info
