@@ -11,7 +11,7 @@ class DoubleAugmentDataset(Dataset):
         self.transform_base_image = self.transforms.base_image
         self.transform1 = self.transforms.geometry_augmentation
         self.transform2 = Compose([self.transforms.color_augmentation, self.transforms.image_normalization])
-        self.transform_base_target = self.transforms.base_target
+        self.transform_base_target = Compose([self.transforms.base_target, self.transforms.filter_classes])
         self.transform_shrink_target = self.transforms.shrink_target
 
     def __getitem__(self, index: int):
