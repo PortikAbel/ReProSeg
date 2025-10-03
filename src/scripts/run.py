@@ -90,7 +90,7 @@ def main(cfg: DictConfig):
     set_rand_state(args.seed)
 
     # Set device
-    args.device, args.device_ids = set_device(log, args.gpu_ids, args.disable_gpu)
+    args.device, args.device_ids = set_device(log, str(args.gpu_ids), args.disable_gpu)
     log.info(f"Device used: {args.device} {f'with id {args.device_ids}' if len(args.device_ids) > 0 else ''}")
 
     # Load checkpoint-specific logging directory
