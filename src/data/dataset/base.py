@@ -33,7 +33,6 @@ class Dataset(TorchDataset):
     def __getdata__(self) -> Cityscapes:
         match self.name:
             case "CityScapes":
-                # self.log.info("Loading CityScapes test dataset")
                 data = Cityscapes(
                     root=self.config["data_dir"],
                     split=self.split,

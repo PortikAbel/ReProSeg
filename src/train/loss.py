@@ -90,8 +90,6 @@ def calculate_loss(
             log.tb_scalar(f"Loss/{phase_string}/LC", class_loss.item(), iteration)
             log.tb_scalar(f"Loss/{phase_string}/L", loss.item(), iteration)
 
-            # nni.report_intermediate_result(loss.item())
-
     return loss
 
 
