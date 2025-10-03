@@ -1,18 +1,17 @@
+import nni
 import numpy as np
 import torch
-import nni
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-
 from model.model import ReProSeg, TrainPhase
 from model.optimizers import OptimizerSchedulerManager
-from utils.log import Log
-from utils.args import ConfigWrapper
 from train.criterion.dice import DiceLoss
 from train.criterion.weighted_nll import WeightedNLLLoss
-from train.train_step import train
 from train.test_step import eval
+from train.train_step import train
+from utils.args import ConfigWrapper
+from utils.log import Log
 
 
 def train_model(net: ReProSeg, train_loader: DataLoader, test_loader: DataLoader, log: Log, args: ConfigWrapper):

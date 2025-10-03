@@ -3,8 +3,8 @@
 from argparse import Namespace
 from unittest.mock import patch
 
-import torch
 import pytest
+import torch
 
 from data.dataloader.base import DataLoader
 from data.dataset.base import Dataset

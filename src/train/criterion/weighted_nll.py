@@ -1,7 +1,8 @@
+from pathlib import Path
+
 import numpy as np
 import torch
 import torch.nn as nn
-from pathlib import Path
 
 from utils.log import Log
 

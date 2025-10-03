@@ -6,8 +6,8 @@ import pytest
 import torch
 from torchvision.transforms.v2 import Compose, Transform
 
-from data.dataset.base import Dataset
 from data.config import get_dataset_config
+from data.dataset.base import Dataset
 
 
 class TestBaseDataset:

@@ -1,13 +1,15 @@
+import argparse
+
 import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-import argparse
 from model.model import ReProSeg
 from utils.log import Log
-from .eval import compute_absained, compute_cm, acc_from_cm, miou_from_cm
+
+from .eval import acc_from_cm, compute_absained, compute_cm, miou_from_cm
 
 
 @torch.no_grad()

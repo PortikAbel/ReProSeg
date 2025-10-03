@@ -1,22 +1,23 @@
-from dotenv import load_dotenv
-load_dotenv()  # loads .env into os.environ
 import os
+from pathlib import Path
+
+import hydra
+import nni
+import torch
+from dotenv import load_dotenv
+from omegaconf import DictConfig, OmegaConf
 
 from data.dataloader import DataLoader, DoubleAugmentDataLoader, PanopticPartsDataLoader
 from model.model import ReProSeg
-from utils.log import Log
 from utils.args import ConfigWrapper
+from utils.log import Log
 
-import hydra
-from omegaconf import DictConfig, OmegaConf
-from pathlib import Path
-
-import torch
-import nni
+load_dotenv()  # loads .env into os.environ
 
 
 def set_rand_state(seed: int):
     import random
+
     import numpy as np
 
     random.seed(seed)

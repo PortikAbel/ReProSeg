@@ -1,9 +1,9 @@
 from torch.utils.data import Dataset as TorchDataset
 from torchvision.datasets import Cityscapes
-from torchvision.transforms.v2 import Transform, Compose
+from torchvision.transforms.v2 import Compose, Transform
 
 from data import SupportedDataset, SupportedSplit
-from data.config import get_dataset_config, DatasetConfig
+from data.config import DatasetConfig, get_dataset_config
 from data.transforms import Transforms
 from utils.errors import DatasetNotImplementedError
 

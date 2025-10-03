@@ -6,10 +6,10 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-
 from data.dataloader import PanopticPartsDataLoader
 from model.model import ReProSeg
 from utils.log import Log
+
 from .utils import activations_to_alpha
 
 

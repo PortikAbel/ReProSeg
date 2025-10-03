@@ -7,12 +7,12 @@ import torch.nn.functional as F
 import torchvision.transforms as transforms
 
 from data.config import get_dataset_config
-from utils.log import Log
-from utils.func import init_weights_xavier
 from model.segmentation_features import (
     base_architecture_to_features,
     base_architecture_to_layer_groups,
 )
+from utils.func import init_weights_xavier
+from utils.log import Log
 
 
 class TrainPhase(Enum):

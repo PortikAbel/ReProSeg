@@ -2,8 +2,8 @@ import torch
 import torch.nn.functional as F
 import tqdm
 
-from utils.log import Log
 from model.model import TrainPhase
+from utils.log import Log
 
 
 class LossWeights:

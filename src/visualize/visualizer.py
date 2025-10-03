@@ -1,8 +1,8 @@
 import argparse
-from collections import defaultdict
 import heapq
 import os
 import pickle
+from collections import defaultdict
 
 import numpy as np
 import torch
@@ -11,11 +11,11 @@ import torchvision.transforms as transforms
 from PIL import Image
 from tqdm import tqdm
 
-
+from data.config import get_dataset_config
 from model.model import ReProSeg
 from utils.log import Log
-from data.config import get_dataset_config
-from .utils import activations_to_alpha, prototype_text, draw_activation_minmax_text_on_image
+
+from .utils import activations_to_alpha, draw_activation_minmax_text_on_image, prototype_text
 
 
 class ModelVisualizer:

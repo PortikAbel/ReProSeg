@@ -1,15 +1,16 @@
+import argparse
+
+import nni
 import numpy as np
 import torch
 import torch.nn as nn
 from tqdm import tqdm
 
-import argparse
 from model.model import ReProSeg, TrainPhase
 from model.optimizers import OptimizerSchedulerManager
-from train.eval import compute_cm, acc_from_cm, intersection_and_union_from_cm
+from train.eval import acc_from_cm, compute_cm, intersection_and_union_from_cm
 from train.loss import LossWeights, calculate_loss
 from utils.log import Log
-import nni
 
 
 def train(

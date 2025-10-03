@@ -1,8 +1,8 @@
 from argparse import Namespace
 
-from data.dataloader.base import DataLoader
-from data.dataset import DoubleAugmentDataset, Dataset
 from data import SupportedDataset
+from data.dataloader.base import DataLoader
+from data.dataset import Dataset, DoubleAugmentDataset
 
 
 class DoubleAugmentDataLoader(DataLoader):

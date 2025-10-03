@@ -1,7 +1,7 @@
 from argparse import Namespace
 
-import torch
 import numpy as np
+import torch
 from torch.utils.data import DataLoader as TorchDataLoader
 
 from data import SupportedDataset, SupportedSplit

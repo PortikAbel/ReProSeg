@@ -5,9 +5,9 @@ from unittest.mock import patch
 
 import pytest
 
+from data.dataloader.base import DataLoader
 from data.dataloader.double_augment import DoubleAugmentDataLoader
 from data.dataset.double_augment import DoubleAugmentDataset
-from data.dataloader.base import DataLoader
 
 
 class TestDoubleAugmentDataLoader:

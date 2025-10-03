@@ -33,7 +33,7 @@ dev = [
 line-length = 120
 
 [tool.ruff.lint]
-select = ["E", "F", "B"]
+select = ["E", "F", "I", "B"]
 
 [tool.mypy]
 mypy_path = "src"
