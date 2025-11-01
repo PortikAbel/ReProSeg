@@ -1,6 +1,5 @@
 """Unit tests for the ModelInterpretability class methods."""
 
-import argparse
 from collections import defaultdict
 from unittest.mock import MagicMock
 
@@ -18,13 +17,20 @@ class TestModelInterpretabilityMethods:
         # Create mock objects
         self.mock_net = MagicMock()
         self.mock_net.num_prototypes = 5
-        self.mock_args = argparse.Namespace()
         self.mock_log = MagicMock()
 
-        # Create the interpretability instance
-        self.interpretability = ModelInterpretability(
-            net=self.mock_net, args=self.mock_args, log=self.mock_log, consistency_threshold=0.7
+    def _create_interpretability_instance(self, consistency_threshold=0.7):
+        """Helper to create ModelInterpretability instance with custom threshold."""
+        from config import ReProSegConfig
+        from config.schema.evaluation import ConsistencyScoreConfig, EvaluationConfig
+
+        mock_config = ReProSegConfig(
+            evaluation=EvaluationConfig(
+                consistency_score=ConsistencyScoreConfig(calculate=True, threshold=consistency_threshold)
+            )
         )
+
+        return ModelInterpretability(net=self.mock_net, cfg=mock_config, log=self.mock_log)
 
     def sort_function(self, x):
         return x[0]
@@ -88,7 +94,8 @@ class TestModelInterpretabilityMethods:
     )
     def test_compute_part_activation_averages(self, alpha_values, part_labels, expected_results):
         """Test _compute_part_activation_averages with various input configurations."""
-        result = list(self.interpretability._compute_part_activation_averages(alpha_values, part_labels))
+        interpretability = self._create_interpretability_instance()
+        result = list(interpretability._compute_part_activation_averages(alpha_values, part_labels))
 
         # Sort both results by part label for consistent comparison
         result = sorted(result, key=self.sort_function)
@@ -159,22 +166,23 @@ class TestModelInterpretabilityMethods:
     def test_compute_if_prototype_consistent(self, part_activations, consistency_threshold, expected):
         """Test _compute_if_prototype_consistent with various activation patterns."""
         # Set up the interpretability instance with the test data
-        self.interpretability.consistency_threshold = consistency_threshold
-        self.interpretability._part_activations = [defaultdict(list) for _ in range(len(part_activations))]
+        interpretability = self._create_interpretability_instance(consistency_threshold)
+        interpretability._part_activations = [defaultdict(list) for _ in range(len(part_activations))]
 
         # Populate the part activations
         for i, prototype_activations in enumerate(part_activations):
             for part_label, activation_list in prototype_activations.items():
-                self.interpretability._part_activations[i][part_label] = activation_list
+                interpretability._part_activations[i][part_label] = activation_list
 
-        result = self.interpretability._compute_if_prototype_consistent()
+        result = interpretability._compute_if_prototype_consistent()
 
         assert result == expected
 
     def test_compute_if_prototype_consistent_multiple_parts_per_prototype(self):
         """Test _compute_if_prototype_consistent where prototypes activate on multiple parts."""
+        interpretability = self._create_interpretability_instance(0.7)
         # Prototype has multiple parts: one above threshold, one below
-        self.interpretability._part_activations = [
+        interpretability._part_activations = [
             {
                 1: [0.6, 0.65, 0.55],  # avg = 0.6 < 0.7
                 2: [0.8, 0.85, 0.75],  # avg = 0.8 > 0.7 -> should make prototype consistent
@@ -182,32 +190,33 @@ class TestModelInterpretabilityMethods:
             },
         ]
 
-        result = self.interpretability._compute_if_prototype_consistent()
+        result = interpretability._compute_if_prototype_consistent()
 
         # Should be True because part 2 has average > threshold
         assert result == [True]
 
     def test_compute_if_prototype_consistent_high_threshold(self):
         """Test _compute_if_prototype_consistent with a high consistency threshold."""
-        self.interpretability.consistency_threshold = 0.95
-        self.interpretability._part_activations = [
+        interpretability = self._create_interpretability_instance(0.95)
+        interpretability._part_activations = [
             {1: [0.9, 0.92, 0.88]},  # avg = 0.9 < 0.95 -> False
             {2: [0.96, 0.98, 0.94]},  # avg = 0.96 > 0.95 -> True
         ]
 
-        result = self.interpretability._compute_if_prototype_consistent()
+        result = interpretability._compute_if_prototype_consistent()
 
         assert result == [False, True]
 
     def test_compute_if_prototype_consistent_with_nan_values(self):
         """Test _compute_if_prototype_consistent handles NaN values gracefully."""
+        interpretability = self._create_interpretability_instance(0.7)
         # This test covers the edge case where np.mean([]) returns nan
-        self.interpretability._part_activations = [
+        interpretability._part_activations = [
             {1: []},  # Empty list -> np.mean([]) = nan
             {2: [0.8, 0.9]},  # Normal case
         ]
 
-        result = self.interpretability._compute_if_prototype_consistent()
+        result = interpretability._compute_if_prototype_consistent()
 
         # Empty list should result in False (nan is not > threshold)
         assert result == [False, True]
@@ -221,10 +230,11 @@ class TestModelInterpretabilityMethods:
     )
     def test_compute_part_activation_averages_device_compatibility(self, device):
         """Test _compute_part_activation_averages works on different devices."""
+        interpretability = self._create_interpretability_instance()
         alpha = torch.tensor([[1.0, 2.0], [3.0, 4.0]]).to(device)
         pps = torch.tensor([[1, 1], [2, 2]]).to(device)
 
-        result = list(self.interpretability._compute_part_activation_averages(alpha, pps))
+        result = list(interpretability._compute_part_activation_averages(alpha, pps))
         result = sorted(result, key=self.sort_function)
 
         expected = [(1, 1.5), (2, 3.5)]
@@ -236,6 +246,7 @@ class TestModelInterpretabilityMethods:
 
     def test_compute_part_activation_averages_large_tensor(self):
         """Test _compute_part_activation_averages with larger tensors."""
+        interpretability = self._create_interpretability_instance()
         alpha = torch.rand(10, 10)
 
         # Create parts: 4 quadrants
@@ -245,7 +256,7 @@ class TestModelInterpretabilityMethods:
         pps[5:, :5] = 3  # Bottom-left quadrant
         pps[5:, 5:] = 4  # Bottom-right quadrant
 
-        result = list(self.interpretability._compute_part_activation_averages(alpha, pps))
+        result = list(interpretability._compute_part_activation_averages(alpha, pps))
         result = sorted(result, key=self.sort_function)
 
         # Verify we got 4 parts

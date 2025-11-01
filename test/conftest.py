@@ -4,6 +4,8 @@ from typing import Generator
 
 import pytest
 
+from config import ReProSegConfig
+
 
 @pytest.fixture
 def temp_dir() -> Generator[Path, None, None]:
@@ -20,3 +22,9 @@ def mock_env_variables(temp_dir: Path, monkeypatch):
     monkeypatch.setenv("LOG_ROOT", str(temp_dir))
     monkeypatch.setenv("PROJECT_ROOT", str(temp_dir))
     yield
+
+
+@pytest.fixture
+def mock_config() -> ReProSegConfig:
+    """Create a mock ReProSegConfig for testing with reasonable defaults."""
+    return ReProSegConfig()

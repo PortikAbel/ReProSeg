@@ -37,8 +37,12 @@ class TestDoubleAugmentDataset:
         # Check transforms that are assigned from the parent transforms object
         assert dataset.transform_base_image == dataset.transforms.base_image
         assert dataset.transform1 == dataset.transforms.geometry_augmentation
-        assert dataset.transform_base_target == dataset.transforms.base_target
         assert dataset.transform_shrink_target == dataset.transforms.shrink_target
+
+        # transform_base_target should be a Compose object with base_target and filter_classes
+        assert isinstance(dataset.transform_base_target, Compose)
+        assert dataset.transform_base_target.transforms[0] == dataset.transforms.base_target
+        assert dataset.transform_base_target.transforms[1] == dataset.transforms.filter_classes
 
         # transform2 should be a Compose object with color_augmentation and image_normalization
         assert callable(dataset.transform2)
