@@ -1,6 +1,6 @@
 hydra:
   run:
-    dir: ${oc.env:LOG_ROOT}/reproseg/${now:%Y-%m-%d-%H-%M-%S}  # hydra output dir
+    dir: ${oc.env:LOG_ROOT}/${now:%Y-%m-%d-%H-%M-%S}  # hydra output dir
 
 # Seed and Dataloader
 seed: 1                           # Random seed. Note: nondeterminism may still occur. See PyTorch docs on randomness.
@@ -11,7 +11,7 @@ gpu_ids: 0                      # ID of GPU(s). Can be comma-separated (e.g., "0
 disable_gpu: false                # Disable GPU usage and force CPU if set.
 
 # Logging
-log_dir: ${oc.env:LOG_ROOT}/reproseg/${now:%Y-%m-%d-%H-%M-%S}  # Directory to save logs and outputs.
+log_dir: ${oc.env:LOG_ROOT}/${now:%Y-%m-%d-%H-%M-%S}  # Directory to save logs and outputs.
 save_all_models: false            # Save the model at every epoch (default: only best model).
 
 # Dataset
@@ -46,12 +46,12 @@ weight_decay: 0.0                 # Weight decay for optimizer.
 
 # Loss
 align_loss: 1.0                   # Ensures prototypes of similar images are aligned.
-jsd_loss: 0.0                     # Jensen-Shannon Divergence: enforces prototype diversity.
-tanh_loss: 0.0                    # Ensures each prototype is activated at least once per batch.
+jsd_loss: 1.0                     # Jensen-Shannon Divergence: enforces prototype diversity.
+tanh_loss: 0.1                    # Ensures each prototype is activated at least once per batch.
 unif_loss: 0.0                    # Optional uniformity loss (see https://www.tongzhouwang.info/hypersphere/).
 variance_loss: 0.0                # Prototype feature variance regularizer (https://arxiv.org/abs/2105.04906).
-classification_loss: 1.0          # Standard classification loss weight.
-criterion: dice           # Loss function type: ["weighted_nll", "dice"].
+classification_loss: 10.0          # Standard classification loss weight.
+ícriterion: "dice"                 # Loss function type: ["weighted_nll", "dice"].
 
 # Visualization
 visualize_prototypes: false       # Visualize top-k activations of each prototype.
