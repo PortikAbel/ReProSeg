@@ -3,12 +3,12 @@
 from .schema import (
     BaseConfig,
     DataConfig,
+    EvaluationConfig,
     LoggingConfig,
     ModelConfig,
     ReProSegConfig,
     TrainingConfig,
     VisualizationConfig,
-    EvaluationConfig,
 )
 
 __all__ = [

@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel, Field
 
+
 class ConsistencyScoreConfig(BaseModel):
     """Consistency score evaluation configuration."""
 

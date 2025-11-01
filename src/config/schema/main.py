@@ -5,11 +5,11 @@ from pydantic import Field
 from .base import BaseConfig
 from .data import DataConfig
 from .environment import EnvironmentConfig
+from .evaluation import EvaluationConfig
 from .logging import LoggingConfig
 from .model import ModelConfig
 from .training import TrainingConfig
 from .visualization import VisualizationConfig
-from .evaluation import EvaluationConfig
 
 
 class ReProSegConfig(BaseConfig):
@@ -29,7 +29,7 @@ class ReProSegConfig(BaseConfig):
             self.model.loss_weights.jsd,
             self.model.loss_weights.tanh,
             self.model.loss_weights.uniformity,
-            self.model.loss_weights.variance
+            self.model.loss_weights.variance,
         ]
 
         if all(weight == 0.0 for weight in loss_weights):

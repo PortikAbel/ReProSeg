@@ -225,9 +225,9 @@ class ReProSeg(nn.Module):
 
         if self._cfg.training.optimizer == OptimizerType.ADAMW:
             optimizer_net = torch.optim.AdamW(
-                paramlist_net, 
+                paramlist_net,
                 lr=self._cfg.training.learning_rates.backbone_full,
-                weight_decay=self._cfg.training.weight_decay
+                weight_decay=self._cfg.training.weight_decay,
             )
             optimizer_classifier = torch.optim.AdamW(
                 paramlist_classifier,

@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel, Field
 
+
 class VisualizationConfig(BaseModel):
     """Visualization configuration."""
 
