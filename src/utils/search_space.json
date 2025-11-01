@@ -22,17 +22,5 @@
   "tanh_loss": {
     "_type": "loguniform",
     "_value": [1e-5, 100.0]
-  },
-  "unif_loss": {
-    "_type": "loguniform",
-    "_value": [1e-5, 100.0]
-  },
-  "variance_loss": {
-    "_type": "loguniform",
-    "_value": [1e-5, 100.0]
-  },
-  "criterion": {
-    "_type": "choice",
-    "_value": ["weighted_nll", "dice"]
   }
 }
