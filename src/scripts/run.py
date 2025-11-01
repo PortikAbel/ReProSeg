@@ -1,134 +1,65 @@
 import os
-from pathlib import Path
+from typing import Any, Dict
 
 import hydra
-import nni
-import torch
+import nni  # type: ignore[import-untyped]
 from dotenv import load_dotenv
 from omegaconf import DictConfig, OmegaConf
 
+from config import ReProSegConfig
 from data.dataloader import DataLoader, DoubleAugmentDataLoader, PanopticPartsDataLoader
 from model.model import ReProSeg
-from utils.args import ConfigWrapper
 from utils.log import Log
 
 load_dotenv()  # loads .env into os.environ
 
 
-def set_rand_state(seed: int):
-    import random
-
-    import numpy as np
-
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
-
-
-def set_device(log: Log, gpu_ids: str, disable_gpu: bool = False) -> tuple[torch.device, list]:
-    """
-    Set the device to use for training.
-
-    :param gpu_ids: GPU ids separated with comma
-    :param disable_gpu: Whether to disable GPU. Defaults to ``False``.
-    :return: The device to use for training
-    """
-
-    device_ids = [int(gpu_id) for gpu_id in (gpu_ids.split(",") if gpu_ids else [])]
-
-    if disable_gpu or not torch.cuda.is_available():
-        return torch.device("cpu"), []
-    if len(device_ids) == 1:
-        return torch.device(f"cuda:{gpu_ids}"), device_ids
-    if len(device_ids) == 0:
-        device = torch.device("cuda")
-        log.info("CUDA device set without id specification")
-        device_ids.append(torch.cuda.current_device())
-        return device, device_ids
-    log.info(
-        "This code should work with multiple GPUs but we didn't test that, so we recommend to use only 1 GPU.",
-        flush=True,
-    )
-    return torch.device("cuda:" + str(device_ids[0])), device_ids
-
-
-def set_default_jsd_loss(args: ConfigWrapper, log: Log) -> ConfigWrapper:
-    if args.jsd_loss == 0.0 and args.tanh_loss == 0.0 and args.unif_loss == 0.0 and args.variance_loss == 0.0:
-        log.info("No loss function specified. Using JSD loss by default")
-        args.jsd_loss = 5.0
-    return args
-
-
-# updates hydra omega conf params based on the nni parameters:
-def update_hydra_config(cfg: DictConfig, nni_params: dict) -> DictConfig:
-    for key, value in nni_params.items():
-        if key in cfg:
-            cfg[key] = value
-    return cfg
-
-
-@hydra.main(version_base=None, config_path="../utils", config_name="config.yaml")
-def main(cfg: DictConfig):
-    # Setup logger
-    log = Log(Path(cfg.log_dir), __name__)
-
-    nni_params = nni.get_next_parameter()
-    if nni_params:
-        cfg = update_hydra_config(cfg, nni_params)
-
-    log.info(f"Config:\n{OmegaConf.to_yaml(cfg)}")
-
-    # Experiment ID
+@hydra.main(version_base=None, config_path="../config/yaml", config_name="config")
+def main(cfg_dict: DictConfig):
     nni_trial_id = os.environ.get("NNI_TRIAL_JOB_ID")
-    log.info(f"NNI trial ID: {nni_trial_id}")
+    if nni_trial_id:
+        if nni_params := nni.get_next_parameter():
+            cfg_dict = OmegaConf.merge(cfg_dict, nni_params)  # type: ignore[assignment]
+    cfg_object: Dict[str, Any] = OmegaConf.to_object(cfg_dict)  # type: ignore[assignment]
+    cfg = ReProSegConfig(**cfg_object)
 
-    # wrap omegaconf object so custom type objects can be added later
-    args = ConfigWrapper(cfg)
+    # Setup logger
+    log = Log(cfg.logging.path, __name__)
 
-    # Set random seed
-    set_rand_state(args.seed)
-
-    # Set device
-    args.device, args.device_ids = set_device(log, str(args.gpu_ids), args.disable_gpu)
-    log.info(f"Device used: {args.device} {f'with id {args.device_ids}' if len(args.device_ids) > 0 else ''}")
-
-    # Load checkpoint-specific logging directory
-    if args.model_checkpoint is not None:
-        args.log_dir = str(Path(args.model_checkpoint).parent.parent)
-
-    # Handle default jsd loss fallback
-    args = set_default_jsd_loss(args, log)
+    log.info(f"Config: {cfg}")
+    log.info(f"Device used: {cfg.env.device}")
+    if nni_trial_id:
+        log.info(f"NNI trial ID: {nni_trial_id}")
 
     # Create the dataloaders
-    train_loader = DoubleAugmentDataLoader(args)
-    test_loader = DataLoader("test", args)
-    train_loader_visualization = DataLoader("train", args)
-    panoptic_parts_loader = PanopticPartsDataLoader("train", args)
+    train_loader = DoubleAugmentDataLoader(cfg)
+    test_loader = DataLoader("test", cfg)
+    train_loader_visualization = DataLoader("train", cfg)
+    panoptic_parts_loader = PanopticPartsDataLoader("train", cfg)
 
-    args.num_classes = len(train_loader.dataset.classes)
+    cfg.data.num_classes = len(train_loader.dataset.classes)
+
     # Model
-    net = ReProSeg(args=args, log=log).to(device=args.device)
+    net = ReProSeg(cfg=cfg, log=log).to(device=cfg.env.device)
 
-    if not args.skip_training:
+    if not cfg.training.skip_training:
         from train.trainer import train_model
 
         try:
-            train_model(net, train_loader, test_loader, log, args)
+            train_model(net, train_loader, test_loader, log, cfg)
         except Exception as e:
             log.exception(e)
 
-    if args.visualize_prototypes:
+    if cfg.visualization.generate_explanations:
         from visualize.visualizer import ModelVisualizer
 
-        visualizer = ModelVisualizer(net, args, log, k=args.visualize_top_k)
+        visualizer = ModelVisualizer(net, cfg, log)
         visualizer.visualize_prototypes(train_loader_visualization)
 
-    if args.consistency_score:
+    if cfg.evaluation.consistency_score.calculate:
         from visualize.interpretability import ModelInterpretability
 
-        interpretability = ModelInterpretability(net, args, log, consistency_threshold=args.consistency_threshold)
+        interpretability = ModelInterpretability(net, cfg, log)
         interpretability.compute_prototype_consistency_score(panoptic_parts_loader)
 
     log.close()

@@ -1,4 +1,3 @@
-import argparse
 import heapq
 import os
 import pickle
@@ -11,6 +10,7 @@ import torchvision.transforms as transforms
 from PIL import Image
 from tqdm import tqdm
 
+from config import ReProSegConfig
 from data.config import get_dataset_config
 from model.model import ReProSeg
 from utils.log import Log
@@ -25,12 +25,12 @@ class ModelVisualizer:
 
     MIN_ACTIVATION_SCORE = 0.1
 
-    def __init__(self, net: ReProSeg, args: argparse.Namespace, log: Log, k: int = 10):
+    def __init__(self, net: ReProSeg, cfg: ReProSegConfig, log: Log):
         self.net = net
-        self.args = args
+        self.device = cfg.env.device
         self.log = log
-        self.image_shape = get_dataset_config(args.dataset)["img_shape"]
-        self.k = k
+        self.image_shape = get_dataset_config(cfg.data.dataset)["img_shape"]
+        self.k = cfg.visualization.top_k
 
     def collect_topk_prototype_activations(self, train_loader_visualization):
         topks_path = self.log.prototypes_dir / f"topks_k{self.k}.pkl"
@@ -52,7 +52,7 @@ class ModelVisualizer:
             file=self.log.tqdm_file,
         )
         for i, (xs, ys) in img_iter:
-            xs, ys = xs.to(self.args.device), ys.to(self.args.device)
+            xs, ys = xs.to(self.device), ys.to(self.device)
             _aspp, aspp_maxpooled, _out = self.net(xs)
             aspp_maxpooled = aspp_maxpooled.squeeze(0)
             aspp_maxpooled_sum = aspp_maxpooled.sum(dim=(1, 2))
@@ -119,7 +119,7 @@ class ModelVisualizer:
             img_to_open = train_loader_visualization.dataset.images[i]
             image = pil_to_tensor(Image.open(img_to_open).convert("RGB"))
             image = resize_image(image)
-            xs, ys = xs.to(self.args.device), ys.to(self.args.device)
+            xs, ys = xs.to(self.device), ys.to(self.device)
             prototype_activations = self.net.interpolate_prototype_activations(xs).to(image.device)
             for p in self.i_to_p[i]:
                 alpha = activations_to_alpha(prototype_activations[p])

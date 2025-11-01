@@ -1,12 +1,14 @@
 from torchvision.transforms.v2 import Compose
 
-from .base import Dataset, SupportedDataset
+from config.schema.data import DatasetType
+
+from .base import Dataset
 
 
 class DoubleAugmentDataset(Dataset):
     """Returns two similar augmented version of the image along with the labels."""
 
-    def __init__(self, dataset_name: SupportedDataset):
+    def __init__(self, dataset_name: DatasetType):
         super().__init__(dataset_name, split="train")
         self.transform_base_image = self.transforms.base_image
         self.transform1 = self.transforms.geometry_augmentation

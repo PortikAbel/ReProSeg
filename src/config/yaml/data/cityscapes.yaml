@@ -1,0 +1,10 @@
+# CityScapes dataset configuration
+
+# Dataset
+dataset: CityScapes
+validation_size: 0.2
+disable_normalize: false
+
+# Dataloader settings
+num_workers: 8
+batch_size: 2

@@ -1,0 +1,21 @@
+# Fast debug experiment for quick testing
+
+defaults:
+  - /data: cityscapes
+  - /model: default
+  - /training: fast
+  - /logging: debug
+  - /visualization: full
+  - _self_
+
+# Hydra configuration to use custom output directory
+hydra:
+  run:
+    dir: ${oc.env:LOG_ROOT}/debug
+
+env:
+  gpu_id: 0
+  seed: 42
+
+model:
+  checkpoint: ${oc.env:LOG_ROOT}/2025-10-03-20-00-10/checkpoints/net_trained_last

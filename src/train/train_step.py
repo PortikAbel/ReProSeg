@@ -1,20 +1,19 @@
-import argparse
-
-import nni
+import nni  # type: ignore[import-untyped]
 import numpy as np
 import torch
 import torch.nn as nn
 from tqdm import tqdm
 
+from config import ReProSegConfig
 from model.model import ReProSeg, TrainPhase
 from model.optimizers import OptimizerSchedulerManager
 from train.eval import acc_from_cm, compute_cm, intersection_and_union_from_cm
-from train.loss import LossWeights, calculate_loss
+from train.loss import calculate_loss
 from utils.log import Log
 
 
 def train(
-    args: argparse.Namespace,
+    cfg: ReProSegConfig,
     log: Log,
     net: ReProSeg,
     train_loader,
@@ -33,8 +32,8 @@ def train(
     train_info: dict[str, float | np.ndarray] = {}
     total_loss = 0.0
     total_acc = 0.0
-    total_intersections_by_class = torch.zeros(args.num_classes - 1).to(args.device)
-    total_unions_by_class = torch.zeros(args.num_classes - 1).to(args.device)
+    total_intersections_by_class = torch.zeros(cfg.data.num_classes - 1).to(cfg.env.device)
+    total_unions_by_class = torch.zeros(cfg.data.num_classes - 1).to(cfg.env.device)
 
     iters = len(train_loader)
     # Show progress on progress bar.
@@ -53,13 +52,11 @@ def train(
             count_param += 1
     log.debug(f"Number of parameters that require gradient: {count_param}")
 
-    loss_weights = LossWeights(args)
-
     log.debug(f"Training phase: {net.train_phase.name}")
 
     # Iterate through the data set to update leaves, prototypes and network
     for i, (xs1, xs2, ys) in train_iter:
-        xs1, xs2, ys = xs1.to(args.device), xs2.to(args.device), ys.to(args.device)
+        xs1, xs2, ys = xs1.to(cfg.env.device), xs2.to(cfg.env.device), ys.to(cfg.env.device)
 
         # Reset the gradients
         optimizer_scheduler_manager.reset_gradients()
@@ -74,7 +71,7 @@ def train(
             pooled,
             out,
             ys,
-            loss_weights,
+            cfg.model.loss_weights,
             net.train_phase,
             criterion,
             train_iter,

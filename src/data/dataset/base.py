@@ -2,20 +2,21 @@ from torch.utils.data import Dataset as TorchDataset
 from torchvision.datasets import Cityscapes
 from torchvision.transforms.v2 import Compose, Transform
 
-from data import SupportedDataset, SupportedSplit
+from config.schema.data import DatasetType
+from data import SupportedSplit
 from data.config import DatasetConfig, get_dataset_config
 from data.transforms import Transforms
 from utils.errors import DatasetNotImplementedError
 
 
 class Dataset(TorchDataset):
-    name: SupportedDataset
+    name: DatasetType
     config: DatasetConfig
     split: SupportedSplit
     dataset: Cityscapes
     transforms: Transforms
 
-    def __init__(self, dataset_name: SupportedDataset, split: SupportedSplit):
+    def __init__(self, dataset_name: DatasetType, split: SupportedSplit):
         # Validate dataset name first
         self.config = get_dataset_config(dataset_name)
         self.name = dataset_name

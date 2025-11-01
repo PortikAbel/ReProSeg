@@ -1,0 +1,8 @@
+# Fast training configuration for quick debugging
+
+epochs: 
+  pretrain: 0
+  total: 3
+  finetune: 1
+  freeze: 2
+  start: 1

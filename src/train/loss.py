@@ -2,28 +2,9 @@ import torch
 import torch.nn.functional as F
 import tqdm
 
+from config.schema.model import LossWeights
 from model.model import TrainPhase
 from utils.log import Log
-
-
-class LossWeights:
-    alignment: float
-    jsd: float
-    tanh: float
-    uniformity: float
-    variance: float
-    classification: float
-
-    def __init__(
-        self,
-        args,
-    ):
-        self.alignment = args.align_loss
-        self.jsd = args.jsd_loss
-        self.tanh = args.tanh_loss
-        self.uniformity = args.unif_loss
-        self.variance = args.variance_loss
-        self.classification = args.classification_loss
 
 
 def calculate_loss(
