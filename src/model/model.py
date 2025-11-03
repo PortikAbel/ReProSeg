@@ -192,8 +192,6 @@ class ReProSeg(nn.Module):
             elif self._cfg.model.bias:
                 self.param_groups["classification_bias"].append(param)
 
-
-
     def get_optimizers(self):
         paramlist_net = [
             {
