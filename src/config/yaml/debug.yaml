@@ -16,6 +16,3 @@ hydra:
 env:
   gpu_id: 0
   seed: 42
-
-model:
-  checkpoint: ${oc.env:LOG_ROOT}/2025-10-03-20-00-10/checkpoints/net_trained_last
