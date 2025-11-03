@@ -11,7 +11,6 @@ from PIL import Image
 from tqdm import tqdm
 
 from config import ReProSegConfig
-from data.config import get_dataset_config
 from model.model import ReProSeg
 from utils.log import Log
 
@@ -29,7 +28,7 @@ class ModelVisualizer:
         self.net = net
         self.device = cfg.env.device
         self.log = log
-        self.image_shape = get_dataset_config(cfg.data.dataset)["img_shape"]
+        self.image_shape = cfg.data.img_shape
         self.k = cfg.visualization.top_k
 
     def collect_topk_prototype_activations(self, train_loader_visualization):

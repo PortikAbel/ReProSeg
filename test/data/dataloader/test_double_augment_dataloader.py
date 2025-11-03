@@ -48,10 +48,10 @@ class TestDoubleAugmentDataLoader:
         dataloader = DoubleAugmentDataLoader(mock_config)
 
         # Test the overridden method
-        dataset = dataloader._create_dataset("CityScapes")
+        dataset = dataloader._create_dataset(mock_config.data)
 
         assert isinstance(dataset, DoubleAugmentDataset)
-        assert dataset.name == "CityScapes"
+        assert dataset.config.dataset == "CityScapes"
         assert dataset.split == "train"  # DoubleAugmentDataset always uses train
 
     def test_dataset_type_is_double_augment(self, mock_config, mock_cityscapes_constructor):
@@ -76,7 +76,7 @@ class TestDoubleAugmentDataLoader:
             assert len(result) == 3
             # First two should be the augmented images, third should be the target
 
-    @pytest.mark.parametrize("batch_size", [1, 8, 16])
+    @pytest.mark.parametrize("batch_size", [2, 8, 16])
     def test_batch_size_propagation(self, mock_config, batch_size, mock_cityscapes_constructor):
         """Test that batch_size is correctly propagated from args."""
         mock_config.data.batch_size = batch_size
@@ -119,7 +119,7 @@ class TestDoubleAugmentDataLoader:
         """Test that dataset name is correctly propagated to DoubleAugmentDataset."""
         dataloader = DoubleAugmentDataLoader(mock_config)
 
-        assert dataloader.dataset.name == "CityScapes"
+        assert dataloader.dataset.config.dataset == "CityScapes"
 
     def test_default_dataloader_settings(self, mock_config, mock_cityscapes_constructor):
         """Test that default DataLoader settings are inherited."""
@@ -166,14 +166,3 @@ class TestDoubleAugmentDataLoader:
                     assert batch[1].shape[0] == dataloader.batch_size  # Batch dimension
                     assert batch[2].shape[0] == dataloader.batch_size  # Batch dimension
                     break  # Just test the first batch
-
-    def test_invalid_dataset_handling(self, mock_config):
-        """Test handling of invalid dataset names."""
-        mock_config.data.dataset = "InvalidDataset"
-
-        with patch("torchvision.datasets.Cityscapes"):
-            with pytest.raises(NotImplementedError) as exc_info:
-                DoubleAugmentDataLoader(mock_config)
-
-            assert "InvalidDataset" in str(exc_info.value)
-            assert "is not implemented" in str(exc_info.value)

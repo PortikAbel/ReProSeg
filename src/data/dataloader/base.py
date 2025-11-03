@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import DataLoader as TorchDataLoader
 
 from config import ReProSegConfig
-from config.schema.data import DatasetType
+from config.schema.data import DataConfig
 from data import SupportedSplit
 from data.dataset import Dataset
 
@@ -18,7 +18,7 @@ class DataLoader(TorchDataLoader):
 
     def __init__(self, split: SupportedSplit, cfg: ReProSegConfig):
         self.split = split
-        self.dataset = self._create_dataset(cfg.data.dataset)
+        self.dataset = self._create_dataset(cfg.data)
         super().__init__(
             self.dataset,
             batch_size=cfg.data.batch_size,
@@ -30,5 +30,5 @@ class DataLoader(TorchDataLoader):
             drop_last=self.to_drop_last,
         )
 
-    def _create_dataset(self, dataset_name: DatasetType) -> Dataset:
-        return Dataset(dataset_name, self.split)
+    def _create_dataset(self, cfg: DataConfig) -> Dataset:
+        return Dataset(cfg, self.split)

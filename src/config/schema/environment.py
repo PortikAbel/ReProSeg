@@ -19,9 +19,6 @@ class EnvironmentConfig(BaseConfig):
     # Random seed
     seed: int = Field(default=1, description="Random seed. Note: nondeterminism may still occur")
 
-    class Config:
-        arbitrary_types_allowed = True
-
     @field_validator("gpu_id")
     def validate_gpu_id(cls, v):
         if not torch.cuda.is_available():

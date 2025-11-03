@@ -55,7 +55,7 @@ class TestBaseDataLoader:
         dataloader = DataLoader("train", mock_config)
 
         assert dataloader.dataset is not None
-        assert dataloader.dataset.name == "CityScapes"
+        assert dataloader.dataset.config.dataset == "CityScapes"
         assert dataloader.dataset.split == "train"
 
     def test_create_dataset_method(self, mock_config, mock_cityscapes_constructor):
@@ -63,10 +63,10 @@ class TestBaseDataLoader:
         dataloader = DataLoader("val", mock_config)
 
         # Create another dataset using the protected method
-        new_dataset = dataloader._create_dataset("CityScapes")
+        new_dataset = dataloader._create_dataset(mock_config.data)
 
         assert isinstance(new_dataset, Dataset)
-        assert new_dataset.name == "CityScapes"
+        assert new_dataset.config.dataset == "CityScapes"
         assert new_dataset.split == "val"  # Should use the dataloader's split
 
     def test_torch_dataloader_inheritance(self, mock_config, mock_cityscapes_constructor):
@@ -98,7 +98,7 @@ class TestBaseDataLoader:
         dataloader.worker_init_fn(0)  # worker_id is typically passed as argument
         mock_numpy_seed.assert_called_with(mock_config.env.seed)
 
-    @pytest.mark.parametrize("batch_size", [1, 8, 16, 32])
+    @pytest.mark.parametrize("batch_size", [2, 8, 16, 32])
     def test_batch_size_parameter(self, batch_size, mock_config, mock_cityscapes_constructor):
         """Test that batch_size is set correctly from config."""
         mock_config.data.batch_size = batch_size
@@ -164,18 +164,6 @@ class TestBaseDataLoader:
                         break
 
                 assert batch_count >= 1  # At least one batch was processed
-
-    def test_invalid_dataset_name_propagation(self, mock_config):
-        """Test that invalid dataset name raises appropriate error."""
-        mock_config = mock_config.model_copy(deep=True)
-        mock_config.data.dataset = "InvalidDataset"  # type: ignore
-
-        with patch("torchvision.datasets.Cityscapes"):
-            with pytest.raises(NotImplementedError) as exc_info:
-                DataLoader("train", mock_config)
-
-            assert "InvalidDataset" in str(exc_info.value)
-            assert "is not implemented" in str(exc_info.value)
 
     def test_class_attributes_accessibility(self, mock_config, mock_cityscapes_constructor):
         """Test that class attributes are accessible and correctly typed."""

@@ -38,7 +38,3 @@ class ReProSegConfig(BaseConfig):
 
         if self.model.checkpoint:
             self.logging.path = self.model.checkpoint.parent.parent
-
-    class Config:
-        extra = "allow"
-        use_enum_values = True

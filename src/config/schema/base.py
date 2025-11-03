@@ -1,15 +1,16 @@
 """Base configuration schemas."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class BaseConfig(BaseModel):
     """Base configuration with common validation logic."""
 
-    class Config:
-        extra = "allow"  # Allow extra fields for flexibility with Hydra
-        use_enum_values = True
-        validate_assignment = True
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        use_enum_values=True,
+        validate_assignment=True,
+    )
 
     def __init__(self, **data):
         super().__init__(**data)

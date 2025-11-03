@@ -108,7 +108,10 @@ class ModelInterpretability:
     def _compute_if_prototype_consistent(self) -> list[bool]:
         return list(
             [
-                any(np.mean(avgs) > self.consistency_score for avgs in avg_part_activations.values())
+                any(
+                    (np.mean(avgs) if len(avgs) > 0 else 0) > self.consistency_score
+                    for avgs in avg_part_activations.values()
+                )
                 for avg_part_activations in self._part_activations
             ]
         )

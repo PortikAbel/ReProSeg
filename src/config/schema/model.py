@@ -4,7 +4,9 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from config.schema.base import BaseConfig
 
 
 class BackboneArchitecture(str, Enum):
@@ -23,7 +25,7 @@ class LossCriterion(str, Enum):
     DICE = "dice"
 
 
-class LossWeights(BaseModel):
+class LossWeights(BaseConfig):
     """Weights for different loss components."""
 
     alignment: float = Field(default=1.0, description="Ensures prototypes of similar images are aligned")
@@ -34,7 +36,7 @@ class LossWeights(BaseModel):
     classification: float = Field(default=1.0, description="Standard classification loss weight")
 
 
-class ModelConfig(BaseModel):
+class ModelConfig(BaseConfig):
     """Model architecture and parameters configuration."""
 
     # Network settings
@@ -54,6 +56,3 @@ class ModelConfig(BaseModel):
     )
     criterion: LossCriterion = Field(default=LossCriterion.DICE, description="Loss function type")
     loss_weights: LossWeights = Field(default_factory=LossWeights, description="Weights for different loss components")
-
-    class Config:
-        use_enum_values = True

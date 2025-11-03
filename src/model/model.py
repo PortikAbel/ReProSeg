@@ -7,7 +7,6 @@ import torchvision.transforms as transforms
 
 from config.schema.main import ReProSegConfig
 from config.schema.training import OptimizerType
-from data.config import get_dataset_config
 from model.segmentation_features import (
     base_architecture_to_features,
     base_architecture_to_layer_groups,
@@ -48,7 +47,7 @@ class ReProSegLayers(nn.Module):
 
         features, aspp_convs = base_architecture_to_features[cfg.model.backbone_network](
             pretrained=not cfg.model.disable_pretrained,
-            in_channels=get_dataset_config(cfg.data.dataset)["color_channels"],
+            in_channels=cfg.data.color_channels,
         )
         self.feature_net = features
         self.aspp_convs = aspp_convs

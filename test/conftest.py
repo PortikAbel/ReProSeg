@@ -27,4 +27,6 @@ def mock_env_variables(temp_dir: Path, monkeypatch):
 @pytest.fixture
 def mock_config() -> ReProSegConfig:
     """Create a mock ReProSegConfig for testing with reasonable defaults."""
-    return ReProSegConfig()
+    cfg = ReProSegConfig()
+    cfg.data.filter_classes = True
+    return cfg

@@ -2,7 +2,9 @@
 
 from enum import Enum
 
-from pydantic import BaseModel, Field, ValidationInfo, field_validator
+from pydantic import Field, ValidationInfo, field_validator
+
+from config.schema.base import BaseConfig
 
 
 class OptimizerType(str, Enum):
@@ -13,7 +15,7 @@ class OptimizerType(str, Enum):
     ADAMW = "AdamW"
 
 
-class EpochConfig(BaseModel):
+class EpochConfig(BaseConfig):
     """Epoch configuration for different training phases."""
 
     pretrain: int = Field(default=0, ge=0, description="Epochs for prototype pretraining (stage 1)")
@@ -37,7 +39,7 @@ class EpochConfig(BaseModel):
         return v
 
 
-class LearningRateConfig(BaseModel):
+class LearningRateConfig(BaseConfig):
     """Learning rate configuration for different network components."""
 
     classifier: float = Field(default=1.0, gt=0.0, description="Learning rate for prototype → class weights")
@@ -45,7 +47,7 @@ class LearningRateConfig(BaseModel):
     backbone_full: float = Field(default=1.0, gt=0.0, description="Learning rate for rest of backbone")
 
 
-class TrainingConfig(BaseModel):
+class TrainingConfig(BaseConfig):
     """Training parameters and optimization configuration."""
 
     skip_training: bool = Field(
@@ -57,6 +59,3 @@ class TrainingConfig(BaseModel):
         default_factory=lambda: LearningRateConfig(), description="Learning rate configuration"
     )
     weight_decay: float = Field(default=1e-4, ge=0.0, description="Weight decay (L2 regularization) factor")
-
-    class Config:
-        use_enum_values = True
