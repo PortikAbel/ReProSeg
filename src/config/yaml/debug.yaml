@@ -5,7 +5,6 @@ defaults:
   - /model: default
   - /training: fast
   - /logging: debug
-  - /visualization: full
   - _self_
 
 # Hydra configuration to use custom output directory

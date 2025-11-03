@@ -6,7 +6,6 @@ defaults:
   - model: default
   - training: default
   - logging: default
-  - visualization: default
   - _self_
 
 # Hydra configuration to use custom output directory
