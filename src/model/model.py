@@ -101,6 +101,13 @@ class ReProSeg(nn.Module):
         self.layers = ReProSegLayers(cfg, log)
         self.num_prototypes = self.layers.num_prototypes
 
+        if cfg.model.checkpoint is not None:
+            checkpoint = torch.load(cfg.model.checkpoint, map_location=cfg.env.device, weights_only=False)
+            self.load_state_dict(checkpoint["model_state_dict"], strict=True)
+            self._log.info("Pretrained network loaded")
+        else:
+            self._init_add_on_weights()
+            self._init_classifier_weights()
         self._init_param_groups()
 
     def forward(self, xs, inference=False):
@@ -140,10 +147,10 @@ class ReProSeg(nn.Module):
             interpolated_activations = torch.maximum(interpolated_activations, scaled_activations)
         return interpolated_activations
 
-    def init_add_on_weights(self):
+    def _init_add_on_weights(self):
         self.layers.add_on_layers.apply(init_weights_xavier)
 
-    def init_classifier_weights(self):
+    def _init_classifier_weights(self):
         torch.nn.init.normal_(self.layers.classification_layer.weight, mean=1.0, std=0.1)
         self._log.info(
             f"Classification layer initialized with mean {torch.mean(self.layers.classification_layer.weight).item()}"
@@ -184,6 +191,8 @@ class ReProSeg(nn.Module):
                 self.param_groups["classification_weight"].append(param)
             elif self._cfg.model.bias:
                 self.param_groups["classification_bias"].append(param)
+
+
 
     def get_optimizers(self):
         paramlist_net = [

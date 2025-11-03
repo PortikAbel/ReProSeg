@@ -17,17 +17,8 @@ def train_model(net: ReProSeg, train_loader: DataLoader, test_loader: DataLoader
     optimizer_scheduler_manager = OptimizerSchedulerManager(
         net, len(train_loader) * cfg.training.epochs.pretrain, cfg.training.learning_rates.backbone_end
     )
-
-    # Initialize or load model
-    with torch.no_grad():
-        if cfg.model.checkpoint is not None:
-            checkpoint = torch.load(cfg.model.checkpoint, map_location=cfg.env.device, weights_only=False)
-            net.load_state_dict(checkpoint["model_state_dict"], strict=True)
-            log.info("Pretrained network loaded")
-            optimizer_scheduler_manager.load_state_dict(checkpoint)
-        else:
-            net.init_add_on_weights()
-            net.init_classifier_weights()
+    if cfg.model.checkpoint is not None:
+        optimizer_scheduler_manager.load_state_dict(cfg.model.checkpoint)
 
     criterion: nn.Module
     match cfg.model.criterion:
