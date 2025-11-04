@@ -27,19 +27,16 @@ class EnvironmentConfig(BaseConfig):
             raise ValueError(f"GPU ID {v} is not available. Only {torch.cuda.device_count()} GPUs found.")
         return v
 
-    @field_validator("seed")
-    def validate_seed(cls, v):
+    def _post_init_validation(self):
+        if self.gpu_id is not None:
+            self.device = torch.device(f"cuda:{self.gpu_id}")
+        
         import random
 
         import numpy as np
 
-        random.seed(v)
-        np.random.seed(v)
-        torch.manual_seed(v)
+        random.seed(self.seed)
+        np.random.seed(self.seed)
+        torch.manual_seed(self.seed)
         if torch.cuda.is_available():
-            torch.cuda.manual_seed_all(v)
-        return v
-
-    def _post_init_validation(self):
-        if self.gpu_id is not None:
-            self.device = torch.device(f"cuda:{self.gpu_id}")
+            torch.cuda.manual_seed_all(self.seed)
