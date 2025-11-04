@@ -1,5 +1,5 @@
 import torch.nn as nn
-from torch import arange, Tensor
+from torch import Tensor, arange
 
 
 class DiceLoss(nn.Module):
