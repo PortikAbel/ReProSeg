@@ -12,8 +12,6 @@ def get_class_weights(cfg: ReProSegConfig, log: Log):
         class_counts = np.load(class_counts_path)
         log.info(f"Loaded class counts from {class_counts_path}: {class_counts}")
     else:
-        from data.count_class_distribution import count_class_distribution
-
         class_counts = count_class_distribution(cfg, class_counts_path)
         log.info(f"Calculated class counts: {class_counts}")
     class_weights = 1 / class_counts
