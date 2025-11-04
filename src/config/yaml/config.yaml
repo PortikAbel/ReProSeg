@@ -2,6 +2,7 @@
 # This is the main entry point for Hydra configuration
 
 defaults:
+  - env: default
   - data: cityscapes
   - model: default
   - training: default

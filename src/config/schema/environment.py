@@ -1,4 +1,5 @@
 from typing import Optional
+from pathlib import Path
 
 import torch
 from pydantic import Field, field_validator
@@ -16,7 +17,15 @@ class EnvironmentConfig(BaseConfig):
     )
     device: torch.device = Field(default=torch.device("cpu"), description="Computed device string (set at runtime)")
 
-    # Random seed
+    pretrained_backbones_dir: Path = Field(
+        default=Path("pretrained"),
+        description="Directory to store pretrained backbone checkpoints"
+    )
+    class_distribution_cache_path: Path = Field(
+        default=Path("data/class_counts.npy"),
+        description="Path to cache class distribution counts",
+    )
+
     seed: int = Field(default=1, description="Random seed. Note: nondeterminism may still occur")
 
     @field_validator("gpu_id")

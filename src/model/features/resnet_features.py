@@ -7,8 +7,6 @@ import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 from torch import Tensor
 
-from model import get_pretrained_models_dir
-
 model_urls = {
     "resnet18": "https://download.pytorch.org/models/resnet18-5c106cde.pth",
     "resnet34": "https://download.pytorch.org/models/resnet34-333f7ec4.pth",
@@ -317,7 +315,7 @@ def _resnet_features(arch: str, layers: list, block: type[nn.Module] = BasicBloc
     model = ResNet_features(block, layers, **kwargs)
 
     if pretrained:
-        my_dict = model_zoo.load_url(model_urls[arch], model_dir=get_pretrained_models_dir().as_posix())
+        my_dict = model_zoo.load_url(model_urls[arch], model_dir=kwargs.get("model_dir", None))
         my_dict.pop("fc.weight")
         my_dict.pop("fc.bias")
         model.load_state_dict(my_dict, strict=False)

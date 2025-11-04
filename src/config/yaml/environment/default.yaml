@@ -1,0 +1,2 @@
+pretrained_backbones_dir: ${oc.env:PROJECT_ROOT}/model/features/pretrained
+class_distribution_cache_path: ${oc.env:PROJECT_ROOT}/data/class_counts.npy
