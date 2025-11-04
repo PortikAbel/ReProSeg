@@ -27,6 +27,8 @@ def train_model(net: ReProSeg, train_loader: DataLoader, test_loader: DataLoader
     match cfg.model.criterion:
         case LossCriterion.DICE:
             criterion = DiceLoss()
+        case LossCriterion.WEIGHTED_DICE:
+            criterion = DiceLoss(class_weights)
         case LossCriterion.WEIGHTED_NLL:
             criterion = WeightedNLLLoss(class_weights)
         case _:
