@@ -1,5 +1,5 @@
 import torch.nn as nn
-from torch import Tensor
+from torch import arange, Tensor
 
 
 class DiceLoss(nn.Module):
@@ -20,6 +20,8 @@ class DiceLoss(nn.Module):
         dice_by_class = (2.0 * (inputs * targets).sum(dim=dims) + self.smooth) / (
             inputs.sum(dim=dims) + targets.sum(dim=dims) + self.smooth
         )
+        mask = arange(dice_by_class.size(0)) != self.ignore_index
+        dice_by_class = dice_by_class[mask]
         if self.class_weights is not None:
             dice_by_class = (dice_by_class * self.class_weights) / self.sum_weights
         return 1 - dice_by_class.mean()
