@@ -6,7 +6,7 @@ from data.dataloader import DataLoader
 from utils.log import Log
 
 
-def get_class_weights(self, cfg: ReProSegConfig, log: Log):
+def get_class_weights(cfg: ReProSegConfig, log: Log):
     class_counts_path = cfg.env.class_distribution_cache_path
     if class_counts_path.is_file():
         class_counts = np.load(class_counts_path)
@@ -17,8 +17,9 @@ def get_class_weights(self, cfg: ReProSegConfig, log: Log):
         class_counts = count_class_distribution(cfg, class_counts_path)
         log.info(f"Calculated class counts: {class_counts}")
     class_weights = 1 / class_counts
-    class_weights = torch.tensor(class_weights, device=self.device, dtype=torch.float32)
+    class_weights = torch.tensor(class_weights, device=cfg.env.device, dtype=torch.float32)
     return class_weights
+
 
 def count_class_distribution(cfg: ReProSegConfig, save_path):
     dl = DataLoader("train", cfg)

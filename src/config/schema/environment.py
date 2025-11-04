@@ -1,5 +1,5 @@
-from typing import Optional
 from pathlib import Path
+from typing import Optional
 
 import torch
 from pydantic import Field, field_validator
@@ -18,8 +18,7 @@ class EnvironmentConfig(BaseConfig):
     device: torch.device = Field(default=torch.device("cpu"), description="Computed device string (set at runtime)")
 
     pretrained_backbones_dir: Path = Field(
-        default=Path("pretrained"),
-        description="Directory to store pretrained backbone checkpoints"
+        default=Path("pretrained"), description="Directory to store pretrained backbone checkpoints"
     )
     class_distribution_cache_path: Path = Field(
         default=Path("data/class_counts.npy"),

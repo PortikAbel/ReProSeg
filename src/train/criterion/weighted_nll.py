@@ -4,7 +4,7 @@ import torch.nn as nn
 
 class WeightedNLLLoss(nn.Module):
     """
-    NLLLoss with class weights inferred from dataset or .npy file.
+    NLLLoss with class weights inferred from dataset.
     """
 
     def __init__(self, class_weights: torch.Tensor, ignore_index=0, reduction="mean"):
