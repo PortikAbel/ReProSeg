@@ -6,6 +6,7 @@ from pydantic import Field
 
 from .base import BaseConfig
 
+
 class LoggingConfig(BaseConfig):
     """Logging and output configuration."""
 

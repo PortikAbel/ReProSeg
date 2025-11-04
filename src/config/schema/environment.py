@@ -30,7 +30,7 @@ class EnvironmentConfig(BaseConfig):
     def _post_init_setup(self):
         if self.gpu_id is not None:
             self.device = torch.device(f"cuda:{self.gpu_id}")
-        
+
         import random
 
         import numpy as np
