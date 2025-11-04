@@ -12,7 +12,7 @@ class LoggingConfig(BaseConfig):
     path: Path = Field(default=Path("logs"), description="Directory to save logs and outputs")
     save_all_models: bool = Field(default=False, description="Save the model at every epoch (default: only best model)")
 
-    def _post_init_validation(self):
+    def _post_init_setup(self):
         try:
             self.path.mkdir(parents=True, exist_ok=True)
         except Exception as e:

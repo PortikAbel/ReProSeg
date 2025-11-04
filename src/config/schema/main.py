@@ -23,8 +23,8 @@ class ReProSegConfig(BaseConfig):
     visualization: VisualizationConfig = Field(default_factory=VisualizationConfig)
     evaluation: EvaluationConfig = Field(default_factory=EvaluationConfig)
 
-    def _post_init_validation(self):
-        # Validate that at least one loss is specified
+    def _post_init_setup(self):
+        # Ensure that at least one loss is specified
         loss_weights = [
             self.model.loss_weights.jsd,
             self.model.loss_weights.tanh,

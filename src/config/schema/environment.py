@@ -27,7 +27,7 @@ class EnvironmentConfig(BaseConfig):
             raise ValueError(f"GPU ID {v} is not available. Only {torch.cuda.device_count()} GPUs found.")
         return v
 
-    def _post_init_validation(self):
+    def _post_init_setup(self):
         if self.gpu_id is not None:
             self.device = torch.device(f"cuda:{self.gpu_id}")
         

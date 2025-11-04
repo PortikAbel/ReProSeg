@@ -14,8 +14,8 @@ class BaseConfig(BaseModel):
 
     def __init__(self, **data):
         super().__init__(**data)
-        self._post_init_validation()
+        self._post_init_setup()
 
-    def _post_init_validation(self):
-        """Additional validation after initialization."""
+    def _post_init_setup(self):
+        """Additional setup and processing after initialization."""
         pass
