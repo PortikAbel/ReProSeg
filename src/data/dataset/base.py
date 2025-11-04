@@ -1,24 +1,22 @@
 from torch.utils.data import Dataset as TorchDataset
 from torchvision.datasets import Cityscapes
-from torchvision.transforms.v2 import Transform, Compose
+from torchvision.transforms.v2 import Compose, Transform
 
-from data import SupportedDataset, SupportedSplit
-from data.config import get_dataset_config, DatasetConfig
+from config.schema.data import DataConfig, DatasetType
+from data import SupportedSplit
 from data.transforms import Transforms
 from utils.errors import DatasetNotImplementedError
 
 
 class Dataset(TorchDataset):
-    name: SupportedDataset
-    config: DatasetConfig
+    config: DataConfig
     split: SupportedSplit
     dataset: Cityscapes
     transforms: Transforms
 
-    def __init__(self, dataset_name: SupportedDataset, split: SupportedSplit):
+    def __init__(self, cfg: DataConfig, split: SupportedSplit):
         # Validate dataset name first
-        self.config = get_dataset_config(dataset_name)
-        self.name = dataset_name
+        self.config = cfg
         self.split = split
         # Initialize transforms first, before creating the dataset
         self.transforms = Transforms(self.config)
@@ -31,11 +29,10 @@ class Dataset(TorchDataset):
         return len(self.dataset)
 
     def __getdata__(self) -> Cityscapes:
-        match self.name:
-            case "CityScapes":
-                # self.log.info("Loading CityScapes test dataset")
+        match self.config.dataset:
+            case DatasetType.CITYSCAPES:
                 data = Cityscapes(
-                    root=self.config["data_dir"],
+                    root=self.config.path,
                     split=self.split,
                     mode="fine",
                     target_type="semantic",
@@ -46,7 +43,7 @@ class Dataset(TorchDataset):
 
                 return data
             case _:
-                raise DatasetNotImplementedError(self.name)
+                raise DatasetNotImplementedError(self.config.dataset)
 
     @property
     def classes(self):
@@ -60,8 +57,8 @@ class Dataset(TorchDataset):
     @property
     def target_transform(self) -> Transform:
         """Transform to be applied to the dataset targets"""
-        match self.name:
-            case "CityScapes":
+        match self.config.dataset:
+            case DatasetType.CITYSCAPES:
                 return Compose(
                     [
                         self.transforms.base_target,

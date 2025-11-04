@@ -1,55 +1,69 @@
+import os
+from typing import Any, Dict
+
+import hydra
+import nni  # type: ignore[import-untyped]
+from dotenv import load_dotenv
+from omegaconf import DictConfig, OmegaConf
+
+from config import ReProSegConfig
 from data.dataloader import DataLoader, DoubleAugmentDataLoader, PanopticPartsDataLoader
 from model.model import ReProSeg
-from utils.args import ModelTrainerArgumentParser
 from utils.log import Log
 
+load_dotenv()  # loads .env into os.environ
 
-model_trainer_argument_parser = ModelTrainerArgumentParser()
-model_args = model_trainer_argument_parser.get_args()
 
-# Create a logger
-log = Log(model_args.log_dir, __name__)
+@hydra.main(version_base=None, config_path="../config/yaml", config_name="config")
+def main(cfg_dict: DictConfig):
+    nni_trial_id = os.environ.get("NNI_TRIAL_JOB_ID")
+    if nni_trial_id:
+        if nni_params := nni.get_next_parameter():
+            cfg_dict = OmegaConf.merge(cfg_dict, nni_params)  # type: ignore[assignment]
+    cfg_object: Dict[str, Any] = OmegaConf.to_object(cfg_dict)  # type: ignore[assignment]
+    cfg = ReProSegConfig(**cfg_object)
 
-# Log the run arguments
-model_trainer_argument_parser.save_args(log.metadata_dir)
+    # Setup logger
+    log = Log(cfg.logging.path, __name__)
 
-# Log which device was actually used
-log.info(
-    f"Device used: {model_args.device} {f'with id {model_args.device_ids}' if len(model_args.device_ids) > 0 else ''}",
-)
+    log.info(f"Config: {cfg}")
+    log.info(f"Device used: {cfg.env.device}")
+    if nni_trial_id:
+        log.info(f"NNI trial ID: {nni_trial_id}")
 
-# Create the dataloaders
-train_loader = DoubleAugmentDataLoader(model_args)
-test_loader = DataLoader("test", model_args)
-train_loader_visualization = DataLoader("train", model_args)
-panoptic_parts_loader = PanopticPartsDataLoader("train", model_args)
+    # Create the dataloaders
+    train_loader = DoubleAugmentDataLoader(cfg)
+    test_loader = DataLoader("test", cfg)
+    train_loader_visualization = DataLoader("train", cfg)
+    panoptic_parts_loader = PanopticPartsDataLoader("train", cfg)
 
-model_args.num_classes = len(train_loader.dataset.classes)
+    cfg.data.num_classes = len(train_loader.dataset.classes)
 
-# Create a ReProSeg model
-net = ReProSeg(args=model_args, log=log)
-net = net.to(device=model_args.device)
+    # Model
+    net = ReProSeg(cfg=cfg, log=log).to(device=cfg.env.device)
 
-if not model_args.skip_training:
-    from train.trainer import train_model
+    if not cfg.training.skip_training:
+        from train.trainer import train_model
 
-    try:
-        train_model(net, train_loader, test_loader, log, model_args)
-    except Exception as e:
-        log.exception(e)
+        try:
+            train_model(net, train_loader, test_loader, log, cfg)
+        except Exception as e:
+            log.exception(e)
 
-if model_args.visualize_prototypes:
-    from visualize.visualizer import ModelVisualizer
+    if cfg.visualization.generate_explanations:
+        from visualize.visualizer import ModelVisualizer
 
-    visualizer = ModelVisualizer(net, model_args, log, k=model_args.visualize_top_k)
-    visualizer.visualize_prototypes(train_loader_visualization)
+        visualizer = ModelVisualizer(net, cfg, log)
+        visualizer.visualize_prototypes(train_loader_visualization)
 
-if model_args.consistency_score:
-    from visualize.interpretability import ModelInterpretability
+    if cfg.evaluation.consistency_score.calculate:
+        from visualize.interpretability import ModelInterpretability
 
-    interpretability = ModelInterpretability(
-        net, model_args, log, consistency_threshold=model_args.consistency_threshold
-    )
-    interpretability.compute_prototype_consistency_score(panoptic_parts_loader)
+        interpretability = ModelInterpretability(net, cfg, log)
+        interpretability.compute_prototype_consistency_score(panoptic_parts_loader)
 
-log.close()
+    log.close()
+
+
+if __name__ == "__main__":
+    main()

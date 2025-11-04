@@ -1,10 +1,11 @@
 import numpy as np
 
+from config import ReProSegConfig
 from data.dataloader import DataLoader
 
 
-def count_class_distribution(args, save_path):
-    dl = DataLoader("train", args)
+def count_class_distribution(cfg: ReProSegConfig, save_path):
+    dl = DataLoader("train", cfg)
 
     num_classes = len(dl.dataset.classes)
     class_counts = np.zeros(num_classes, dtype=np.int64)

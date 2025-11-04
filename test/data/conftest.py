@@ -1,9 +1,9 @@
 """Pytest configuration and fixtures for dataset tests."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-import pytest
 import numpy as np
+import pytest
 from PIL import Image
 from torchvision.datasets import Cityscapes
 

@@ -1,7 +1,6 @@
-from typing import Callable, Optional
-
 import copy
 import os
+from typing import Callable, Optional
 
 import torch
 import torch.nn as nn
@@ -9,7 +8,6 @@ import torch.utils.model_zoo as model_zoo
 from torch import Tensor
 
 from model import get_pretrained_models_dir
-
 
 model_urls = {
     "resnet18": "https://download.pytorch.org/models/resnet18-5c106cde.pth",

@@ -5,7 +5,7 @@ import torch
 import torchvision.transforms.v2 as transforms
 from torchvision.datasets import Cityscapes
 
-from data.config import DatasetConfig
+from config.schema.data import DataConfig
 
 
 class AugmentGeometry(transforms.Compose):
@@ -94,10 +94,10 @@ class Transforms:
     List of filtered Cityscapes classes
     """
 
-    def __init__(self, dataset_cfg: DatasetConfig):
-        img_shape = dataset_cfg["img_shape"]
-        mean = dataset_cfg["mean"]
-        std = dataset_cfg["std"]
+    def __init__(self, dataset_cfg: DataConfig):
+        img_shape = dataset_cfg.img_shape
+        mean = dataset_cfg.mean
+        std = dataset_cfg.std
 
         self.base_image = transforms.Compose(
             [
@@ -134,7 +134,7 @@ class Transforms:
         )
 
         self.classes = Cityscapes.classes
-        if dataset_cfg.get("filter_classes", False):
+        if dataset_cfg.filter_classes:
             self._filter_cityscapes_classes()
 
     def _filter_cityscapes_classes(self) -> None:

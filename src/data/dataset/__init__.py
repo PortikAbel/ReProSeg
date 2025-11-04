@@ -1,3 +1,9 @@
-from .base import Dataset  # NOQA
-from .double_augment import DoubleAugmentDataset  # NOQA
-from .panoptic_parts import PanopticPartsDataset  # NOQA
+from .base import Dataset
+from .double_augment import DoubleAugmentDataset
+from .panoptic_parts import PanopticPartsDataset
+
+__all__ = [
+    "Dataset",
+    "DoubleAugmentDataset",
+    "PanopticPartsDataset",
+]

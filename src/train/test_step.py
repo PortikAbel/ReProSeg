@@ -4,27 +4,28 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-import argparse
+from config import ReProSegConfig
 from model.model import ReProSeg
 from utils.log import Log
-from .eval import compute_absained, compute_cm, acc_from_cm, miou_from_cm
+
+from .eval import acc_from_cm, compute_absained, compute_cm, miou_from_cm
 
 
 @torch.no_grad()
 def eval(
-    args: argparse.Namespace,
+    cfg: ReProSegConfig,
     log: Log,
     net: ReProSeg,
     test_loader: DataLoader,
     epoch,
     progress_prefix: str = "Eval Epoch",
 ) -> dict:
-    net = net.to(args.device)
+    net = net.to(cfg.env.device)
     net.eval()
     eval_info: dict[str, float | np.ndarray] = {}
 
-    n_classes: int = args.num_classes - 1
-    cm = torch.zeros((n_classes, n_classes), dtype=torch.int32).to(args.device)
+    n_classes: int = cfg.data.num_classes - 1
+    cm = torch.zeros((n_classes, n_classes), dtype=torch.int32).to(cfg.env.device)
     abstained = 0.0
 
     test_iter = tqdm(
@@ -38,7 +39,7 @@ def eval(
     (xs, ys) = next(iter(test_loader))
 
     for _, (xs, ys) in test_iter:
-        xs, ys = xs.to(args.device), ys.to(args.device)
+        xs, ys = xs.to(cfg.env.device), ys.to(cfg.env.device)
 
         with torch.no_grad():
             _, pooled, out = net(xs, inference=True)

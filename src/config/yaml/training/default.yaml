@@ -1,0 +1,19 @@
+# Default training configuration
+
+# Training control
+skip_training: false
+
+# Training epochs
+epochs: 
+  pretrain: 100
+  total: 1000
+  finetune: 10
+  freeze: 100
+  start: 1
+
+# Optimizer
+learning_rates:
+  classifier: 0.1
+  backbone_end: 0.001
+  backbone_full: 0.001
+weight_decay: 0.0

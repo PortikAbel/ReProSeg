@@ -1,13 +1,12 @@
-from argparse import Namespace
-
+from config import ReProSegConfig
+from config.schema.data import DataConfig
 from data.dataloader.base import DataLoader
-from data.dataset import DoubleAugmentDataset, Dataset
-from data import SupportedDataset
+from data.dataset import Dataset, DoubleAugmentDataset
 
 
 class DoubleAugmentDataLoader(DataLoader):
-    def __init__(self, args: Namespace):
-        super().__init__("train", args)
+    def __init__(self, cfg: ReProSegConfig):
+        super().__init__("train", cfg)
 
-    def _create_dataset(self, dataset_name: SupportedDataset) -> Dataset:
-        return DoubleAugmentDataset(dataset_name)
+    def _create_dataset(self, cfg: DataConfig) -> Dataset:
+        return DoubleAugmentDataset(cfg)

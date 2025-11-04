@@ -1,4 +1,3 @@
-import argparse
 from collections import defaultdict
 from typing import Iterator
 
@@ -6,10 +5,11 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-
+from config import ReProSegConfig
 from data.dataloader import PanopticPartsDataLoader
 from model.model import ReProSeg
 from utils.log import Log
+
 from .utils import activations_to_alpha
 
 
@@ -26,11 +26,11 @@ class ModelInterpretability:
     to lists of average activation scores in relevant images.
     """
 
-    def __init__(self, net: ReProSeg, args: argparse.Namespace, log: Log, consistency_threshold: float = 0.7):
+    def __init__(self, net: ReProSeg, cfg: ReProSegConfig, log: Log):
         self.net = net
-        self.args = args
+        self.device = cfg.env.device
+        self.consistency_score = cfg.evaluation.consistency_score.threshold
         self.log = log
-        self.consistency_threshold = consistency_threshold
         self._part_activations = [defaultdict(list) for _ in range(self.net.num_prototypes)]
 
     @torch.no_grad()
@@ -43,7 +43,7 @@ class ModelInterpretability:
 
         self.log.info(
             f"Found {num_consistent_prototypes} consistent prototypes "
-            f"with per object part activation > {self.consistency_threshold} "
+            f"with per object part activation > {self.consistency_score} "
             f"out of {len(is_consistent)}."
         )
         return num_consistent_prototypes / len(is_consistent)
@@ -65,7 +65,7 @@ class ModelInterpretability:
                 print("Image skipped because none of the semantic classes with object part labels available found.")
                 continue
 
-            xs, ys, pps = xs.to(self.args.device), ys.to(self.args.device), pps.to(self.args.device)
+            xs, ys, pps = xs.to(self.device), ys.to(self.device), pps.to(self.device)
             prototype_activations = self.net.interpolate_prototype_activations(xs)
             for p in self.net.layers.classification_layer.used_prototypes:
                 alpha = activations_to_alpha(prototype_activations[:, p])
@@ -108,7 +108,10 @@ class ModelInterpretability:
     def _compute_if_prototype_consistent(self) -> list[bool]:
         return list(
             [
-                any(np.mean(avgs) > self.consistency_threshold for avgs in avg_part_activations.values())
+                any(
+                    (np.mean(avgs) if len(avgs) > 0 else 0) > self.consistency_score
+                    for avgs in avg_part_activations.values()
+                )
                 for avg_part_activations in self._part_activations
             ]
         )

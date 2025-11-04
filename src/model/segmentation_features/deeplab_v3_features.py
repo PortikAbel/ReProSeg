@@ -1,4 +1,4 @@
-from torchvision.models.segmentation import deeplabv3_resnet50, DeepLabV3_ResNet50_Weights
+from torchvision.models.segmentation import DeepLabV3_ResNet50_Weights, deeplabv3_resnet50
 
 
 def deeplab_v3_features(pretrained, **kwargs):
