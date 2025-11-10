@@ -11,7 +11,7 @@ from data.dataloader import DataLoader, DoubleAugmentDataLoader, PanopticPartsDa
 from model.model import ReProSeg
 from utils.log import Log
 
-load_dotenv()  # loads .env into os.environ
+load_dotenv()
 
 
 @hydra.main(version_base=None, config_path="../config/yaml", config_name="config")
@@ -20,7 +20,7 @@ def main(cfg_dict: DictConfig):
     if nni_trial_id:
         if nni_params := nni.get_next_parameter():
             cfg_dict = OmegaConf.merge(cfg_dict, nni_params)  # type: ignore[assignment]
-    cfg_object: Dict[str, Any] = OmegaConf.to_object(cfg_dict)  # type: ignore[assignment]
+    cfg_object: Dict[str, Any] = OmegaConf.to_container(cfg_dict, resolve=True)  # type: ignore[assignment]
     cfg = ReProSegConfig(**cfg_object)
 
     # Setup logger
