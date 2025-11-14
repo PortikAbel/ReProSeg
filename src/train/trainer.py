@@ -26,7 +26,7 @@ def train_model(net: ReProSeg, train_loader: DataLoader, test_loader: DataLoader
     criterion: nn.Module
     match cfg.model.criterion:
         case LossCriterion.DICE:
-            criterion = DiceLoss()
+            criterion = DiceLoss(torch.ones(cfg.data.num_classes, device=cfg.env.device))
         case LossCriterion.WEIGHTED_DICE:
             criterion = DiceLoss(class_weights)
         case LossCriterion.WEIGHTED_NLL:

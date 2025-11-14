@@ -3,12 +3,11 @@ from torch import Tensor, arange
 
 
 class DiceLoss(nn.Module):
-    def __init__(self, class_weights: Tensor | None = None, ignore_index=0, smooth=1e-6):
+    def __init__(self, class_weights: Tensor, ignore_index=0, smooth=1e-6):
         super(DiceLoss, self).__init__()
-        self.class_weights = class_weights
-        self.sum_weights = class_weights.sum() if class_weights is not None else None
-        self.ignore_index = ignore_index
         self.smooth = smooth
+        self.mask = arange(class_weights.size(0)) != ignore_index
+        self.class_weights = class_weights[self.mask]
 
     def forward(self, inputs: Tensor, targets: Tensor) -> Tensor:
         inputs = nn.functional.softmax(inputs, dim=1)
@@ -20,8 +19,6 @@ class DiceLoss(nn.Module):
         dice_by_class = (2.0 * (inputs * targets).sum(dim=dims) + self.smooth) / (
             inputs.sum(dim=dims) + targets.sum(dim=dims) + self.smooth
         )
-        mask = arange(dice_by_class.size(0)) != self.ignore_index
-        dice_by_class = dice_by_class[mask]
-        if self.class_weights is not None:
-            dice_by_class = (dice_by_class * self.class_weights) / self.sum_weights
+        dice_by_class = dice_by_class[self.mask]
+        dice_by_class = dice_by_class * self.class_weights
         return 1 - dice_by_class.mean()
