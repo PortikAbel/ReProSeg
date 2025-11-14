@@ -4,6 +4,8 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 from config import ReProSegConfig
+from config.schema.model import LossCriterion
+from data.count_class_distribution import get_class_weights
 from model.model import ReProSeg, TrainPhase
 from model.optimizers import OptimizerSchedulerManager
 from train.criterion.dice import DiceLoss
@@ -20,12 +22,15 @@ def train_model(net: ReProSeg, train_loader: DataLoader, test_loader: DataLoader
     if cfg.model.checkpoint is not None:
         optimizer_scheduler_manager.load_state_dict(cfg.model.checkpoint)
 
+    class_weights = get_class_weights(cfg, log)
     criterion: nn.Module
     match cfg.model.criterion:
-        case "dice":
-            criterion = DiceLoss()
-        case "weighted_nll":
-            criterion = WeightedNLLLoss(cfg, log)
+        case LossCriterion.DICE:
+            criterion = DiceLoss(torch.ones(cfg.data.num_classes, device=cfg.env.device))
+        case LossCriterion.WEIGHTED_DICE:
+            criterion = DiceLoss(class_weights)
+        case LossCriterion.WEIGHTED_NLL:
+            criterion = WeightedNLLLoss(class_weights)
         case _:
             raise NotImplementedError(f"criterion {cfg.model.criterion} not implemented")
 

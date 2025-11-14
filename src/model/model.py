@@ -48,6 +48,7 @@ class ReProSegLayers(nn.Module):
         features, aspp_convs = base_architecture_to_features[cfg.model.backbone_network](
             pretrained=not cfg.model.disable_pretrained,
             in_channels=cfg.data.color_channels,
+            model_dir=cfg.env.pretrained_backbones_dir.as_posix(),
         )
         self.feature_net = features
         self.aspp_convs = aspp_convs

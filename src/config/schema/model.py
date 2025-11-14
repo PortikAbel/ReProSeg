@@ -21,8 +21,9 @@ class BackboneArchitecture(str, Enum):
 class LossCriterion(str, Enum):
     """Supported loss criteria."""
 
-    WEIGHTED_NLL = "weighted_nll"
     DICE = "dice"
+    WEIGHTED_DICE = "weighted_dice"
+    WEIGHTED_NLL = "weighted_nll"
 
 
 class LossWeights(BaseConfig):
