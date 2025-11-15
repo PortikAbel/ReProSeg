@@ -1,6 +1,7 @@
 from torch.utils.data import Dataset as TorchDataset
 from torchvision.datasets import Cityscapes
 from torchvision.transforms.v2 import Compose, Transform
+from torchvision.datasets.vision import StandardTransform
 
 from config.schema.data import DataConfig, DatasetType
 from data import SupportedSplit
@@ -15,10 +16,8 @@ class Dataset(TorchDataset):
     transforms: Transforms
 
     def __init__(self, cfg: DataConfig, split: SupportedSplit):
-        # Validate dataset name first
         self.config = cfg
         self.split = split
-        # Initialize transforms first, before creating the dataset
         self.transforms = Transforms(self.config)
         self.dataset = self.__getdata__()
 
@@ -36,8 +35,10 @@ class Dataset(TorchDataset):
                     split=self.split,
                     mode="fine",
                     target_type="semantic",
-                    transform=self.transform,
-                    target_transform=self.target_transform,
+                    transforms=StandardTransform(
+                        self.transform,
+                        self.target_transform,
+                    ),
                 )
                 data.classes = self.transforms.classes
 

@@ -135,16 +135,6 @@ class TestDoubleAugmentDataset:
         # The two augmented images could be different due to random augmentations
         assert result[0] != result[1]  # They should be different objects
 
-    def test_transform_property_returns_none(self, mock_config, mock_cityscapes_constructor):
-        """Test that transform property returns None (overrides parent)."""
-        dataset = DoubleAugmentDataset(mock_config.data)
-        assert dataset.transform is None
-
-    def test_target_transform_property_returns_none(self, mock_config, mock_cityscapes_constructor):
-        """Test that target_transform property returns None (overrides parent)."""
-        dataset = DoubleAugmentDataset(mock_config.data)
-        assert dataset.target_transform is None
-
     def test_inheritance_from_base_dataset(self, mock_config, mock_cityscapes_constructor):
         """Test that DoubleAugmentDataset properly inherits from Dataset."""
         dataset = DoubleAugmentDataset(mock_config.data)

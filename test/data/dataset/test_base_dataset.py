@@ -75,8 +75,7 @@ class TestBaseDataset:
         assert call_kwargs["split"] == self.split
         assert call_kwargs["mode"] == "fine"
         assert call_kwargs["target_type"] == "semantic"
-        assert call_kwargs["transform"] is not None
-        assert call_kwargs["target_transform"] is not None
+        assert call_kwargs["transforms"] is not None
 
     def test_classes_property(self, mock_config, mock_cityscapes_constructor):
         """Test classes property."""

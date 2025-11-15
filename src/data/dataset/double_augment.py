@@ -10,6 +10,8 @@ class DoubleAugmentDataset(Dataset):
 
     def __init__(self, cfg: DataConfig):
         super().__init__(cfg, split="train")
+        self.dataset.transforms = None
+
         self.transform_base_image = self.transforms.base_image
         self.transform1 = self.transforms.geometry_augmentation
         self.transform2 = Compose([self.transforms.color_augmentation, self.transforms.image_normalization])
@@ -28,11 +30,3 @@ class DoubleAugmentDataset(Dataset):
             self.transform2(image),
             self.transform_shrink_target(target),
         )
-
-    @property
-    def transform(self):
-        return None
-
-    @property
-    def target_transform(self):
-        return None
