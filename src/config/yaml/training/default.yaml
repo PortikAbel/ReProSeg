@@ -5,8 +5,8 @@ skip_training: false
 
 # Training epochs
 epochs: 
-  pretrain: 100
-  total: 1000
+  pretrain: 50
+  total: 3000
   finetune: 10
   freeze: 100
   start: 1

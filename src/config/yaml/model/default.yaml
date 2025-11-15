@@ -11,7 +11,7 @@ disable_pretrained: false
 train_backbone_during_pretrain: false
 
 # Loss configuration
-criterion: dice
+criterion: weighted_dice
 
 loss_weights:
   align: 1.0
@@ -19,4 +19,4 @@ loss_weights:
   tanh: 0.1
   unif: 0.0
   variance: 0.0
-  classification: 10.0
+  classification: 20.0
