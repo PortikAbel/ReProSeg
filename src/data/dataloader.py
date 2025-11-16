@@ -8,7 +8,7 @@ from data.dataset import Dataset
 
 
 class DataLoader(TorchDataLoader):
-    """Base class for dataloaders"""
+    """Custom wrapper for `torch.utils.data.DataLoader`."""
 
     dataset: Dataset
     to_shuffle: bool = False

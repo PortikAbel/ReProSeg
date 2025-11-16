@@ -1,4 +1,4 @@
-"""Unit tests for the base DataLoader class."""
+"""Unit tests for the DataLoader class."""
 
 from unittest.mock import patch
 
@@ -6,12 +6,12 @@ import pytest
 import torch
 
 from data import SupportedSplit
-from data.dataloader.base import DataLoader
+from data.dataloader import DataLoader
 from data.dataset.base import Dataset
 
 
-class TestBaseDataLoader:
-    """Test cases for the base DataLoader class."""
+class TestDataLoader:
+    """Test cases for the DataLoader class."""
 
     def test_init_basic(self, mock_config, mock_cityscapes_constructor):
         """Test DataLoader initialization with basic parameters."""
