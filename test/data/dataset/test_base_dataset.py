@@ -7,8 +7,7 @@ import torch
 from torchvision.transforms.v2 import Compose, Transform
 
 from config.schema.data import DatasetType
-from data import SupportedSplit
-from data.dataset.base import Dataset
+from data import Dataset, DataSplit
 
 
 class TestBaseDataset:
@@ -17,7 +16,7 @@ class TestBaseDataset:
     def setup_method(self):
         """Set up test fixtures before each test method."""
         self.dataset_name = DatasetType.CITYSCAPES
-        self.split = SupportedSplit.TRAIN
+        self.split = DataSplit.TRAIN
 
     @pytest.fixture(autouse=True)
     def setup(self, mock_config, mock_cityscapes_constructor):
@@ -112,7 +111,7 @@ class TestBaseDataset:
         assert hasattr(transforms, "color_augmentation")
         assert hasattr(transforms, "shrink_target")
 
-    @pytest.mark.parametrize("split", [SupportedSplit.TRAIN, SupportedSplit.VAL, SupportedSplit.TEST])
+    @pytest.mark.parametrize("split", [DataSplit.TRAIN, DataSplit.VAL, DataSplit.TEST])
     def test_multiple_splits(self, split, mock_config, mock_cityscapes_constructor):
         """Test Dataset initialization with different splits."""
         dataset = Dataset(mock_config.data, split)

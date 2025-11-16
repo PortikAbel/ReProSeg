@@ -6,9 +6,7 @@ import pytest
 import torch
 
 from config.schema.data import DatasetType
-from data import SupportedSplit
-from data.dataloader import DataLoader
-from data.dataset.base import Dataset
+from data import DataLoader, Dataset, DataSplit
 
 
 class TestDataLoader:
@@ -17,7 +15,7 @@ class TestDataLoader:
     @pytest.fixture(autouse=True)
     def dataset(self, mock_config, mock_cityscapes_constructor):
         """Run before each test method to create a fresh dataset instance."""
-        self.dataset = Dataset(mock_config.data, SupportedSplit.TRAIN)
+        self.dataset = Dataset(mock_config.data, DataSplit.TRAIN)
 
     def test_init_basic(self, mock_config):
         """Test DataLoader initialization with basic parameters."""
@@ -55,7 +53,7 @@ class TestDataLoader:
 
         assert dataloader.dataset is not None
         assert dataloader.dataset.config.dataset == DatasetType.CITYSCAPES
-        assert dataloader.dataset.split == SupportedSplit.TRAIN
+        assert dataloader.dataset.split == DataSplit.TRAIN
 
     def test_torch_dataloader_inheritance(self, mock_config):
         """Test that DataLoader properly inherits from torch.utils.data.DataLoader."""

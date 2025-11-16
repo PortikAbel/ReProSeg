@@ -4,8 +4,8 @@ import torch.nn as nn
 
 from config import ReProSegConfig
 from config.schema.model import LossCriterion
+from data import DataLoader
 from data.count_class_distribution import get_class_weights
-from data.dataloader import DataLoader
 from model.model import ReProSeg, TrainPhase
 from model.optimizers import OptimizerSchedulerManager
 from train.criterion.dice import DiceLoss

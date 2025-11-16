@@ -6,8 +6,7 @@ import pytest
 from torchvision.transforms.v2 import Compose
 
 from config.schema.data import DatasetType
-from data import SupportedSplit
-from data.dataset import Dataset, DoubleAugmentDataset
+from data import Dataset, DataSplit, DoubleAugmentDataset
 
 
 class TestDoubleAugmentDataset:
@@ -16,14 +15,14 @@ class TestDoubleAugmentDataset:
     @pytest.fixture(autouse=True)
     def setup(self, mock_config, mock_cityscapes_constructor):
         """Run before each test method to create a fresh dataset instance."""
-        self.base_dataset = Dataset(mock_config.data, SupportedSplit.TRAIN)
+        self.base_dataset = Dataset(mock_config.data, DataSplit.TRAIN)
         self.dataset = DoubleAugmentDataset(self.base_dataset)
 
     def test_init_hardcoded_train_split(self):
         """Test that DoubleAugmentDataset always uses 'train' split."""
 
         assert self.dataset.config.dataset == DatasetType.CITYSCAPES
-        assert self.dataset.split == SupportedSplit.TRAIN
+        assert self.dataset.split == DataSplit.TRAIN
         assert self.dataset.dataset is not None
         assert self.dataset.transforms is not None
 
@@ -150,7 +149,6 @@ class TestDoubleAugmentDataset:
         assert hasattr(self.dataset, "transforms")
         assert hasattr(self.dataset, "classes")
         # Should be an instance of the base Dataset class
-        from data.dataset.base import Dataset
 
         assert isinstance(self.dataset, Dataset)
 

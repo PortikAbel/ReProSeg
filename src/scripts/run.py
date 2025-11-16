@@ -10,11 +10,7 @@ from torch.utils.data import random_split
 from torch.utils.data.dataset import Subset
 
 from config import ReProSegConfig
-from data import SupportedSplit
-from data.dataloader import DataLoader
-from data.dataset.base import Dataset
-from data.dataset.double_augment import DoubleAugmentDataset
-from data.dataset.panoptic_parts import PanopticPartsDataset
+from data import DataLoader, Dataset, DataSplit, DoubleAugmentDataset, PanopticPartsDataset
 from model.model import ReProSeg
 from utils.log import Log
 
@@ -39,7 +35,7 @@ def main(cfg_dict: DictConfig):
         log.info(f"NNI trial ID: {nni_trial_id}")
 
     # Create the dataloaders
-    train_set = Dataset(cfg.data, SupportedSplit.TRAIN)
+    train_set = Dataset(cfg.data, DataSplit.TRAIN)
     train_subset: Subset[Dataset]
     valid_subset: Subset[Dataset]
     train_subset, valid_subset = random_split(
@@ -68,14 +64,16 @@ def main(cfg_dict: DictConfig):
         from visualize.visualizer import ModelVisualizer
 
         train_loader_visualization = DataLoader(train_subset, cfg)
-        
+
         visualizer = ModelVisualizer(net, cfg, log)
         visualizer.visualize_prototypes(train_loader_visualization)
 
     if cfg.evaluation.consistency_score.calculate:
         from visualize.interpretability import ModelInterpretability
 
-        panoptic_parts_subset: Subset[PanopticPartsDataset] = Subset(PanopticPartsDataset(train_set), train_subset.indices)
+        panoptic_parts_subset: Subset[PanopticPartsDataset] = Subset(
+            PanopticPartsDataset(train_set), train_subset.indices
+        )
         panoptic_parts_loader = DataLoader(panoptic_parts_subset, cfg)
 
         interpretability = ModelInterpretability(net, cfg, log)

@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from data.dataloader import DataLoader
+from data import DataLoader
 from utils.log import Log
 
 

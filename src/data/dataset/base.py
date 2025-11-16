@@ -4,18 +4,18 @@ from torchvision.datasets.vision import StandardTransform
 from torchvision.transforms.v2 import Compose, Transform
 
 from config.schema.data import DataConfig, DatasetType
-from data import SupportedSplit
+from data import DataSplit
 from data.transforms import Transforms
 from utils.errors import DatasetNotImplementedError
 
 
 class Dataset(TorchDataset):
     config: DataConfig
-    split: SupportedSplit
+    split: DataSplit
     dataset: Cityscapes
     transforms: Transforms
 
-    def __init__(self, cfg: DataConfig, split: SupportedSplit):
+    def __init__(self, cfg: DataConfig, split: DataSplit):
         self.config = cfg
         self.split = split
         self.transforms = Transforms(self.config)

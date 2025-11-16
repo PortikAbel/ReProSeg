@@ -6,7 +6,7 @@ import torch
 from tqdm import tqdm
 
 from config import ReProSegConfig
-from data.dataloader import DataLoader
+from data import DataLoader
 from model.model import ReProSeg
 from utils.log import Log
 

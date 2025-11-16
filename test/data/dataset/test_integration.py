@@ -7,9 +7,7 @@ and can handle real-world scenarios.
 
 import pytest
 
-from data import SupportedSplit
-from data.dataset.base import Dataset
-from data.dataset.double_augment import DoubleAugmentDataset
+from data import Dataset, DataSplit, DoubleAugmentDataset
 
 
 class TestDatasetIntegration:
@@ -18,7 +16,7 @@ class TestDatasetIntegration:
     @pytest.fixture(autouse=True)
     def setup(self, mock_config, mock_cityscapes_constructor):
         """Run before each test method to create a fresh dataset instance."""
-        self.base_dataset = Dataset(mock_config.data, SupportedSplit.TRAIN)
+        self.base_dataset = Dataset(mock_config.data, DataSplit.TRAIN)
         self.double_augment_dataset = DoubleAugmentDataset(self.base_dataset)
 
     def test_base_and_double_augment_same_config(self, mock_config, mock_cityscapes_constructor):
