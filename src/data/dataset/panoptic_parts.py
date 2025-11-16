@@ -14,11 +14,6 @@ class PanopticPartsDataset(Dataset):
         self.split = base_dataset.split
         self.dataset = base_dataset.dataset
         
-    @classmethod
-    def from_config(cls, cfg: DataConfig) -> "PanopticPartsDataset":
-        base_dataset = Dataset(cfg, split=SupportedSplit.TRAIN)
-        return cls(base_dataset)
-
     def __getitem__(self, index: int):
         image, target = super().__getitem__(index)
         panoptic_mask = self._get_panoptic_mask(index)
