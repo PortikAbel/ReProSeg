@@ -1,16 +1,14 @@
 import os
-from typing import Any, Dict
+from typing import Any, Dict, cast
 
 import hydra
 import nni  # type: ignore[import-untyped]
 from dotenv import load_dotenv
 from omegaconf import DictConfig, OmegaConf
-from torch import Generator
-from torch.utils.data import random_split
 from torch.utils.data.dataset import Subset
 
 from config import ReProSegConfig
-from data import DataLoader, Dataset, DataSplit, DoubleAugmentDataset, PanopticPartsDataset
+from data import DataLoader, Dataset, DoubleAugmentDataset, PanopticPartsDataset, get_train_val_split
 from model.model import ReProSeg
 from utils.log import Log
 
@@ -35,16 +33,13 @@ def main(cfg_dict: DictConfig):
         log.info(f"NNI trial ID: {nni_trial_id}")
 
     # Create the dataloaders
-    train_set = Dataset(cfg.data, DataSplit.TRAIN)
-    train_subset: Subset[Dataset]
-    valid_subset: Subset[Dataset]
-    train_subset, valid_subset = random_split(
-        train_set,
-        [1 - cfg.data.validation_size, cfg.data.validation_size],
-        generator=Generator().manual_seed(cfg.env.seed),
+    train_subset, valid_subset = get_train_val_split(cfg)
+    train_set = cast(Dataset, train_subset.dataset)
+    double_augment_set: Subset[DoubleAugmentDataset] = Subset(
+        DoubleAugmentDataset(train_set),
+        train_subset.indices,
     )
-    double_augment_subset: Subset[DoubleAugmentDataset] = Subset(DoubleAugmentDataset(train_set), train_subset.indices)
-    train_loader = DataLoader(double_augment_subset, cfg)
+    train_loader = DataLoader(double_augment_set, cfg)
     valid_loader = DataLoader(valid_subset, cfg)
 
     cfg.data.num_classes = len(train_set.classes)
