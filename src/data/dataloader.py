@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from torch.utils.data import DataLoader as TorchDataLoader
+from torch.utils.data import DataLoader as TorchDataLoader, Dataset as TorchDataset
 
 from config import ReProSegConfig
 from data import SupportedSplit
@@ -10,11 +10,11 @@ from data.dataset import Dataset
 class DataLoader(TorchDataLoader):
     """Custom wrapper for `torch.utils.data.DataLoader`."""
 
-    dataset: Dataset
+    dataset: TorchDataset
     to_shuffle: bool = False
     to_drop_last: bool = False
 
-    def __init__(self, dataset: Dataset, cfg: ReProSegConfig):
+    def __init__(self, dataset: TorchDataset, cfg: ReProSegConfig):
         self.dataset = dataset
         super().__init__(
             self.dataset,
