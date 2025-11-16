@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 from torchvision.transforms.v2 import Compose
 
+from config.schema.data import DatasetType
 from data import SupportedSplit
 from data.dataset import Dataset, DoubleAugmentDataset
 
@@ -21,8 +22,8 @@ class TestDoubleAugmentDataset:
     def test_init_hardcoded_train_split(self):
         """Test that DoubleAugmentDataset always uses 'train' split."""
 
-        assert self.dataset.config.dataset == "CityScapes"
-        assert self.dataset.split == "train"  # Should always be "train"
+        assert self.dataset.config.dataset == DatasetType.CITYSCAPES
+        assert self.dataset.split == SupportedSplit.TRAIN
         assert self.dataset.dataset is not None
         assert self.dataset.transforms is not None
 

@@ -112,7 +112,7 @@ class TestBaseDataset:
         assert hasattr(transforms, "color_augmentation")
         assert hasattr(transforms, "shrink_target")
 
-    @pytest.mark.parametrize("split", ["train", "val", "test"])
+    @pytest.mark.parametrize("split", [SupportedSplit.TRAIN, SupportedSplit.VAL, SupportedSplit.TEST])
     def test_multiple_splits(self, split, mock_config, mock_cityscapes_constructor):
         """Test Dataset initialization with different splits."""
         dataset = Dataset(mock_config.data, split)
