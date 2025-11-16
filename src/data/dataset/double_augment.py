@@ -1,6 +1,7 @@
 from torchvision.transforms.v2 import Compose
 
 from config.schema.data import DataConfig
+from data import SupportedSplit
 
 from .base import Dataset
 
@@ -8,8 +9,12 @@ from .base import Dataset
 class DoubleAugmentDataset(Dataset):
     """Returns two similar augmented version of the image along with the labels."""
 
-    def __init__(self, cfg: DataConfig):
-        super().__init__(cfg, split="train")
+    def __init__(self, base_dataset: Dataset):
+        self.config = base_dataset.config
+        self.split = base_dataset.split
+        self.dataset = base_dataset.dataset
+        self.transforms = base_dataset.transforms
+        
         self.dataset.transforms = None
 
         self.transform_base_image = self.transforms.base_image
@@ -18,6 +23,11 @@ class DoubleAugmentDataset(Dataset):
         self.transform_base_target = Compose([self.transforms.base_target, self.transforms.filter_classes])
         self.transform_shrink_target = self.transforms.shrink_target
 
+    @classmethod
+    def from_config(cls, cfg: DataConfig) -> "DoubleAugmentDataset":
+        base_dataset = Dataset(cfg, split=SupportedSplit.TRAIN)
+        return cls(base_dataset)
+    
     def __getitem__(self, index: int):
         image, target = self.dataset[index]
         image = self.transform_base_image(image)

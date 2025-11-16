@@ -2,10 +2,23 @@ from pathlib import Path
 
 from PIL import Image
 
+from config.schema.data import DataConfig
+from data import SupportedSplit
+
 from .base import Dataset
 
 
 class PanopticPartsDataset(Dataset):
+    def __init__(self, base_dataset: Dataset):
+        self.config = base_dataset.config
+        self.split = base_dataset.split
+        self.dataset = base_dataset.dataset
+        
+    @classmethod
+    def from_config(cls, cfg: DataConfig) -> "PanopticPartsDataset":
+        base_dataset = Dataset(cfg, split=SupportedSplit.TRAIN)
+        return cls(base_dataset)
+
     def __getitem__(self, index: int):
         image, target = super().__getitem__(index)
         panoptic_mask = self._get_panoptic_mask(index)

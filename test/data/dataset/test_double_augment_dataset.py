@@ -12,7 +12,7 @@ class TestDoubleAugmentDataset:
 
     def test_init_hardcoded_train_split(self, mock_config, mock_cityscapes_constructor):
         """Test that DoubleAugmentDataset always uses 'train' split."""
-        dataset = DoubleAugmentDataset(mock_config.data)
+        dataset = DoubleAugmentDataset.from_config(mock_config.data)
 
         assert dataset.config.dataset == "CityScapes"
         assert dataset.split == "train"  # Should always be "train"
@@ -21,8 +21,7 @@ class TestDoubleAugmentDataset:
 
     def test_transform_attributes_initialization(self, mock_config, mock_cityscapes_constructor):
         """Test that all transform attributes are properly initialized."""
-        dataset = DoubleAugmentDataset(mock_config.data)
-
+        dataset = DoubleAugmentDataset.from_config(mock_config.data)
         # Check that all required transform attributes exist
         assert hasattr(dataset, "transform_base_image")
         assert hasattr(dataset, "transform1")
@@ -48,7 +47,7 @@ class TestDoubleAugmentDataset:
 
     def test_getitem_returns_three_items(self, mock_config, mock_cityscapes_constructor, sample_image, sample_target):
         """Test that __getitem__ returns exactly three items."""
-        dataset = DoubleAugmentDataset(mock_config.data)
+        dataset = DoubleAugmentDataset.from_config(mock_config.data)
 
         # Mock the underlying dataset's __getitem__
         dataset.dataset.__getitem__.return_value = (sample_image, sample_target)
@@ -66,7 +65,7 @@ class TestDoubleAugmentDataset:
 
     def test_getitem_transform_sequence(self, mock_config, mock_cityscapes_constructor, sample_image, sample_target):
         """Test that __getitem__ applies transforms in the correct sequence."""
-        dataset = DoubleAugmentDataset(mock_config.data)
+        dataset = DoubleAugmentDataset.from_config(mock_config.data)
 
         # Mock all transforms with identifiable return values
         mock_base_transformed_image = MagicMock()
@@ -107,7 +106,7 @@ class TestDoubleAugmentDataset:
 
     def test_double_augmentation_concept(self, mock_config, mock_cityscapes_constructor, sample_image, sample_target):
         """Test the core concept: two similar but independently augmented images."""
-        dataset = DoubleAugmentDataset(mock_config.data)
+        dataset = DoubleAugmentDataset.from_config(mock_config.data)
 
         # Use real-ish mock behavior to simulate the double augmentation
         dataset.dataset.__getitem__.return_value = (sample_image, sample_target)
@@ -137,7 +136,7 @@ class TestDoubleAugmentDataset:
 
     def test_inheritance_from_base_dataset(self, mock_config, mock_cityscapes_constructor):
         """Test that DoubleAugmentDataset properly inherits from Dataset."""
-        dataset = DoubleAugmentDataset(mock_config.data)
+        dataset = DoubleAugmentDataset.from_config(mock_config.data)
 
         # Should have all the properties of the base Dataset
         assert hasattr(dataset, "config")
@@ -153,7 +152,7 @@ class TestDoubleAugmentDataset:
 
     def test_len_inherited_from_base(self, mock_config, mock_cityscapes_constructor):
         """Test that __len__ method is inherited correctly from base Dataset."""
-        dataset = DoubleAugmentDataset(mock_config.data)
+        dataset = DoubleAugmentDataset.from_config(mock_config.data)
 
         # Mock the underlying dataset's __len__
         dataset.dataset.__len__.return_value = 50
@@ -163,7 +162,7 @@ class TestDoubleAugmentDataset:
 
     def test_classes_property_inherited(self, mock_config, mock_cityscapes_constructor):
         """Test that classes property is inherited correctly from base Dataset."""
-        dataset = DoubleAugmentDataset(mock_config.data)
+        dataset = DoubleAugmentDataset.from_config(mock_config.data)
 
         mock_classes = ["road", "sidewalk", "building", "wall", "fence"]
         dataset.dataset.classes = mock_classes
@@ -172,7 +171,7 @@ class TestDoubleAugmentDataset:
 
     def test_transform2_composition(self, mock_config, mock_cityscapes_constructor):
         """Test that transform2 is properly composed of color augmentation and normalization."""
-        dataset = DoubleAugmentDataset(mock_config.data)
+        dataset = DoubleAugmentDataset.from_config(mock_config.data)
 
         # transform2 should be a Compose object
         from torchvision.transforms.v2 import Compose
@@ -187,7 +186,7 @@ class TestDoubleAugmentDataset:
 
     def test_multiple_calls_independence(self, mock_config, mock_cityscapes_constructor, sample_image, sample_target):
         """Test that multiple calls to __getitem__ work independently and produce different results."""
-        dataset = DoubleAugmentDataset(mock_config.data)
+        dataset = DoubleAugmentDataset.from_config(mock_config.data)
 
         # Call __getitem__ multiple times with the same index
         result1 = dataset[0]
