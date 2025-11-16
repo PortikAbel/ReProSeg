@@ -1,3 +1,6 @@
-from typing import Literal
+from enum import Enum
 
-SupportedSplit = Literal["train", "val", "test"]
+class SupportedSplit(str, Enum):
+    TRAIN = "train"
+    VAL = "val"
+    TEST = "test"

@@ -2,6 +2,7 @@ import numpy as np
 import torch
 
 from config import ReProSegConfig
+from data import SupportedSplit
 from data.dataloader import DataLoader
 from utils.log import Log
 
@@ -20,7 +21,7 @@ def get_class_weights(cfg: ReProSegConfig, log: Log):
 
 
 def count_class_distribution(cfg: ReProSegConfig, save_path):
-    dl = DataLoader("train", cfg)
+    dl = DataLoader.from_split(SupportedSplit.TRAIN, cfg)
 
     num_classes = len(dl.dataset.classes)
     class_counts = np.zeros(num_classes, dtype=np.int64)
