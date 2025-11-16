@@ -3,8 +3,6 @@ import torch
 from torch.utils.data import DataLoader as TorchDataLoader, Dataset as TorchDataset
 
 from config import ReProSegConfig
-from data import SupportedSplit
-from data.dataset import Dataset
 
 
 class DataLoader(TorchDataLoader):
@@ -26,8 +24,3 @@ class DataLoader(TorchDataLoader):
             worker_init_fn=lambda worker_id: np.random.seed(cfg.env.seed + worker_id),
             drop_last=self.to_drop_last,
         )
-
-    @classmethod
-    def from_split(cls, split: SupportedSplit, cfg: ReProSegConfig) -> "DataLoader":
-        dataset = Dataset(cfg.data, split)
-        return cls(dataset, cfg)

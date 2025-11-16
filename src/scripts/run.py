@@ -10,7 +10,8 @@ from torch.utils.data import random_split
 from torch.utils.data.dataset import Subset
 
 from config import ReProSegConfig
-from data.dataloader import DataLoader, SupportedSplit
+from data import SupportedSplit
+from data.dataloader import DataLoader
 from data.dataset.base import Dataset
 from data.dataset.double_augment import DoubleAugmentDataset
 from data.dataset.panoptic_parts import PanopticPartsDataset

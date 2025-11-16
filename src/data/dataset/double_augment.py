@@ -23,11 +23,6 @@ class DoubleAugmentDataset(Dataset):
         self.transform_base_target = Compose([self.transforms.base_target, self.transforms.filter_classes])
         self.transform_shrink_target = self.transforms.shrink_target
 
-    @classmethod
-    def from_config(cls, cfg: DataConfig) -> "DoubleAugmentDataset":
-        base_dataset = Dataset(cfg, split=SupportedSplit.TRAIN)
-        return cls(base_dataset)
-    
     def __getitem__(self, index: int):
         image, target = self.dataset[index]
         image = self.transform_base_image(image)

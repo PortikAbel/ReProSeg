@@ -6,6 +6,8 @@ import pytest
 import torch
 from torchvision.transforms.v2 import Compose, Transform
 
+from config.schema.data import DatasetType
+from data import SupportedSplit
 from data.dataset.base import Dataset
 
 
@@ -14,8 +16,12 @@ class TestBaseDataset:
 
     def setup_method(self):
         """Set up test fixtures before each test method."""
-        self.dataset_name = "CityScapes"
-        self.split = "train"
+        self.dataset_name = DatasetType.CITYSCAPES
+        self.split = SupportedSplit.TRAIN
+
+    @pytest.fixture(autouse=True)
+    def setup(self, mock_config, mock_cityscapes_constructor):
+        self.dataset = Dataset(mock_config.data, self.split)
 
     @staticmethod
     def create_mock_filter_classes_method(filtered_classes):
@@ -28,45 +34,40 @@ class TestBaseDataset:
 
         return mock_filter_classes_method
 
-    def test_init_valid_dataset(self, mock_config, mock_cityscapes_constructor):
+    def test_init_valid_dataset(self):
         """Test Dataset initialization with valid parameters."""
-        dataset = Dataset(mock_config.data, self.split)
 
-        assert dataset.config.dataset == self.dataset_name
-        assert dataset.split == self.split
-        assert dataset.dataset is not None
-        assert dataset.transforms is not None
+        assert self.dataset.config.dataset == self.dataset_name
+        assert self.dataset.split == self.split
+        assert self.dataset.dataset is not None
+        assert self.dataset.transforms is not None
 
-    def test_supported_dataset_literal(self, mock_config, mock_cityscapes_constructor):
+    def test_supported_dataset_literal(self):
         """Test that the SupportedDataset literal type works correctly."""
         # This should work without any issues
-        dataset = Dataset(mock_config.data, self.split)
-        assert dataset.config.dataset == "CityScapes"
+        assert self.dataset.config.dataset == DatasetType.CITYSCAPES
 
-    def test_getitem(self, mock_config, mock_cityscapes_constructor, sample_image, sample_target):
+    def test_getitem(self, sample_image, sample_target):
         """Test __getitem__ method."""
-        dataset = Dataset(mock_config.data, self.split)
 
-        result = dataset[0]
+        result = self.dataset[0]
 
-        dataset.dataset.__getitem__.assert_called_once_with(0)
+        self.dataset.dataset.__getitem__.assert_called_once_with(0)
         assert len(result) == 2
         assert result[0] == sample_image
         assert result[1] == sample_target
 
-    def test_len(self, mock_config, mock_cityscapes_constructor):
+    def test_len(self):
         """Test __len__ method."""
-        dataset = Dataset(mock_config.data, self.split)
 
-        # Mock the underlying dataset's __len__
-        dataset.dataset.__len__.return_value = 100
+        # Mock the underlying self.dataset's __len__
+        self.dataset.dataset.__len__.return_value = 100
 
-        assert len(dataset) == 100
-        dataset.dataset.__len__.assert_called_once()
+        assert len(self.dataset) == 100
+        self.dataset.dataset.__len__.assert_called_once()
 
-    def test_getdata_cityscapes(self, mock_config, mock_cityscapes_constructor):
-        """Test __getdata__ method for CityScapes dataset."""
-        _dataset = Dataset(mock_config.data, self.split)
+    def test_getdata_cityscapes(self, mock_cityscapes_constructor):
+        """Test __getdata__ method for CityScapes self.dataset."""
 
         # Verify that Cityscapes was called once with correct basic parameters
         mock_cityscapes_constructor.assert_called_once()
@@ -77,36 +78,32 @@ class TestBaseDataset:
         assert call_kwargs["target_type"] == "semantic"
         assert call_kwargs["transforms"] is not None
 
-    def test_classes_property(self, mock_config, mock_cityscapes_constructor):
+    def test_classes_property(self):
         """Test classes property."""
-        dataset = Dataset(mock_config.data, self.split)
 
         mock_classes = ["class1", "class2", "class3"]
-        dataset.dataset.classes = mock_classes
+        self.dataset.dataset.classes = mock_classes
 
-        assert dataset.classes == mock_classes
+        assert self.dataset.classes == mock_classes
 
-    def test_transform_property(self, mock_config, mock_cityscapes_constructor):
+    def test_transform_property(self):
         """Test transform property."""
-        dataset = Dataset(mock_config.data, self.split)
 
-        transform = dataset.transform
+        transform = self.dataset.transform
         assert transform is not None
         assert callable(transform)  # Should be callable
 
-    def test_target_transform_property(self, mock_config, mock_cityscapes_constructor):
+    def test_target_transform_property(self):
         """Test target_transform property."""
-        dataset = Dataset(mock_config.data, self.split)
 
-        target_transform = dataset.target_transform
+        target_transform = self.dataset.target_transform
         assert target_transform is not None
         assert callable(target_transform)  # Should be callable
 
-    def test_transforms_object_creation(self, mock_config, mock_cityscapes_constructor):
+    def test_transforms_object_creation(self):
         """Test that Transforms object is created correctly."""
-        dataset = Dataset(mock_config.data, self.split)
 
-        transforms = dataset.transforms
+        transforms = self.dataset.transforms
         assert transforms is not None
         assert hasattr(transforms, "base_image")
         assert hasattr(transforms, "image_normalization")
@@ -121,26 +118,24 @@ class TestBaseDataset:
         dataset = Dataset(mock_config.data, split)
         assert dataset.split == split
 
-    def test_transform_integration(self, mock_config, mock_cityscapes_constructor, sample_image):
+    def test_transform_integration(self, sample_image):
         """Test that transforms can be applied to sample data."""
-        dataset = Dataset(mock_config.data, self.split)
 
-        transformed_image = dataset.transform(sample_image)
+        transformed_image = self.dataset.transform(sample_image)
 
         assert transformed_image is not None
         assert isinstance(transformed_image, torch.Tensor)
 
-    def test_target_transform_integration(self, mock_config, mock_cityscapes_constructor, sample_target):
+    def test_target_transform_integration(self, sample_target):
         """Test that target transforms can be applied to sample data."""
-        dataset = Dataset(mock_config.data, self.split)
 
-        transformed_target = dataset.target_transform(sample_target)
+        transformed_target = self.dataset.target_transform(sample_target)
 
         assert transformed_target is not None
         assert isinstance(transformed_target, torch.Tensor)
 
-    def test_filtered_classes_assigned_to_dataset(self, mock_config, mock_cityscapes_constructor):
-        """Test that filtered classes are properly assigned to the dataset."""
+    def test_filtered_classes_assigned_to_dataset(self, mock_config):
+        """Test that filtered classes are properly assigned to the self.dataset."""
         # Mock the _filter_cityscapes_classes method to return specific classes
         mock_filtered_classes = ["filtered_class_1", "filtered_class_2"]
 
@@ -172,25 +167,23 @@ class TestBaseDataset:
             # Verify the filtered classes were assigned
             assert dataset.dataset.classes == expected_filtered_classes
 
-    def test_target_transform_contains_class_filtering(self, mock_config, mock_cityscapes_constructor):
+    def test_target_transform_contains_class_filtering(self):
         """Test that class filtering updates the target transform."""
-        dataset = Dataset(mock_config.data, self.split)
 
         # Verify that target_transform contains the filter_classes transform
-        assert isinstance(dataset.target_transform, Compose)
-        assert dataset.target_transform.transforms[0] == dataset.transforms.base_target
-        assert dataset.target_transform.transforms[1] == dataset.transforms.filter_classes
+        assert isinstance(self.dataset.target_transform, Compose)
+        assert self.dataset.target_transform.transforms[0] == self.dataset.transforms.base_target
+        assert self.dataset.target_transform.transforms[1] == self.dataset.transforms.filter_classes
 
-    def test_class_filtering_preserves_other_dataset_properties(self, mock_config, mock_cityscapes_constructor):
-        """Test that class filtering doesn't interfere with other dataset properties."""
-        dataset = Dataset(mock_config.data, self.split)
+    def test_class_filtering_preserves_other_dataset_properties(self, mock_config):
+        """Test that class filtering doesn't interfere with other self.dataset properties."""
 
         # Verify that other properties are still accessible
-        assert dataset.config == mock_config.data
-        assert dataset.split == self.split
-        assert dataset.transforms is not None
+        assert self.dataset.config == mock_config.data
+        assert self.dataset.split == self.split
+        assert self.dataset.transforms is not None
 
         # Verify that the dataset can still be indexed
-        result = dataset[0]
+        result = self.dataset[0]
         assert result is not None
         assert len(result) == 2
