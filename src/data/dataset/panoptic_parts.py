@@ -2,9 +2,6 @@ from pathlib import Path
 
 from PIL import Image
 
-from config.schema.data import DataConfig
-from data import SupportedSplit
-
 from .base import Dataset
 
 
