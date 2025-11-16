@@ -15,7 +15,7 @@ from train.train_step import train
 from utils.log import Log
 
 
-def train_model(net: ReProSeg, train_loader: DataLoader, test_loader: DataLoader, log: Log, cfg: ReProSegConfig):
+def train_model(net: ReProSeg, train_loader: DataLoader, valid_loader: DataLoader, log: Log, cfg: ReProSegConfig):
     optimizer_scheduler_manager = OptimizerSchedulerManager(
         net, len(train_loader) * cfg.training.epochs.pretrain, cfg.training.learning_rates.backbone_end
     )
@@ -126,7 +126,7 @@ def train_model(net: ReProSeg, train_loader: DataLoader, test_loader: DataLoader
             epoch,
         )
         # Evaluate model
-        eval_info = eval(cfg, log, net, test_loader, epoch)
+        eval_info = eval(cfg, log, net, valid_loader, epoch)
         log.tb_scalar("Acc/eval-epochs", eval_info["test_accuracy"], epoch)
         log.tb_scalar("Acc/train-epochs", train_info["train_accuracy"], epoch)
         log.tb_scalar("mIoU/train-epochs", train_info["train_miou"], epoch)

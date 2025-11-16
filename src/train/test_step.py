@@ -16,7 +16,7 @@ def eval(
     cfg: ReProSegConfig,
     log: Log,
     net: ReProSeg,
-    test_loader: DataLoader,
+    valid_loader: DataLoader,
     epoch,
     progress_prefix: str = "Eval Epoch",
 ) -> dict:
@@ -29,14 +29,14 @@ def eval(
     abstained = 0.0
 
     test_iter = tqdm(
-        enumerate(test_loader),
-        total=len(test_loader),
+        enumerate(valid_loader),
+        total=len(valid_loader),
         desc=progress_prefix + " %s" % epoch,
         mininterval=5.0,
         ncols=0,
         file=log.tqdm_file,
     )
-    (xs, ys) = next(iter(test_loader))
+    (xs, ys) = next(iter(valid_loader))
 
     for _, (xs, ys) in test_iter:
         xs, ys = xs.to(cfg.env.device), ys.to(cfg.env.device)

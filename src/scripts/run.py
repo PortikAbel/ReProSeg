@@ -50,9 +50,6 @@ def main(cfg_dict: DictConfig):
     double_augment_subset: Subset[DoubleAugmentDataset] = Subset(DoubleAugmentDataset(train_set), train_subset.indices)
     train_loader = DataLoader(double_augment_subset, cfg)
     valid_loader = DataLoader(valid_subset, cfg)
-    train_loader_visualization = DataLoader(train_subset, cfg)
-    panoptic_parts_subset: Subset[PanopticPartsDataset] = Subset(PanopticPartsDataset(train_set), train_subset.indices)
-    panoptic_parts_loader = DataLoader(panoptic_parts_subset, cfg)
 
     cfg.data.num_classes = len(train_set.classes)
 
@@ -70,11 +67,16 @@ def main(cfg_dict: DictConfig):
     if cfg.visualization.generate_explanations:
         from visualize.visualizer import ModelVisualizer
 
+        train_loader_visualization = DataLoader(train_subset, cfg)
+        
         visualizer = ModelVisualizer(net, cfg, log)
         visualizer.visualize_prototypes(train_loader_visualization)
 
     if cfg.evaluation.consistency_score.calculate:
         from visualize.interpretability import ModelInterpretability
+
+        panoptic_parts_subset: Subset[PanopticPartsDataset] = Subset(PanopticPartsDataset(train_set), train_subset.indices)
+        panoptic_parts_loader = DataLoader(panoptic_parts_subset, cfg)
 
         interpretability = ModelInterpretability(net, cfg, log)
         interpretability.compute_prototype_consistency_score(panoptic_parts_loader)
