@@ -20,7 +20,7 @@ class TestDatasetIntegration:
         """Run before each test method to create a fresh dataset instance."""
         self.base_dataset = Dataset(mock_config.data, SupportedSplit.TRAIN)
         self.double_augment_dataset = DoubleAugmentDataset(self.base_dataset)
-        
+
     def test_base_and_double_augment_same_config(self, mock_config, mock_cityscapes_constructor):
         """Test that base and double augment datasets use the same config."""
 

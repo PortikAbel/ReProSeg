@@ -1,6 +1,7 @@
 import numpy as np
 import torch
-from torch.utils.data import DataLoader as TorchDataLoader, Dataset as TorchDataset
+from torch.utils.data import DataLoader as TorchDataLoader
+from torch.utils.data import Dataset as TorchDataset
 
 from config import ReProSegConfig
 

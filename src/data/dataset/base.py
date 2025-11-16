@@ -1,7 +1,7 @@
 from torch.utils.data import Dataset as TorchDataset
 from torchvision.datasets import Cityscapes
-from torchvision.transforms.v2 import Compose, Transform
 from torchvision.datasets.vision import StandardTransform
+from torchvision.transforms.v2 import Compose, Transform
 
 from config.schema.data import DataConfig, DatasetType
 from data import SupportedSplit

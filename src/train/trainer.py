@@ -4,8 +4,8 @@ import torch.nn as nn
 
 from config import ReProSegConfig
 from config.schema.model import LossCriterion
-from data.dataloader import DataLoader
 from data.count_class_distribution import get_class_weights
+from data.dataloader import DataLoader
 from model.model import ReProSeg, TrainPhase
 from model.optimizers import OptimizerSchedulerManager
 from train.criterion.dice import DiceLoss
@@ -22,7 +22,9 @@ def train_model(net: ReProSeg, train_loader: DataLoader, test_loader: DataLoader
     if cfg.model.checkpoint is not None:
         optimizer_scheduler_manager.load_state_dict(cfg.model.checkpoint)
 
-    class_weights = get_class_weights(train_loader, cfg.data.num_classes, cfg.env.class_distribution_cache_path, log).to(cfg.env.device)
+    class_weights = get_class_weights(
+        train_loader, cfg.data.num_classes, cfg.env.class_distribution_cache_path, log
+    ).to(cfg.env.device)
     criterion: nn.Module
     match cfg.model.criterion:
         case LossCriterion.DICE:

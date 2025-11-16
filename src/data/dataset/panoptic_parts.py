@@ -10,7 +10,7 @@ class PanopticPartsDataset(Dataset):
         self.config = base_dataset.config
         self.split = base_dataset.split
         self.dataset = base_dataset.dataset
-        
+
     def __getitem__(self, index: int):
         image, target = super().__getitem__(index)
         panoptic_mask = self._get_panoptic_mask(index)

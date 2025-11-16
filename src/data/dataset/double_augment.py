@@ -11,7 +11,7 @@ class DoubleAugmentDataset(Dataset):
         self.split = base_dataset.split
         self.dataset = base_dataset.dataset
         self.transforms = base_dataset.transforms
-        
+
         self.dataset.transforms = None
 
         self.transform_base_image = self.transforms.base_image

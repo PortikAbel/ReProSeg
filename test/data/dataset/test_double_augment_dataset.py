@@ -29,7 +29,7 @@ class TestDoubleAugmentDataset:
 
     def test_transform_attributes_initialization(self):
         """Test that all transform attributes are properly initialized."""
-        
+
         # Check that all required transform attributes exist
         assert hasattr(self.dataset, "transform_base_image")
         assert hasattr(self.dataset, "transform1")
@@ -82,7 +82,9 @@ class TestDoubleAugmentDataset:
 
         self.dataset.transform_base_image = MagicMock(return_value=mock_base_transformed_image)
         self.dataset.transform_base_target = MagicMock(return_value=mock_base_transformed_target)
-        self.dataset.transform1 = MagicMock(return_value=(mock_geometry_transformed_image, mock_geometry_transformed_target))
+        self.dataset.transform1 = MagicMock(
+            return_value=(mock_geometry_transformed_image, mock_geometry_transformed_target)
+        )
         self.dataset.transform2 = MagicMock(return_value=mock_color_transformed_image)
         self.dataset.transform_shrink_target = MagicMock(return_value=mock_shrunken_target)
 
