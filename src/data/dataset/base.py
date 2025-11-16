@@ -4,7 +4,7 @@ from torchvision.datasets.vision import StandardTransform
 from torchvision.transforms.v2 import Compose, Transform
 
 from config.schema.data import DataConfig, DatasetType
-from data import DataSplit
+from data.data_split import DataSplit
 from data.transforms import Transforms
 from utils.errors import DatasetNotImplementedError
 
