@@ -1,6 +1,5 @@
 """Unit tests for the base Dataset class."""
 
-
 import pytest
 import torch
 from torch.utils.data import Dataset as TorchDataset
