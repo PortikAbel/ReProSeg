@@ -7,7 +7,7 @@ and can handle real-world scenarios.
 
 import pytest
 
-from data import Dataset, DataSplit, DoubleAugmentDataset
+from data import Dataset, DoubleAugmentDataset
 
 
 class TestDatasetIntegration:
@@ -16,21 +16,21 @@ class TestDatasetIntegration:
     @pytest.fixture(autouse=True)
     def setup(self, mock_config, mock_cityscapes_constructor):
         """Run before each test method to create a fresh dataset instance."""
-        self.base_dataset = Dataset(mock_config.data, DataSplit.TRAIN)
-        self.double_augment_dataset = DoubleAugmentDataset(self.base_dataset)
+        self.base_dataset = Dataset(mock_config.data)
+        self.double_augment_dataset = DoubleAugmentDataset(mock_config.data, self.base_dataset.dataset)
 
     def test_base_and_double_augment_same_config(self, mock_config, mock_cityscapes_constructor):
         """Test that base and double augment datasets use the same config."""
 
-        assert self.base_dataset.config == self.double_augment_dataset.config
-        assert self.base_dataset.config.dataset == self.double_augment_dataset.config.dataset
+        assert self.base_dataset.dataset_type == self.double_augment_dataset.dataset_type
+        assert self.base_dataset.dataset == self.double_augment_dataset.dataset
 
     def test_transforms_object_consistency(self, mock_config, mock_cityscapes_constructor):
         """Test that transforms objects are consistent between datasets."""
 
         # Both should have the same transforms object structure
-        base_transforms = self.base_dataset.transforms
-        double_transforms = self.double_augment_dataset.transforms
+        base_transforms = self.base_dataset.transform_set
+        double_transforms = self.double_augment_dataset.transform_set
 
         assert type(base_transforms) is type(double_transforms)
 

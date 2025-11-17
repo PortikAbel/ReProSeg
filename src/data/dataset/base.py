@@ -1,70 +1,70 @@
+from typing import Optional, cast
+
 from torch.utils.data import Dataset as TorchDataset
+from torch.utils.data.dataset import Subset
 from torchvision.datasets import Cityscapes
 from torchvision.datasets.vision import StandardTransform
 from torchvision.transforms.v2 import Compose, Transform
 
 from config.schema.data import DataConfig, DatasetType
 from data.data_split import DataSplit
-from data.transforms import Transforms
+from data.dataset.factory import DatasetFactory
+from data.dataset.transform_set import TransformSet
 from utils.errors import DatasetNotImplementedError
 
 
 class Dataset(TorchDataset):
-    config: DataConfig
-    split: DataSplit
-    dataset: Cityscapes
-    transforms: Transforms
+    dataset_type: DatasetType
+    transform_set: TransformSet
+    dataset: TorchDataset
 
-    def __init__(self, cfg: DataConfig, split: DataSplit):
-        self.config = cfg
-        self.split = split
-        self.transforms = Transforms(self.config)
-        self.dataset = self.__getdata__()
+    def __init__(self, cfg: DataConfig, dataset: Optional[TorchDataset] = None):
+        self.dataset_type = cfg.dataset
+        self.transform_set = TransformSet(cfg)
+        self.dataset = dataset if dataset is not None else DatasetFactory.create(cfg, split=DataSplit.TRAIN)
 
     def __getitem__(self, index: int):
-        return self.dataset.__getitem__(index)
+        image, target = self.dataset.__getitem__(index)
+        return self.transforms(image, target)
 
     def __len__(self):
         return len(self.dataset)
 
-    def __getdata__(self) -> Cityscapes:
-        match self.config.dataset:
-            case DatasetType.CITYSCAPES:
-                data = Cityscapes(
-                    root=self.config.path,
-                    split=self.split,
-                    mode="fine",
-                    target_type="semantic",
-                    transforms=StandardTransform(
-                        self.transform,
-                        self.target_transform,
-                    ),
-                )
-                data.classes = self.transforms.classes
-
-                return data
-            case _:
-                raise DatasetNotImplementedError(self.config.dataset)
-
     @property
     def classes(self):
-        return self.dataset.classes
+        dataset = self.dataset
+        if isinstance(self.dataset, Subset):
+            dataset = self.dataset.dataset
+        match self.dataset_type:
+            case DatasetType.CITYSCAPES:
+                city_scapes_dataset = cast(Cityscapes, dataset)
+                return city_scapes_dataset.classes
+            case _:
+                raise DatasetNotImplementedError(self.dataset_type)
+
+    @property
+    def transforms(self) -> StandardTransform:
+        """Combined image and target transforms to be applied to the dataset"""
+        return StandardTransform(
+            self.transform,
+            self.target_transform,
+        )
 
     @property
     def transform(self) -> Transform:
         """Transform to be applied to the dataset images"""
-        return Compose([self.transforms.base_image, self.transforms.image_normalization])
+        return Compose([self.transform_set.base_image, self.transform_set.image_normalization])
 
     @property
     def target_transform(self) -> Transform:
         """Transform to be applied to the dataset targets"""
-        match self.config.dataset:
+        match self.dataset_type:
             case DatasetType.CITYSCAPES:
                 return Compose(
                     [
-                        self.transforms.base_target,
-                        self.transforms.filter_classes,
+                        self.transform_set.base_target,
+                        self.transform_set.filter_classes,
                     ]
                 )
             case _:
-                return self.transforms.base_target
+                return self.transform_set.base_target

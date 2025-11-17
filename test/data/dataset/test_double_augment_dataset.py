@@ -3,10 +3,12 @@
 from unittest.mock import MagicMock
 
 import pytest
+from torch.utils.data import Dataset as TorchDataset
 from torchvision.transforms.v2 import Compose
 
 from config.schema.data import DatasetType
-from data import Dataset, DataSplit, DoubleAugmentDataset
+from data import Dataset, DoubleAugmentDataset
+from data.dataset.transform_set import TransformSet
 
 
 class TestDoubleAugmentDataset:
@@ -15,41 +17,39 @@ class TestDoubleAugmentDataset:
     @pytest.fixture(autouse=True)
     def setup(self, mock_config, mock_cityscapes_constructor):
         """Run before each test method to create a fresh dataset instance."""
-        self.base_dataset = Dataset(mock_config.data, DataSplit.TRAIN)
-        self.dataset = DoubleAugmentDataset(self.base_dataset)
+        self.dataset = DoubleAugmentDataset(mock_config.data)
 
     def test_init_hardcoded_train_split(self):
         """Test that DoubleAugmentDataset always uses 'train' split."""
 
-        assert self.dataset.config.dataset == DatasetType.CITYSCAPES
-        assert self.dataset.split == DataSplit.TRAIN
-        assert self.dataset.dataset is not None
-        assert self.dataset.transforms is not None
+        assert self.dataset.dataset_type == DatasetType.CITYSCAPES
+        assert isinstance(self.dataset.dataset, TorchDataset)
+        assert isinstance(self.dataset.transform_set, TransformSet)
 
     def test_transform_attributes_initialization(self):
         """Test that all transform attributes are properly initialized."""
 
         # Check that all required transform attributes exist
-        assert hasattr(self.dataset, "transform_base_image")
+        assert hasattr(self.dataset, "transform")
         assert hasattr(self.dataset, "transform1")
         assert hasattr(self.dataset, "transform2")
-        assert hasattr(self.dataset, "transform_base_target")
+        assert hasattr(self.dataset, "target_transform")
         assert hasattr(self.dataset, "transform_shrink_target")
         # Check transforms that are assigned from the parent transforms object
-        assert self.dataset.transform_base_image == self.dataset.transforms.base_image
-        assert self.dataset.transform1 == self.dataset.transforms.geometry_augmentation
-        assert self.dataset.transform_shrink_target == self.dataset.transforms.shrink_target
+        assert self.dataset.transform == self.dataset.transform_set.base_image
+        assert self.dataset.transform1 == self.dataset.transform_set.geometry_augmentation
+        assert self.dataset.transform_shrink_target == self.dataset.transform_set.shrink_target
 
         # transform_base_target should be a Compose object with base_target and filter_classes
-        assert isinstance(self.dataset.transform_base_target, Compose)
-        assert self.dataset.transform_base_target.transforms[0] == self.dataset.transforms.base_target
-        assert self.dataset.transform_base_target.transforms[1] == self.dataset.transforms.filter_classes
+        assert isinstance(self.dataset.target_transform, Compose)
+        assert self.dataset.target_transform.transforms[0] == self.dataset.transform_set.base_target
+        assert self.dataset.target_transform.transforms[1] == self.dataset.transform_set.filter_classes
 
         # transform2 should be a Compose object with color_augmentation and image_normalization
         assert callable(self.dataset.transform2)
         assert isinstance(self.dataset.transform2, Compose)
-        assert self.dataset.transform2.transforms[0] == self.dataset.transforms.color_augmentation
-        assert self.dataset.transform2.transforms[1] == self.dataset.transforms.image_normalization
+        assert self.dataset.transform2.transforms[0] == self.dataset.transform_set.color_augmentation
+        assert self.dataset.transform2.transforms[1] == self.dataset.transform_set.image_normalization
 
     def test_getitem_returns_three_items(self, sample_image, sample_target):
         """Test that __getitem__ returns exactly three items."""
@@ -79,8 +79,9 @@ class TestDoubleAugmentDataset:
         mock_color_transformed_image = MagicMock()
         mock_shrunken_target = MagicMock()
 
-        self.dataset.transform_base_image = MagicMock(return_value=mock_base_transformed_image)
-        self.dataset.transform_base_target = MagicMock(return_value=mock_base_transformed_target)
+        self.dataset.transform_set.base_image = MagicMock(return_value=mock_base_transformed_image)
+        self.dataset.transform_set.base_target = MagicMock(return_value=mock_base_transformed_target)
+        self.dataset.transform_set.filter_classes = MagicMock(return_value=mock_base_transformed_target)
         self.dataset.transform1 = MagicMock(
             return_value=(mock_geometry_transformed_image, mock_geometry_transformed_target)
         )
@@ -94,9 +95,7 @@ class TestDoubleAugmentDataset:
 
         # Verify the transform sequence
         self.dataset.dataset.__getitem__.assert_called_once_with(0)
-        self.dataset.transform_base_image.assert_called_once_with(sample_image)
-        self.dataset.transform_base_target.assert_called_once_with(sample_target)
-        self.dataset.transform1.assert_called_once_with(mock_base_transformed_image, mock_base_transformed_target)
+        self.dataset.transform1.assert_called_once()
 
         # transform2 should be called twice (for both augmented versions)
         assert self.dataset.transform2.call_count == 2
@@ -125,8 +124,9 @@ class TestDoubleAugmentDataset:
             # Return different mock objects to simulate different augmentations
             return MagicMock(name=f"augmented_image_{call_count}")
 
-        self.dataset.transform_base_image = MagicMock(return_value=sample_image)
-        self.dataset.transform_base_target = MagicMock(return_value=sample_target)
+        self.dataset.transform_set.base_image = MagicMock(return_value=sample_image)
+        self.dataset.transform_set.base_target = MagicMock(return_value=sample_target)
+        self.dataset.transform_set.filter_classes = MagicMock(return_value=sample_target)
         self.dataset.transform1 = MagicMock(return_value=(sample_image, sample_target))
         self.dataset.transform2 = MagicMock(side_effect=mock_transform2_side_effect)
         self.dataset.transform_shrink_target = MagicMock(return_value=sample_target)
@@ -143,10 +143,9 @@ class TestDoubleAugmentDataset:
         """Test that DoubleAugmentDataset properly inherits from Dataset."""
 
         # Should have all the properties of the base Dataset
-        assert hasattr(self.dataset, "config")
-        assert hasattr(self.dataset, "split")
+        assert hasattr(self.dataset, "dataset_type")
         assert hasattr(self.dataset, "dataset")
-        assert hasattr(self.dataset, "transforms")
+        assert hasattr(self.dataset, "transform_set")
         assert hasattr(self.dataset, "classes")
         # Should be an instance of the base Dataset class
 

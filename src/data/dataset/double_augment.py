@@ -1,4 +1,9 @@
-from torchvision.transforms.v2 import Compose
+from typing import Optional
+
+from torch.utils.data import Dataset as TorchDataset
+from torchvision.transforms.v2 import Compose, Transform
+
+from config.schema.data import DataConfig
 
 from .base import Dataset
 
@@ -6,25 +11,15 @@ from .base import Dataset
 class DoubleAugmentDataset(Dataset):
     """Returns two similar augmented version of the image along with the labels."""
 
-    def __init__(self, base_dataset: Dataset):
-        self.config = base_dataset.config
-        self.split = base_dataset.split
-        self.dataset = base_dataset.dataset
-        self.transforms = base_dataset.transforms
+    def __init__(self, cfg: DataConfig, dataset: Optional[TorchDataset] = None):
+        super().__init__(cfg, dataset)
 
-        self.dataset.transforms = None
-
-        self.transform_base_image = self.transforms.base_image
-        self.transform1 = self.transforms.geometry_augmentation
-        self.transform2 = Compose([self.transforms.color_augmentation, self.transforms.image_normalization])
-        self.transform_base_target = Compose([self.transforms.base_target, self.transforms.filter_classes])
-        self.transform_shrink_target = self.transforms.shrink_target
+        self.transform1 = self.transform_set.geometry_augmentation
+        self.transform2 = Compose([self.transform_set.color_augmentation, self.transform_set.image_normalization])
+        self.transform_shrink_target = self.transform_set.shrink_target
 
     def __getitem__(self, index: int):
-        image, target = self.dataset[index]
-        image = self.transform_base_image(image)
-        target = self.transform_base_target(target)
-
+        image, target = super().__getitem__(index)
         image, target = self.transform1(image, target)
 
         return (
@@ -32,3 +27,11 @@ class DoubleAugmentDataset(Dataset):
             self.transform2(image),
             self.transform_shrink_target(target),
         )
+
+    @property
+    def transform(self) -> Transform:
+        return self.transform_set.base_image
+
+    @property
+    def target_transform(self) -> Transform:
+        return Compose([self.transform_set.base_target, self.transform_set.filter_classes])

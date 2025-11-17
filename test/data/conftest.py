@@ -67,6 +67,6 @@ def mock_cityscapes_dataset(sample_image, sample_target, mock_cityscapes_classes
 @pytest.fixture
 def mock_cityscapes_constructor(mock_cityscapes_dataset):
     """Mock the Cityscapes constructor to return our mock dataset."""
-    with patch("data.dataset.base.Cityscapes") as mock_constructor:
+    with patch("data.dataset.factory.Cityscapes") as mock_constructor:
         mock_constructor.return_value = mock_cityscapes_dataset
         yield mock_constructor

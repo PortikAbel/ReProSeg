@@ -5,7 +5,6 @@ from unittest.mock import patch
 import pytest
 import torch
 
-from config.schema.data import DatasetType
 from data import DataLoader, Dataset, DataSplit
 
 
@@ -46,14 +45,6 @@ class TestDataLoader:
 
         dataloader = DataLoader(self.dataset, mock_config)
         assert dataloader.pin_memory is False
-
-    def test_dataset_creation(self, mock_config):
-        """Test that dataset is created correctly."""
-        dataloader = DataLoader(self.dataset, mock_config)
-
-        assert dataloader.dataset is not None
-        assert dataloader.dataset.config.dataset == DatasetType.CITYSCAPES
-        assert dataloader.dataset.split == DataSplit.TRAIN
 
     def test_torch_dataloader_inheritance(self, mock_config):
         """Test that DataLoader properly inherits from torch.utils.data.DataLoader."""

@@ -1,11 +1,10 @@
 import os
-from typing import Any, Dict, cast
+from typing import Any, Dict
 
 import hydra
 import nni  # type: ignore[import-untyped]
 from dotenv import load_dotenv
 from omegaconf import DictConfig, OmegaConf
-from torch.utils.data.dataset import Subset
 
 from config import ReProSegConfig
 from data import DataLoader, Dataset, DoubleAugmentDataset, PanopticPartsDataset, get_train_val_split
@@ -34,15 +33,12 @@ def main(cfg_dict: DictConfig):
 
     # Create the dataloaders
     train_subset, valid_subset = get_train_val_split(cfg)
-    train_set = cast(Dataset, train_subset.dataset)
-    double_augment_set: Subset[DoubleAugmentDataset] = Subset(
-        DoubleAugmentDataset(train_set),
-        train_subset.indices,
-    )
+    double_augment_set = DoubleAugmentDataset(cfg.data, train_subset)
+    valid_set = Dataset(cfg.data, valid_subset)
     train_loader = DataLoader(double_augment_set, cfg)
-    valid_loader = DataLoader(valid_subset, cfg)
+    valid_loader = DataLoader(valid_set, cfg)
 
-    cfg.data.num_classes = len(train_set.classes)
+    cfg.data.num_classes = len(double_augment_set.classes)
 
     # Model
     net = ReProSeg(cfg=cfg, log=log).to(device=cfg.env.device)
@@ -58,17 +54,16 @@ def main(cfg_dict: DictConfig):
     if cfg.visualization.generate_explanations:
         from visualize.visualizer import ModelVisualizer
 
-        train_loader_visualization = DataLoader(train_subset, cfg)
+        visualize_set = Dataset(cfg.data, train_subset)
+        visualize_loader = DataLoader(visualize_set, cfg)
 
         visualizer = ModelVisualizer(net, cfg, log)
-        visualizer.visualize_prototypes(train_loader_visualization)
+        visualizer.visualize_prototypes(visualize_loader)
 
     if cfg.evaluation.consistency_score.calculate:
         from visualize.interpretability import ModelInterpretability
 
-        panoptic_parts_subset: Subset[PanopticPartsDataset] = Subset(
-            PanopticPartsDataset(train_set), train_subset.indices
-        )
+        panoptic_parts_subset = PanopticPartsDataset(cfg.data, train_subset)
         panoptic_parts_loader = DataLoader(panoptic_parts_subset, cfg)
 
         interpretability = ModelInterpretability(net, cfg, log)
