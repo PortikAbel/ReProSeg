@@ -37,11 +37,12 @@ class PanopticPartsDataset(Dataset):
         return panoptic_mask
 
     def _get_image_path(self, index: int) -> Path:
+        dataset: Cityscapes
         if isinstance(self.dataset, Subset):
-            dataset: Cityscapes = cast(Cityscapes, self.dataset.dataset)
+            dataset = cast(Cityscapes, self.dataset.dataset)
             index = self.dataset.indices[index]
         else:
-            dataset: Cityscapes = cast(Cityscapes, self.dataset)
+            dataset = cast(Cityscapes, self.dataset)
         return Path(dataset.images[index])
 
     @property
