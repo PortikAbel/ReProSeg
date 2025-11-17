@@ -55,7 +55,7 @@ class TestBaseDataset:
 
     def test_getdata_cityscapes(self, mock_cityscapes_constructor):
         """Test __getdata__ method for CityScapes self.dataset."""
-
+        """Test that the factory creates the Cityscapes dataset with correct parameters."""
         # Verify that Cityscapes was called once with correct basic parameters
         mock_cityscapes_constructor.assert_called_once()
         call_kwargs = mock_cityscapes_constructor.call_args.kwargs
