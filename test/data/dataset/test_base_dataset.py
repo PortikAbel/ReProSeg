@@ -58,8 +58,8 @@ class TestBaseDataset:
 
     def test_dataset_factory_called_by_default(self, mock_config, mock_cityscapes_dataset):
         """Test that the factory creates the default dataset based on config."""
-        with patch.object(DatasetFactory, 'create', return_value=mock_cityscapes_dataset) as mock_create:
-            dataset = Dataset(mock_config.data)
+        with patch.object(DatasetFactory, "create", return_value=mock_cityscapes_dataset) as mock_create:
+            Dataset(mock_config.data)
             mock_create.assert_called_once_with(mock_config.data, split=self.split)
 
     def test_classes_property(self):
