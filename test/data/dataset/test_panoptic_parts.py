@@ -80,24 +80,27 @@ class TestPanopticPartsDataset:
 
     def test_get_panoptic_mask_path_transformation(self):
         """Test that panoptic mask path is correctly transformed from image path."""
-        
+
         mock_image_path = Path("/data/cityscapes/leftImg8bit/train/city/image_000000_leftImg8bit.png")
-        expected_panoptic_path = Path("/data/cityscapes/gtFinePanopticParts/train/city/image_000000_gtFinePanopticParts.tif")
-        
+        expected_panoptic_path = Path(
+            "/data/cityscapes/gtFinePanopticParts/train/city/image_000000_gtFinePanopticParts.tif"
+        )
+
         mock_panoptic_image = MagicMock()
-        mock_panoptic_tensor = torch.randint(100_000, 200_000, (256, 512), dtype=torch.int64)
-        
-        with patch.object(self.dataset, '_get_image_path', return_value=mock_image_path):
-            with patch('data.dataset.panoptic_parts.Image.open', return_value=mock_panoptic_image) as mock_open:
-                self.dataset.transform_set.base_target.return_value = mock_panoptic_tensor
-                
+        mock_panoptic_tensor = torch.tensor([[150_023, 100_045], [200_067, 175_099]], dtype=torch.int64)
+        expected_result = torch.tensor([[123, 145], [267, 199]], dtype=torch.int64)
+
+        with patch.object(self.dataset, "_get_image_path", return_value=mock_image_path):
+            with patch("data.dataset.panoptic_parts.Image.open", return_value=mock_panoptic_image) as mock_open:
+                self.dataset.transform_set.base_target.return_value = mock_panoptic_tensor.clone()
+
                 result = self.dataset._get_panoptic_mask(0)
-                
+
                 # Verify the path transformation
                 mock_open.assert_called_once()
                 called_path = mock_open.call_args[0][0]
-                assert "gtFinePanopticParts" in str(called_path)
-                assert str(called_path).endswith("gtFinePanopticParts.tif")
+                assert called_path == expected_panoptic_path
+                assert torch.equal(result, expected_result)
 
     def test_get_panoptic_mask_processing(self):
         """Test panoptic mask processing logic."""
