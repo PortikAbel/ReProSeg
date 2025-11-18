@@ -22,19 +22,14 @@ class TestBaseDataset:
         self.dataset = Dataset(mock_config.data)
 
     def test_init_valid_dataset(self):
-        """Test Dataset initialization with valid parameters."""
+        """Test Dataset initializes all attributes."""
 
         assert self.dataset.dataset_type == self.dataset_name
         assert isinstance(self.dataset.dataset, TorchDataset)
         assert isinstance(self.dataset.transform_set, TransformSet)
 
-    def test_supported_dataset_literal(self):
-        """Test that the SupportedDataset literal type works correctly."""
-        # This should work without any issues
-        assert self.dataset.dataset_type == DatasetType.CITYSCAPES
-
     def test_getitem(self, sample_image, sample_target):
-        """Test __getitem__ method."""
+        """Test __getitem__ method returns tensors."""
 
         result = self.dataset[0]
 
