@@ -16,12 +16,17 @@ from utils.errors import DatasetNotImplementedError
 class Dataset(TorchDataset):
     dataset_type: DatasetType
     transform_set: TransformSet
+    transforms: StandardTransform
     dataset: TorchDataset
 
     def __init__(self, cfg: DataConfig, dataset: Optional[TorchDataset] = None):
         self.dataset_type = cfg.dataset
         self.transform_set = TransformSet(cfg)
         self.dataset = dataset if dataset is not None else DatasetFactory.create(cfg, split=DataSplit.TRAIN)
+        self.transforms = StandardTransform(
+            self.transform,
+            self.target_transform,
+        )
 
     def __getitem__(self, index: int):
         image, target = self.dataset.__getitem__(index)
@@ -41,14 +46,6 @@ class Dataset(TorchDataset):
                 return city_scapes_dataset.classes
             case _:
                 raise DatasetNotImplementedError(self.dataset_type)
-
-    @property
-    def transforms(self) -> StandardTransform:
-        """Combined image and target transforms to be applied to the dataset"""
-        return StandardTransform(
-            self.transform,
-            self.target_transform,
-        )
 
     @property
     def transform(self) -> Transform:
