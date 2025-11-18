@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from omegaconf import DictConfig, OmegaConf
 
 from config import ReProSegConfig
-from data.dataloader import DataLoader, DoubleAugmentDataLoader, PanopticPartsDataLoader
+from data import DataLoader, Dataset, DoubleAugmentDataset, PanopticPartsDataset, get_train_val_split
 from model.model import ReProSeg
 from utils.log import Log
 
@@ -32,12 +32,13 @@ def main(cfg_dict: DictConfig):
         log.info(f"NNI trial ID: {nni_trial_id}")
 
     # Create the dataloaders
-    train_loader = DoubleAugmentDataLoader(cfg)
-    test_loader = DataLoader("test", cfg)
-    train_loader_visualization = DataLoader("train", cfg)
-    panoptic_parts_loader = PanopticPartsDataLoader("train", cfg)
+    train_subset, valid_subset = get_train_val_split(cfg)
+    double_augment_set = DoubleAugmentDataset(cfg.data, train_subset)
+    valid_set = Dataset(cfg.data, valid_subset)
+    train_loader = DataLoader(double_augment_set, cfg)
+    valid_loader = DataLoader(valid_set, cfg)
 
-    cfg.data.num_classes = len(train_loader.dataset.classes)
+    cfg.data.num_classes = len(double_augment_set.classes)
 
     # Model
     net = ReProSeg(cfg=cfg, log=log).to(device=cfg.env.device)
@@ -46,18 +47,24 @@ def main(cfg_dict: DictConfig):
         from train.trainer import train_model
 
         try:
-            train_model(net, train_loader, test_loader, log, cfg)
+            train_model(net, train_loader, valid_loader, log, cfg)
         except Exception as e:
             log.exception(e)
 
     if cfg.visualization.generate_explanations:
         from visualize.visualizer import ModelVisualizer
 
+        visualize_set = Dataset(cfg.data, train_subset)
+        visualize_loader = DataLoader(visualize_set, cfg)
+
         visualizer = ModelVisualizer(net, cfg, log)
-        visualizer.visualize_prototypes(train_loader_visualization)
+        visualizer.visualize_prototypes(visualize_loader)
 
     if cfg.evaluation.consistency_score.calculate:
         from visualize.interpretability import ModelInterpretability
+
+        panoptic_parts_subset = PanopticPartsDataset(cfg.data, train_subset)
+        panoptic_parts_loader = DataLoader(panoptic_parts_subset, cfg)
 
         interpretability = ModelInterpretability(net, cfg, log)
         interpretability.compute_prototype_consistency_score(panoptic_parts_loader)

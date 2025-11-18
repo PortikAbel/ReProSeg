@@ -6,7 +6,7 @@ import torch
 from tqdm import tqdm
 
 from config import ReProSegConfig
-from data.dataloader import PanopticPartsDataLoader
+from data import DataLoader
 from model.model import ReProSeg
 from utils.log import Log
 
@@ -34,7 +34,7 @@ class ModelInterpretability:
         self._part_activations = [defaultdict(list) for _ in range(self.net.num_prototypes)]
 
     @torch.no_grad()
-    def compute_prototype_consistency_score(self, panoptic_parts_loader: PanopticPartsDataLoader):
+    def compute_prototype_consistency_score(self, panoptic_parts_loader: DataLoader):
         self.log.info("Computing prototype consistency score...")
         self._collect_prototype_activations_by_object_parts(panoptic_parts_loader)
         is_consistent = self._compute_if_prototype_consistent()
@@ -48,7 +48,7 @@ class ModelInterpretability:
         )
         return num_consistent_prototypes / len(is_consistent)
 
-    def _collect_prototype_activations_by_object_parts(self, panoptic_parts_loader: PanopticPartsDataLoader):
+    def _collect_prototype_activations_by_object_parts(self, panoptic_parts_loader: DataLoader):
         self.log.info("Collecting average object part activations of prototypes from images...")
         self.net.eval()
         img_iter = tqdm(

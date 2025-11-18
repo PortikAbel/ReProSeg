@@ -1,10 +1,10 @@
 import nni  # type: ignore[import-untyped]
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
 
 from config import ReProSegConfig
 from config.schema.model import LossCriterion
+from data import DataLoader
 from data.count_class_distribution import get_class_weights
 from model.model import ReProSeg, TrainPhase
 from model.optimizers import OptimizerSchedulerManager
@@ -15,14 +15,16 @@ from train.train_step import train
 from utils.log import Log
 
 
-def train_model(net: ReProSeg, train_loader: DataLoader, test_loader: DataLoader, log: Log, cfg: ReProSegConfig):
+def train_model(net: ReProSeg, train_loader: DataLoader, valid_loader: DataLoader, log: Log, cfg: ReProSegConfig):
     optimizer_scheduler_manager = OptimizerSchedulerManager(
         net, len(train_loader) * cfg.training.epochs.pretrain, cfg.training.learning_rates.backbone_end
     )
     if cfg.model.checkpoint is not None:
         optimizer_scheduler_manager.load_state_dict(cfg.model.checkpoint)
 
-    class_weights = get_class_weights(cfg, log)
+    class_weights = get_class_weights(
+        train_loader, cfg.data.num_classes, cfg.env.class_distribution_cache_path, log
+    ).to(cfg.env.device)
     criterion: nn.Module
     match cfg.model.criterion:
         case LossCriterion.DICE:
@@ -124,7 +126,7 @@ def train_model(net: ReProSeg, train_loader: DataLoader, test_loader: DataLoader
             epoch,
         )
         # Evaluate model
-        eval_info = eval(cfg, log, net, test_loader, epoch)
+        eval_info = eval(cfg, log, net, valid_loader, epoch)
         log.tb_scalar("Acc/eval-epochs", eval_info["test_accuracy"], epoch)
         log.tb_scalar("Acc/train-epochs", train_info["train_accuracy"], epoch)
         log.tb_scalar("mIoU/train-epochs", train_info["train_miou"], epoch)

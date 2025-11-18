@@ -1,11 +1,11 @@
 from typing import Tuple
 
-import numpy as np
 import torch
 import torchvision.transforms.v2 as transforms
 from torchvision.datasets import Cityscapes
 
 from config.schema.data import DataConfig
+from data.dataset.class_filter import ClassFilter
 
 
 class AugmentGeometry(transforms.Compose):
@@ -38,7 +38,7 @@ class AugmentColor(transforms.Compose):
         )
 
 
-class Transforms:
+class TransformSet:
     base_image: transforms.Compose
     """
     Base image transform:
@@ -89,10 +89,6 @@ class Transforms:
     Filter classes transform:
         - Maps the original Cityscapes classes to a reduced set of classes
     """
-    classes: list[Cityscapes.CityscapesClass]
-    """
-    List of filtered Cityscapes classes
-    """
 
     def __init__(self, dataset_cfg: DataConfig):
         img_shape = dataset_cfg.img_shape
@@ -133,20 +129,4 @@ class Transforms:
             interpolation=transforms.InterpolationMode.NEAREST_EXACT,
         )
 
-        self.classes = Cityscapes.classes
-        if dataset_cfg.filter_classes:
-            self._filter_cityscapes_classes()
-
-    def _filter_cityscapes_classes(self) -> None:
-        filtered_classes = [self.classes[0]] + [c for c in self.classes if not c.ignore_in_eval]
-        map_classes: torch.Tensor = torch.tensor(
-            [0 if c.ignore_in_eval else filtered_classes.index(c) for c in self.classes], dtype=torch.int64
-        )
-        self.filter_classes = transforms.Compose(
-            [
-                transforms.Lambda(np.vectorize(lambda c: map_classes[c])),
-                transforms.Lambda(lambda x: x.transpose(1, 2, 0)),
-                transforms.ToImage(),
-            ]
-        )
-        self.classes = filtered_classes
+        self.filter_classes = ClassFilter.get_cityscapes_transform(Cityscapes.classes)
