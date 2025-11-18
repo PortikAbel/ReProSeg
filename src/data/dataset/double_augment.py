@@ -31,7 +31,3 @@ class DoubleAugmentDataset(Dataset):
     @property
     def transform(self) -> Transform:
         return self.transform_set.base_image
-
-    @property
-    def target_transform(self) -> Transform:
-        return Compose([self.transform_set.base_target, self.transform_set.filter_classes])

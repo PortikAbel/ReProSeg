@@ -82,9 +82,12 @@ def mock_transform_set(sample_image, sample_target):
     mock_transform_set.__class__ = TransformSet
     
     mock_transform_set.base_image = MagicMock(return_value=torch.rand(3, 256, 512))
+    mock_transform_set.geometry_augmentation = MagicMock(return_value=(torch.rand(3, 256, 512), torch.randint(0, 20, (256, 512), dtype=torch.int64)))
+    mock_transform_set.color_augmentation = MagicMock(return_value=torch.rand(3, 256, 512))
     mock_transform_set.image_normalization = MagicMock(return_value=torch.rand(3, 256, 512))
     mock_transform_set.base_target = MagicMock(return_value=torch.randint(0, 20, (256, 512), dtype=torch.int64))
     mock_transform_set.filter_classes = MagicMock(return_value=torch.randint(0, 20, (256, 512), dtype=torch.int64))
+    mock_transform_set.shrink_target = MagicMock(return_value=torch.randint(0, 20, (128, 256), dtype=torch.int64))
     
     return mock_transform_set
 
