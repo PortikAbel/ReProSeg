@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
+import torch
 from PIL import Image
 from torchvision.datasets import Cityscapes
 
@@ -69,4 +70,28 @@ def mock_cityscapes_constructor(mock_cityscapes_dataset):
     """Mock the Cityscapes constructor to return our mock dataset."""
     with patch("data.dataset.factory.Cityscapes") as mock_constructor:
         mock_constructor.return_value = mock_cityscapes_dataset
+        yield mock_constructor
+
+
+@pytest.fixture
+def mock_transform_set(sample_image, sample_target):
+    """Mock TransformSet with mock transforms that return tensors."""
+    from data.dataset.transform_set import TransformSet
+    
+    mock_transform_set = MagicMock()
+    mock_transform_set.__class__ = TransformSet
+    
+    mock_transform_set.base_image = MagicMock(return_value=torch.rand(3, 256, 512))
+    mock_transform_set.image_normalization = MagicMock(return_value=torch.rand(3, 256, 512))
+    mock_transform_set.base_target = MagicMock(return_value=torch.randint(0, 20, (256, 512), dtype=torch.int64))
+    mock_transform_set.filter_classes = MagicMock(return_value=torch.randint(0, 20, (256, 512), dtype=torch.int64))
+    
+    return mock_transform_set
+
+
+@pytest.fixture
+def mock_transform_set_constructor(mock_transform_set):
+    """Mock the TransformSet constructor to return our mock transform set."""
+    with patch("data.dataset.base.TransformSet") as mock_constructor:
+        mock_constructor.return_value = mock_transform_set
         yield mock_constructor
