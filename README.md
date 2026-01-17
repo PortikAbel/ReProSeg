@@ -102,7 +102,7 @@ uv run python src/scripts/run.py \
 
 The configuration system also supports environment variables:
 - Set `LOG_ROOT` environment variable to customize the log output directory
-- NNI (Neural Network Intelligence) integration is supported via `NNI_TRIAL_JOB_ID`
+- Neural Network Intelligence integration is supported via `NNI_TRIAL_JOB_ID`
 
 ### Configuration Help
 
@@ -115,6 +115,40 @@ To print the complete configuration that would be used:
 ```bash
 uv run python src/scripts/run.py --cfg job
 ```
+
+## HPO
+
+Hyper parameter optimization is done using Neural Network Intelligence (nni).
+
+### Running HPO
+
+Run NNI from the project root directory:
+```bash
+nnictl create --config src/config/nni/nni_config.yaml
+```
+
+This will:
+- Execute 20 trials using TPE (Tree-structured Parzen Estimator) optimization
+- Run one trial at a time (`trialConcurrency: 1`)
+- Use median stopping to terminate poor-performing trials after step 70
+- Optimize to maximize the target metric
+
+### Managing HPO Experiments
+
+```bash
+# View experiment status
+nnictl view
+
+# Stop the experiment
+nnictl stop <experiment_id>
+
+# View web UI (opens in browser)
+nnictl webui url
+```
+
+### Configuration
+
+The HPO search space is defined in [src/config/nni/search_space.json](src/config/nni/search_space.json). Modify this file to adjust which hyperparameters to optimize and their ranges.
 
 ## Running Tests
 

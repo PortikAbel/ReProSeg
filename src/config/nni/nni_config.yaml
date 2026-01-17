@@ -1,10 +1,9 @@
-experimentName: reproseg_hyperopt
-trialCommand: python /home/annamari/ReProSeg/src/scripts/run.py 
-# TODO: (not high priority) read path somehow from .env
-trialCodeDirectory: .
+searchSpaceFile: search_space.json
+trialCommand: python src/scripts/run.py
+
+experimentName: learning_rates_tuning
 trialConcurrency: 1
 maxTrialNumber: 20
-searchSpaceFile: search_space.json
 tuner:
   name: TPE
   classArgs:
