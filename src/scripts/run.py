@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from omegaconf import DictConfig, OmegaConf
 
 from config import ReProSegConfig
-from data import DataLoader, Dataset, DoubleAugmentDataset, PanopticPartsDataset, get_train_val_split
+from data import DataLoader, Dataset, PanopticPartsDataset, get_train_val_split
 from model.model import ReProSeg
 from utils.log import Log
 
@@ -19,7 +19,9 @@ def main(cfg_dict: DictConfig):
     nni_trial_id = os.environ.get("NNI_TRIAL_JOB_ID")
     if nni_trial_id:
         if nni_params := nni.get_next_parameter():
+            OmegaConf.set_struct(cfg_dict, False)
             cfg_dict = OmegaConf.merge(cfg_dict, nni_params)  # type: ignore[assignment]
+            OmegaConf.set_struct(cfg_dict, True)
     cfg_object: Dict[str, Any] = OmegaConf.to_container(cfg_dict, resolve=True)  # type: ignore[assignment]
     cfg = ReProSegConfig(**cfg_object)
 
@@ -33,12 +35,8 @@ def main(cfg_dict: DictConfig):
 
     # Create the dataloaders
     train_subset, valid_subset = get_train_val_split(cfg)
-    double_augment_set = DoubleAugmentDataset(cfg.data, train_subset)
-    valid_set = Dataset(cfg.data, valid_subset)
-    train_loader = DataLoader(double_augment_set, cfg)
-    valid_loader = DataLoader(valid_set, cfg)
 
-    cfg.data.num_classes = len(double_augment_set.classes)
+    cfg.data.num_classes = len(train_subset.dataset.classes)  # type: ignore[attr-defined]
 
     # Model
     net = ReProSeg(cfg=cfg, log=log).to(device=cfg.env.device)
@@ -47,7 +45,7 @@ def main(cfg_dict: DictConfig):
         from train.trainer import train_model
 
         try:
-            train_model(net, train_loader, valid_loader, log, cfg)
+            train_model(net, train_subset, valid_subset, log, cfg)
         except Exception as e:
             log.exception(e)
 

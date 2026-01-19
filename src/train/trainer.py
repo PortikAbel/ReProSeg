@@ -1,10 +1,11 @@
 import nni  # type: ignore[import-untyped]
 import torch
 import torch.nn as nn
+from torch.utils.data import Dataset as TorchDataset
 
 from config import ReProSegConfig
 from config.schema.model import LossCriterion
-from data import DataLoader
+from data import DataLoader, Dataset, DoubleAugmentDataset
 from data.count_class_distribution import get_class_weights
 from model.model import ReProSeg, TrainPhase
 from model.optimizers import OptimizerSchedulerManager
@@ -15,7 +16,12 @@ from train.train_step import train
 from utils.log import Log
 
 
-def train_model(net: ReProSeg, train_loader: DataLoader, valid_loader: DataLoader, log: Log, cfg: ReProSegConfig):
+def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDataset, log: Log, cfg: ReProSegConfig):
+    double_augment_set = DoubleAugmentDataset(cfg.data, train_data)
+    valid_set = Dataset(cfg.data, valid_data)
+    train_loader = DataLoader(double_augment_set, cfg)
+    valid_loader = DataLoader(valid_set, cfg)
+
     optimizer_scheduler_manager = OptimizerSchedulerManager(
         net, len(train_loader) * cfg.training.epochs.pretrain, cfg.training.learning_rates.backbone_end
     )
@@ -23,7 +29,7 @@ def train_model(net: ReProSeg, train_loader: DataLoader, valid_loader: DataLoade
         optimizer_scheduler_manager.load_state_dict(cfg.model.checkpoint)
 
     class_weights = get_class_weights(
-        train_loader, cfg.data.num_classes, cfg.env.class_distribution_cache_path, log
+        train_data, cfg.data.num_classes, cfg.env.class_distribution_cache_path, cfg, log
     ).to(cfg.env.device)
     criterion: nn.Module
     match cfg.model.criterion:

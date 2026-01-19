@@ -2,12 +2,20 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from torch.utils.data import Dataset as TorchDataset
 
+from config.schema.main import ReProSegConfig
 from data import DataLoader
+from data.dataset.base import Dataset
 from utils.log import Log
 
 
-def get_class_weights(dl: DataLoader, num_classes: int, cache_path: Path, log: Log) -> torch.Tensor:
+def get_class_weights(
+    data: TorchDataset, num_classes: int, cache_path: Path, cfg: ReProSegConfig, log: Log
+) -> torch.Tensor:
+    ds = Dataset(cfg.data, data)
+    dl = DataLoader(ds, cfg)
+
     if cache_path.is_file():
         class_counts = np.load(cache_path)
         log.info(f"Loaded class counts from {cache_path}: {class_counts}")
