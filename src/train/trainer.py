@@ -26,7 +26,8 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
         net, len(train_loader) * cfg.training.epochs.pretrain, cfg.training.learning_rates.backbone_end
     )
     if cfg.model.checkpoint is not None:
-        optimizer_scheduler_manager.load_state_dict(cfg.model.checkpoint)
+        checkpoint = torch.load(cfg.model.checkpoint, map_location=cfg.env.device, weights_only=False)
+        optimizer_scheduler_manager.load_state_dict(checkpoint)
 
     class_weights = get_class_weights(
         train_data, cfg.data.num_classes, cfg.env.class_distribution_cache_path, cfg, log
