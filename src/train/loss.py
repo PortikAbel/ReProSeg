@@ -63,13 +63,13 @@ def calculate_loss(
                 refresh=False,
             )
             phase_string = "pretrain" if train_phase == TrainPhase.PRETRAIN else "train"
-            log.tb_scalar(f"Loss/{phase_string}/LA", a_loss_pf.item(), iteration)
-            log.tb_scalar(f"Loss/{phase_string}/LJ", jsd_loss.item(), iteration)
-            log.tb_scalar(f"Loss/{phase_string}/LT", tanh_loss.item(), iteration)
-            log.tb_scalar(f"Loss/{phase_string}/LU", uni_loss.item(), iteration)
-            log.tb_scalar(f"Loss/{phase_string}/LV", var_loss.item(), iteration)
-            log.tb_scalar(f"Loss/{phase_string}/LC", class_loss.item(), iteration)
-            log.tb_scalar(f"Loss/{phase_string}/L", loss.item(), iteration)
+            log.tb_scalar(f"loss-{phase_string}/LA", a_loss_pf.item(), iteration)
+            log.tb_scalar(f"loss-{phase_string}/LJ", jsd_loss.item(), iteration)
+            log.tb_scalar(f"loss-{phase_string}/LT", tanh_loss.item(), iteration)
+            log.tb_scalar(f"loss-{phase_string}/LU", uni_loss.item(), iteration)
+            log.tb_scalar(f"loss-{phase_string}/LV", var_loss.item(), iteration)
+            log.tb_scalar(f"loss-{phase_string}/LC", class_loss.item(), iteration)
+            log.tb_scalar(f"loss-{phase_string}/L", loss.item(), iteration)
 
     return loss
 

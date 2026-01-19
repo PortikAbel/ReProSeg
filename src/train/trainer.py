@@ -131,7 +131,7 @@ def train_model(net: ReProSeg, train_loader: DataLoader, valid_loader: DataLoade
         log.tb_scalar("Acc/train-epochs", train_info["train_accuracy"], epoch)
         log.tb_scalar("mIoU/train-epochs", train_info["train_miou"], epoch)
         log.tb_scalar("mIoU/eval-epochs", eval_info["test_miou"], epoch)
-        log.tb_scalar("Loss/train-epochs", train_info["loss"], epoch)
+        log.tb_scalar("loss-train/epochs", train_info["loss"], epoch)
 
         nni.report_final_result(train_info["train_accuracy"])
 
