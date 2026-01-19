@@ -99,7 +99,6 @@ class TransformSet:
             [
                 transforms.ToImage(),
                 transforms.ToDtype(torch.float32, scale=True),
-                transforms.Resize(size=img_shape),
             ]
         )
 
@@ -120,9 +119,10 @@ class TransformSet:
             [
                 transforms.ToImage(),
                 transforms.ToDtype(torch.int64),
-                transforms.Resize(size=img_shape, interpolation=transforms.InterpolationMode.NEAREST_EXACT),
             ]
         )
+
+        self.random_crop = transforms.RandomCrop(size=img_shape)
 
         self.shrink_target = transforms.Resize(
             size=(img_shape[0] // 8, img_shape[1] // 8),

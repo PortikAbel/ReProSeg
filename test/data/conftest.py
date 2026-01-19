@@ -90,6 +90,9 @@ def mock_transform_set(sample_image, sample_target):
     mock_transform_set.base_target = MagicMock(return_value=torch.randint(0, 20, (256, 512), dtype=torch.int64))
     mock_transform_set.filter_classes = MagicMock(return_value=torch.randint(0, 20, (256, 512), dtype=torch.int64))
     mock_transform_set.shrink_target = MagicMock(return_value=torch.randint(0, 20, (128, 256), dtype=torch.int64))
+    mock_transform_set.random_crop = MagicMock(
+        return_value=(torch.rand(3, 256, 512), torch.randint(0, 20, (256, 512), dtype=torch.int64))
+    )
 
     return mock_transform_set
 
