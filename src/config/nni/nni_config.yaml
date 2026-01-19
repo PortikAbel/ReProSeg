@@ -1,5 +1,6 @@
 searchSpaceFile: search_space.json
 trialCommand: python src/scripts/run.py
+trialCodeDirectory: ~/src/ReProSeg
 
 experimentName: learning_rates_tuning
 trialConcurrency: 1
