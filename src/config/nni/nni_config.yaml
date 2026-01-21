@@ -1,9 +1,9 @@
 searchSpaceFile: search_space.json
-trialCommand: python src/scripts/run.py
+trialCommand: bash src/scripts/start_nni_trial.sh
 trialCodeDirectory: ~/src/ReProSeg
 
 experimentName: learning_rates_tuning
-trialConcurrency: 1
+trialConcurrency: 3
 maxTrialNumber: 20
 tuner:
   name: TPE

@@ -16,5 +16,5 @@ hydra:
 
 # Environment Settings
 env:
-  gpu_id: 1
+  gpu_id: 0
   seed: 1
