@@ -29,8 +29,6 @@ def calculate_loss(
     a_loss_pf = (align_loss(embv1, embv2.detach()) + align_loss(embv2, embv1.detach())) / 2.0
     jsd_loss = (jensen_shannon_divergence(pooled1) + jensen_shannon_divergence(pooled2)) / 2.0
     tanh_loss = (log_tanh_loss(pooled1) + log_tanh_loss(pooled2)) / 2.0
-    uni_loss = (uniform_loss(pooled1) + uniform_loss(pooled2)) / 2.0
-    var_loss = (variance_loss(embv1) + variance_loss(embv2)) / 2.0
     class_loss = torch.tensor(0.0)
 
     loss = torch.tensor(0.0, device=aspp_features.device)
@@ -38,8 +36,6 @@ def calculate_loss(
         loss += weights.alignment * a_loss_pf
         loss += weights.jsd * jsd_loss
         loss += weights.tanh * tanh_loss
-        loss += weights.uniformity * uni_loss
-        loss += weights.variance * var_loss
 
     if train_phase is not TrainPhase.PRETRAIN:
         softmax_inputs = torch.log1p(out**2)
@@ -54,8 +50,6 @@ def calculate_loss(
                     f"LA:{a_loss_pf.item():.2f}, "
                     + f"LJ:{jsd_loss.item():.3f}, "
                     + f"LT:{tanh_loss.item():.3f}, "
-                    + f"LU:{uni_loss.item():.3f}, "
-                    + f"LV:{var_loss.item():.3f}, "
                     + f"LC:{class_loss.item():.3f}, "
                     + f"L:{loss.item():.3f}, "
                     + f"num_scores>0.1:{torch.count_nonzero(torch.relu(pooled - 0.1), dim=1).float().mean().item():.1f}"
@@ -66,8 +60,6 @@ def calculate_loss(
             log.tb_scalar(f"loss-{phase_string}/LA", a_loss_pf.item(), iteration)
             log.tb_scalar(f"loss-{phase_string}/LJ", jsd_loss.item(), iteration)
             log.tb_scalar(f"loss-{phase_string}/LT", tanh_loss.item(), iteration)
-            log.tb_scalar(f"loss-{phase_string}/LU", uni_loss.item(), iteration)
-            log.tb_scalar(f"loss-{phase_string}/LV", var_loss.item(), iteration)
             log.tb_scalar(f"loss-{phase_string}/LC", class_loss.item(), iteration)
             log.tb_scalar(f"loss-{phase_string}/L", loss.item(), iteration)
 
@@ -90,23 +82,6 @@ def jensen_shannon_divergence(x: torch.Tensor) -> torch.Tensor:
 
 def log_tanh_loss(x: torch.Tensor, EPS=1e-10) -> torch.Tensor:
     return -torch.log(torch.tanh(torch.sum(x, dim=(0, 2, 3))) + EPS).mean()
-
-
-# Extra uniform loss from https://www.tongzhouwang.info/hypersphere/.
-def uniform_loss(x: torch.Tensor, t=2, EPS=1e-10) -> torch.Tensor:
-    # print(
-    #   "sum elements: ", torch.sum(torch.pow(x,2), dim=1).shape,
-    #   torch.sum(torch.pow(x,2), dim=1),
-    # ) #--> should be ones
-    x = x.permute(1, 0, 2, 3)
-    x = x.reshape(x.size(0), -1)
-    x = F.normalize(x + EPS, dim=0)
-    loss = (torch.pdist(x, p=2).pow(2).mul(-t).exp().mean() + EPS).log()
-    return loss
-
-
-def variance_loss(x: torch.Tensor, gamma=1, EPS=1e-12) -> torch.Tensor:
-    return (gamma - (x.var(dim=0) + EPS).sqrt()).clamp(min=0).mean()
 
 
 # from https://gitlab.com/mipl/carl/-/blob/main/losses.py
