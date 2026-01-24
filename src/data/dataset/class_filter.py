@@ -16,13 +16,13 @@ class ClassFilter:
     @staticmethod
     def get_cityscapes_transform(classes: list[Cityscapes.CityscapesClass]) -> Compose:
         filtered_classes = ClassFilter.filter_cityscapes_classes(classes)
-        map_classes = torch.tensor(
-            [0 if c.ignore_in_eval else filtered_classes.index(c) for c in classes], dtype=torch.int64
+        map_classes = np.array(
+            [0 if c.ignore_in_eval else filtered_classes.index(c) for c in classes], dtype=np.int64
         )
 
         filter_transform = Compose(
             [
-                Lambda(np.vectorize(lambda c: map_classes[c])),
+                Lambda(lambda x: map_classes[x]),
                 Lambda(lambda x: x.transpose(1, 2, 0)),
                 ToImage(),
             ]
