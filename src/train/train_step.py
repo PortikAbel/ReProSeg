@@ -62,6 +62,9 @@ def train(
 
     log.debug(f"Training phase: {net.train_phase.name}")
 
+    accumulated_out = []
+    accumulated_ys = []
+
     # Iterate through the data set to update leaves, prototypes and network
     for i, (xs1, xs2, ys) in train_iter:
         xs1, xs2, ys = xs1.to(cfg.env.device), xs2.to(cfg.env.device), ys.to(cfg.env.device)
@@ -107,11 +110,21 @@ def train(
             loss_epoch.classification += loss.classification
 
             if net.train_phase is not TrainPhase.PRETRAIN:
-                cm = compute_cm(out, ys)
+                accumulated_out.append(out.detach())
+                accumulated_ys.append(ys.detach())
+                
+                if (i + 1) % 10 == 0 or (i + 1) == iters:
+                    batched_out = torch.cat(accumulated_out, dim=0)
+                    batched_ys = torch.cat(accumulated_ys, dim=0)
+                    
+                    cm = compute_cm(batched_out, batched_ys)
                 total_acc += acc_from_cm(cm)
                 intersections, unions = intersection_and_union_from_cm(cm)
                 total_intersections_by_class += intersections
                 total_unions_by_class += unions
+                    
+                    accumulated_out.clear()
+                    accumulated_ys.clear()
 
                 net.layers.classification_layer.weight.copy_(
                     torch.where(
