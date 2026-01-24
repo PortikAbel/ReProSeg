@@ -120,10 +120,10 @@ def train(
                     batched_ys = torch.cat(accumulated_ys, dim=0)
                     
                     cm = compute_cm(batched_out, batched_ys)
-                total_acc += acc_from_cm(cm)
-                intersections, unions = intersection_and_union_from_cm(cm)
-                total_intersections_by_class += intersections
-                total_unions_by_class += unions
+                    total_acc += acc_from_cm(cm)
+                    intersections, unions = intersection_and_union_from_cm(cm)
+                    total_intersections_by_class += intersections
+                    total_unions_by_class += unions
                     
                     accumulated_out.clear()
                     accumulated_ys.clear()
