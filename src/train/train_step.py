@@ -40,7 +40,7 @@ def train(
 
     # Store info about the procedure
     train_info: dict[str, float | np.ndarray] = {}
-    loss_epoch: Loss = Loss()
+    loss_epoch: Loss = Loss.on_device(cfg.env.device)
     total_acc = 0.0
     total_intersections_by_class = torch.zeros(cfg.data.num_classes - 1).to(cfg.env.device)
     total_unions_by_class = torch.zeros(cfg.data.num_classes - 1).to(cfg.env.device)
@@ -91,7 +91,7 @@ def train(
                 + f"LJ:{loss.jsd:.3f}, "
                 + f"LT:{loss.tanh:.3f}, "
                 + f"LC:{loss.classification:.3f}, "
-                + f"L:{loss.total:.3f}"
+                + f"L:{loss.total.item():.3f}"
             ),
             refresh=False,
         )

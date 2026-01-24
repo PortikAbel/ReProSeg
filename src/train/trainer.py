@@ -138,7 +138,7 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
         # Log to TensorBoard
         log.tb_scalar("Acc/train-epochs", train_info.accuracy, epoch)
         log.tb_scalar("mIoU/train-epochs", train_info.miou, epoch)
-        log.tb_scalar("loss-train/L", train_info.loss.total, epoch)
+        log.tb_scalar("loss-train/L", train_info.loss.total.item(), epoch)
         log.tb_scalar("loss-train/LA", train_info.loss.alignment, epoch)
         log.tb_scalar("loss-train/L_JSD", train_info.loss.jsd, epoch)
         log.tb_scalar("loss-train/LT", train_info.loss.tanh, epoch)
