@@ -56,11 +56,9 @@ def train(
         file=log.tqdm_file,
     )
 
-    count_param = 0
-    for _, param in net.named_parameters():
-        if param.requires_grad:
-            count_param += 1
-    log.debug(f"Number of parameters that require gradient: {count_param}")
+    trainable_params = sum(p.numel() for p in net.parameters() if p.requires_grad)
+    trainable_tensors = sum(1 for p in net.parameters() if p.requires_grad)
+    log.debug(f"Trainable parameters: {trainable_params:,} ({trainable_tensors} tensors)")
 
     log.debug(f"Training phase: {net.train_phase.name}")
 
