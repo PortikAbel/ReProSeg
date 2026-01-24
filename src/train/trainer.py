@@ -114,10 +114,6 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
                 net.layers.classification_layer.weight.copy_(
                     torch.clamp(net.layers.classification_layer.weight.data - 0.001, min=0.0)
                 )
-                cls_w = net.layers.classification_layer.weight[
-                    net.layers.classification_layer.weight.nonzero(as_tuple=True)
-                ]
-                log.debug(f"Classifier weights:\n{cls_w}\n{cls_w.shape}")
                 if cfg.model.bias:
                     cls_b = net.layers.classification_layer.bias
                     log.debug(f"Classifier bias: {cls_b}")
@@ -163,11 +159,6 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
                 log.info(f"Best mIoU so far: {best_miou}")
                 log.model_checkpoint(get_checkpoint(), "net_trained_best_miou")
 
-    nonzero_weights = net.layers.classification_layer.weight[
-        net.layers.classification_layer.weight.nonzero(as_tuple=True)
-    ]
-    log.debug(f"Classifier weights:\n{net.layers.classification_layer.weight}")
-    log.debug(f"Classifier weights nonzero:\n{nonzero_weights}\n{nonzero_weights.shape}")
     log.debug(f"Classifier bias:\n{net.layers.classification_layer.bias}")
     # Print weights and relevant prototypes per class
     for c in range(net.layers.classification_layer.weight.shape[0]):
