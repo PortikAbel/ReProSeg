@@ -10,15 +10,21 @@ from model.model import TrainPhase
 @dataclass
 class Loss:
     total: torch.Tensor
-    alignment: float = 0.0
-    jsd: float = 0.0
-    tanh: float = 0.0
-    classification: float = 0.0
+    alignment: torch.Tensor
+    jsd: torch.Tensor
+    tanh: torch.Tensor
+    classification: torch.Tensor
     
     @classmethod
     def on_device(cls, device: torch.device) -> "Loss":
-        """Create a Loss instance with a zero tensor on the specified device."""
-        return cls(total=torch.tensor(0.0, device=device))
+        """Create a Loss instance with zero tensors on the specified device."""
+        return cls(
+            total=torch.tensor(0.0, device=device),
+            alignment=torch.tensor(0.0, device=device),
+            jsd=torch.tensor(0.0, device=device),
+            tanh=torch.tensor(0.0, device=device),
+            classification=torch.tensor(0.0, device=device),
+        )
 
 def calculate_loss(
     aspp_features: torch.Tensor,
@@ -55,10 +61,10 @@ def calculate_loss(
     # Create loss result structure
     return Loss(
         total=loss,
-        alignment=a_loss_pf.item(),
-        jsd=jsd_loss.item(),
-        tanh=tanh_loss.item(),
-        classification=class_loss.item(),
+        alignment=a_loss_pf,
+        jsd=jsd_loss,
+        tanh=tanh_loss,
+        classification=class_loss,
     )
 
 

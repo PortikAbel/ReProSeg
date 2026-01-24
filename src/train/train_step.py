@@ -67,7 +67,9 @@ def train(
 
     # Iterate through the data set to update leaves, prototypes and network
     for i, (xs1, xs2, ys) in train_iter:
-        xs1, xs2, ys = xs1.to(cfg.env.device), xs2.to(cfg.env.device), ys.to(cfg.env.device)
+        xs1 = xs1.to(cfg.env.device, non_blocking=True)
+        xs2 = xs2.to(cfg.env.device, non_blocking=True)
+        ys = ys.to(cfg.env.device, non_blocking=True)
 
         # Reset the gradients
         optimizer_scheduler_manager.reset_gradients()
