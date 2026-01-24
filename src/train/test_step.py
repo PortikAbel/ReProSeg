@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -11,6 +12,14 @@ from utils.log import Log
 from .eval import acc_from_cm, compute_absained, compute_cm, miou_from_cm
 
 
+@dataclass
+class EvalInfo:
+    abstained: float
+    num_non_zero_prototypes: int
+    confusion_matrix: np.ndarray
+    accuracy: float
+    miou: float
+
 @torch.no_grad()
 def eval(
     cfg: ReProSegConfig,
@@ -19,7 +28,7 @@ def eval(
     valid_loader: DataLoader,
     epoch,
     progress_prefix: str = "Eval Epoch",
-) -> dict:
+) -> EvalInfo:
     net = net.to(cfg.env.device)
     net.eval()
     eval_info: dict[str, float | np.ndarray] = {}
@@ -63,10 +72,10 @@ def eval(
     num_prototypes = torch.numel(net.layers.classification_layer.weight)
     log.info(f"sparsity ratio: {(num_prototypes - num_nonzero_prototypes) / num_prototypes}")
 
-    eval_info["abstained"] = abstained
-    eval_info["num non-zero prototypes"] = num_nonzero_prototypes
-    eval_info["confusion_matrix"] = cm.detach().cpu().numpy()
-    eval_info["test_accuracy"] = acc_from_cm(cm)
-    eval_info["test_miou"] = miou_from_cm(cm)
-
-    return eval_info
+    return EvalInfo(
+        abstained=abstained,
+        num_non_zero_prototypes=num_nonzero_prototypes,
+        confusion_matrix=cm.detach().cpu().numpy(),
+        accuracy=acc_from_cm(cm),
+        miou=miou_from_cm(cm),
+    )

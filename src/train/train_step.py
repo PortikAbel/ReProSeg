@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+import time
+
 import nni  # type: ignore[import-untyped]
 import numpy as np
 import torch
@@ -8,9 +11,16 @@ from config import ReProSegConfig
 from model.model import ReProSeg, TrainPhase
 from model.optimizers import OptimizerSchedulerManager
 from train.eval import acc_from_cm, compute_cm, intersection_and_union_from_cm
-from train.loss import calculate_loss
+from train.loss import calculate_loss, Loss
 from utils.log import Log
 
+
+@dataclass
+class TrainInfo:
+    loss: Loss
+    accuracy: float
+    miou: float
+    iou_by_class: np.ndarray
 
 def train(
     cfg: ReProSegConfig,
@@ -21,7 +31,7 @@ def train(
     criterion: nn.Module,
     epoch,
     progress_prefix: str = "Train Epoch",
-):
+) -> TrainInfo:
     # Make sure the model is in train mode
     net.train()
 
@@ -30,7 +40,7 @@ def train(
 
     # Store info about the procedure
     train_info: dict[str, float | np.ndarray] = {}
-    total_loss = 0.0
+    loss_epoch: Loss = Loss()
     total_acc = 0.0
     total_intersections_by_class = torch.zeros(cfg.data.num_classes - 1).to(cfg.env.device)
     total_unions_by_class = torch.zeros(cfg.data.num_classes - 1).to(cfg.env.device)
@@ -66,7 +76,6 @@ def train(
         ys = torch.cat([ys, ys])
 
         loss = calculate_loss(
-            log,
             aspp_features,
             pooled,
             out,
@@ -74,20 +83,30 @@ def train(
             cfg.model.loss_weights,
             net.train_phase,
             criterion,
-            train_iter,
-            len(train_iter) * (epoch - 1) + i,
-            print=True,
+        )
+        
+        train_iter.set_postfix_str(
+            (
+                f"LA:{loss.alignment:.2f}, "
+                + f"LJ:{loss.jsd:.3f}, "
+                + f"LT:{loss.tanh:.3f}, "
+                + f"LC:{loss.classification:.3f}, "
+                + f"L:{loss.total:.3f}"
+            ),
+            refresh=False,
         )
 
         # Compute the gradient
-        loss.backward()
+        loss.total.backward()
 
         optimizer_scheduler_manager.step(net.train_phase, epoch - 1 + (i / iters))
 
         with torch.no_grad():
-            total_loss += loss.item()
-
-            nni.report_intermediate_result(loss.item())
+            loss_epoch.total += loss.total
+            loss_epoch.alignment += loss.alignment
+            loss_epoch.jsd += loss.jsd
+            loss_epoch.tanh += loss.tanh
+            loss_epoch.classification += loss.classification
 
             if net.train_phase is not TrainPhase.PRETRAIN:
                 cm = compute_cm(out, ys)
@@ -108,9 +127,18 @@ def train(
                         torch.clamp(net.layers.classification_layer.bias.data, min=0.0)
                     )
 
-    train_info["loss"] = total_loss / float(i + 1)
-    train_info["train_accuracy"] = total_acc / float(i + 1)
-    train_info["train_miou"] = (total_intersections_by_class / total_unions_by_class).mean().item()
-    train_info["train_iou_by_class"] = (total_intersections_by_class / total_unions_by_class).detach().cpu().numpy()
+    # Average the losses over the epoch
+    loss_epoch.total /= float(i + 1)
+    loss_epoch.alignment /= float(i + 1)
+    loss_epoch.jsd /= float(i + 1)
+    loss_epoch.tanh /= float(i + 1)
+    loss_epoch.classification /= float(i + 1)
+
+    train_info: TrainInfo = TrainInfo(
+        loss=loss_epoch,
+        accuracy=total_acc / float(i + 1),
+        miou=(total_intersections_by_class / total_unions_by_class).mean().item(),
+        iou_by_class=(total_intersections_by_class / total_unions_by_class).detach().cpu().numpy(),
+    )
 
     return train_info
