@@ -29,22 +29,19 @@ def compute_cm(out: torch.Tensor, ys: torch.Tensor) -> torch.Tensor:
     assert len(out.shape) == 4 and len(ys.shape) == 4
     assert out.shape[0] == ys.shape[0] and out.shape[2:] == ys.shape[2:]
 
-    max_out_score, ys_pred = torch.max(out, dim=1)
-
+    ys_pred = torch.argmax(out, dim=1)
     ys_true = ys.squeeze(1)
 
     mask_labeled = ys_true != 0
-
     y_true_flat = ys_true[mask_labeled]
     y_pred_flat = ys_pred[mask_labeled]
 
     n_classes = out.shape[1]
 
-    cm = (
-        torch.bincount(y_true_flat * n_classes + y_pred_flat, minlength=n_classes**2)
-        .view(n_classes, n_classes)
-        .to(ys.device)
-    )
+    cm = torch.bincount(
+        y_true_flat * n_classes + y_pred_flat, 
+        minlength=n_classes**2
+    ).view(n_classes, n_classes)
 
     return cm[1:, 1:]  # Exclude the background class (0)
 
