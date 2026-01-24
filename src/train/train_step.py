@@ -139,15 +139,14 @@ def train(
                     )
 
     # Average the losses over the epoch
-    loss_epoch.total /= float(i + 1)
-    loss_epoch.alignment /= float(i + 1)
-    loss_epoch.jsd /= float(i + 1)
-    loss_epoch.tanh /= float(i + 1)
-    loss_epoch.classification /= float(i + 1)
-
+    loss_epoch.total /= float(iters)
+    loss_epoch.alignment /= float(iters)
+    loss_epoch.jsd /= float(iters)
+    loss_epoch.tanh /= float(iters)
+    loss_epoch.classification /= float(iters)
     train_info: TrainInfo = TrainInfo(
         loss=loss_epoch,
-        accuracy=total_acc / float(i + 1),
+        accuracy=total_acc / float(iters),
         miou=(total_intersections_by_class / total_unions_by_class).mean().item(),
         iou_by_class=(total_intersections_by_class / total_unions_by_class).detach().cpu().numpy(),
     )
