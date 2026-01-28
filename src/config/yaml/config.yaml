@@ -12,7 +12,7 @@ defaults:
 # Hydra configuration to use custom output directory
 hydra:
   run:
-    dir: ${oc.env:LOG_ROOT}/${now:%Y-%m-%d-%H-%M-%S}
+    dir: ${oc.env:NNI_OUTPUT_DIR,${oc.env:LOG_ROOT}/${now:%Y-%m-%d-%H-%M-%S}}
 
 # Environment Settings
 env:
