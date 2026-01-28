@@ -143,7 +143,7 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
         log.tb_scalar("Acc/eval-epochs", eval_info.accuracy, epoch)
         log.tb_scalar("mIoU/eval-epochs", eval_info.miou, epoch)
 
-        nni.report_final_result(eval_info.miou)
+        nni.report_intermediate_result(eval_info.miou)
 
         with torch.no_grad():
             net.eval()
@@ -159,13 +159,5 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
                 log.info(f"Best mIoU so far: {best_miou}")
                 log.model_checkpoint(get_checkpoint(), "net_trained_best_miou")
 
-    log.debug(f"Classifier bias:\n{net.layers.classification_layer.bias}")
-    # Print weights and relevant prototypes per class
-    for c in range(net.layers.classification_layer.weight.shape[0]):
-        relevant_ps = []
-        proto_weights = net.layers.classification_layer.weight[c, :]
-        for p in range(net.layers.classification_layer.weight.shape[1]):
-            if proto_weights[p] > 1e-3:
-                relevant_ps.append((p, proto_weights[p].item()))
-
+    nni.report_final_result(best_miou)
     log.info("Done!")
