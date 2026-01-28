@@ -5,10 +5,10 @@ skip_training: false
 
 # Training epochs
 epochs: 
-  pretrain: 100
-  total: 1000
+  pretrain: 5
+  total: 200
   finetune: 10
-  freeze: 100
+  freeze: 20
   start: 1
 
 # Optimizer
