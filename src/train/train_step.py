@@ -12,6 +12,8 @@ from train.eval import acc_from_cm, compute_cm, intersection_and_union_from_cm
 from train.loss import Loss, calculate_loss
 from utils.log import Log
 
+CONFUSION_MATRIX_COMPUTE_INTERVAL = 10
+
 
 @dataclass
 class TrainInfo:
@@ -112,7 +114,7 @@ def train(
                 accumulated_out.append(out.detach())
                 accumulated_ys.append(ys.detach())
 
-                if (i + 1) % 10 == 0 or (i + 1) == iters:
+                if (i + 1) % CONFUSION_MATRIX_COMPUTE_INTERVAL == 0 or (i + 1) == iters:
                     batched_out = torch.cat(accumulated_out, dim=0)
                     batched_ys = torch.cat(accumulated_ys, dim=0)
 
@@ -146,7 +148,7 @@ def train(
 
     return TrainInfo(
         loss=loss_epoch,
-        accuracy=total_acc / float(iters),
+        accuracy=total_acc / np.ceil(iters / CONFUSION_MATRIX_COMPUTE_INTERVAL),
         miou=(total_intersections_by_class / total_unions_by_class).mean().item(),
         iou_by_class=(total_intersections_by_class / total_unions_by_class).detach().cpu().numpy(),
     )
