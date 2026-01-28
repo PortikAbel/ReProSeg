@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -20,6 +21,7 @@ class EvalInfo:
     accuracy: float
     miou: float
 
+
 @torch.no_grad()
 def eval(
     cfg: ReProSegConfig,
@@ -31,7 +33,6 @@ def eval(
 ) -> EvalInfo:
     net = net.to(cfg.env.device)
     net.eval()
-    eval_info: dict[str, float | np.ndarray] = {}
 
     n_classes: int = cfg.data.num_classes - 1
     cm = torch.zeros((n_classes, n_classes), dtype=torch.int32).to(cfg.env.device)
@@ -68,7 +69,7 @@ def eval(
     abstained /= len(test_iter)
     log.info(f"model abstained from a decision for {abstained * 100}% of images")
 
-    num_nonzero_prototypes = torch.count_nonzero(F.relu(net.layers.classification_layer.weight - 1e-3)).item()
+    num_nonzero_prototypes = int(torch.count_nonzero(F.relu(net.layers.classification_layer.weight - 1e-3)).item())
     num_prototypes = torch.numel(net.layers.classification_layer.weight)
     log.info(f"sparsity ratio: {(num_prototypes - num_nonzero_prototypes) / num_prototypes}")
 

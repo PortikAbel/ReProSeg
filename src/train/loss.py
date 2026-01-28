@@ -14,7 +14,7 @@ class Loss:
     jsd: torch.Tensor
     tanh: torch.Tensor
     classification: torch.Tensor
-    
+
     @classmethod
     def on_device(cls, device: torch.device) -> "Loss":
         """Create a Loss instance with zero tensors on the specified device."""
@@ -25,6 +25,7 @@ class Loss:
             tanh=torch.tensor(0.0, device=device),
             classification=torch.tensor(0.0, device=device),
         )
+
 
 def calculate_loss(
     aspp_features: torch.Tensor,

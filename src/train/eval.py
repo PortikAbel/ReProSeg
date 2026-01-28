@@ -38,10 +38,7 @@ def compute_cm(out: torch.Tensor, ys: torch.Tensor) -> torch.Tensor:
 
     n_classes = out.shape[1]
 
-    cm = torch.bincount(
-        y_true_flat * n_classes + y_pred_flat, 
-        minlength=n_classes**2
-    ).view(n_classes, n_classes)
+    cm = torch.bincount(y_true_flat * n_classes + y_pred_flat, minlength=n_classes**2).view(n_classes, n_classes)
 
     return cm[1:, 1:]  # Exclude the background class (0)
 

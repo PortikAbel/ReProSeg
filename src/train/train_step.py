@@ -1,7 +1,5 @@
 from dataclasses import dataclass
-import time
 
-import nni  # type: ignore[import-untyped]
 import numpy as np
 import torch
 import torch.nn as nn
@@ -11,7 +9,7 @@ from config import ReProSegConfig
 from model.model import ReProSeg, TrainPhase
 from model.optimizers import OptimizerSchedulerManager
 from train.eval import acc_from_cm, compute_cm, intersection_and_union_from_cm
-from train.loss import calculate_loss, Loss
+from train.loss import Loss, calculate_loss
 from utils.log import Log
 
 
@@ -21,6 +19,7 @@ class TrainInfo:
     accuracy: float
     miou: float
     iou_by_class: np.ndarray
+
 
 def train(
     cfg: ReProSegConfig,
@@ -38,8 +37,6 @@ def train(
     if net.train_phase == TrainPhase.PRETRAIN:
         progress_prefix = "Pretrain Epoch"
 
-    # Store info about the procedure
-    train_info: dict[str, float | np.ndarray] = {}
     loss_epoch: Loss = Loss.on_device(cfg.env.device)
     total_acc = 0.0
     total_intersections_by_class = torch.zeros(cfg.data.num_classes - 1).to(cfg.env.device)
@@ -87,7 +84,7 @@ def train(
             net.train_phase,
             criterion,
         )
-        
+
         train_iter.set_postfix_str(
             (
                 f"LA:{loss.alignment:.2f}, "
@@ -114,17 +111,17 @@ def train(
             if net.train_phase is not TrainPhase.PRETRAIN:
                 accumulated_out.append(out.detach())
                 accumulated_ys.append(ys.detach())
-                
+
                 if (i + 1) % 10 == 0 or (i + 1) == iters:
                     batched_out = torch.cat(accumulated_out, dim=0)
                     batched_ys = torch.cat(accumulated_ys, dim=0)
-                    
+
                     cm = compute_cm(batched_out, batched_ys)
                     total_acc += acc_from_cm(cm)
                     intersections, unions = intersection_and_union_from_cm(cm)
                     total_intersections_by_class += intersections
                     total_unions_by_class += unions
-                    
+
                     accumulated_out.clear()
                     accumulated_ys.clear()
 
@@ -146,11 +143,10 @@ def train(
     loss_epoch.jsd /= float(iters)
     loss_epoch.tanh /= float(iters)
     loss_epoch.classification /= float(iters)
-    train_info: TrainInfo = TrainInfo(
+    
+    return TrainInfo(
         loss=loss_epoch,
         accuracy=total_acc / float(iters),
         miou=(total_intersections_by_class / total_unions_by_class).mean().item(),
         iou_by_class=(total_intersections_by_class / total_unions_by_class).detach().cpu().numpy(),
     )
-
-    return train_info

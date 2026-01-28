@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 from torchvision.datasets import Cityscapes
 from torchvision.transforms.v2 import Compose, Lambda, ToImage
 
@@ -16,9 +15,7 @@ class ClassFilter:
     @staticmethod
     def get_cityscapes_transform(classes: list[Cityscapes.CityscapesClass]) -> Compose:
         filtered_classes = ClassFilter.filter_cityscapes_classes(classes)
-        map_classes = np.array(
-            [0 if c.ignore_in_eval else filtered_classes.index(c) for c in classes], dtype=np.int64
-        )
+        map_classes = np.array([0 if c.ignore_in_eval else filtered_classes.index(c) for c in classes], dtype=np.int64)
 
         filter_transform = Compose(
             [
