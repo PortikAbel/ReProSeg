@@ -143,7 +143,7 @@ def train(
     loss_epoch.jsd /= float(iters)
     loss_epoch.tanh /= float(iters)
     loss_epoch.classification /= float(iters)
-    
+
     return TrainInfo(
         loss=loss_epoch,
         accuracy=total_acc / float(iters),
