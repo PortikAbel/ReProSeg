@@ -4,9 +4,8 @@ trialCodeDirectory: ~/src/ReProSeg
 
 experimentName: learning_rates_tuning
 trialConcurrency: 3
-maxTrialNumber: 20
 tuner:
-  name: TPE
+  name: gridsearch
   classArgs:
     optimize_mode: maximize
 assessor:
