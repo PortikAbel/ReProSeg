@@ -11,9 +11,18 @@ echo "Exported variables: ${EXPORT_VARS}"
 
 jobid="$(sbatch --parsable --export="${EXPORT_VARS}" --output="${NNI_OUTPUT_DIR}/slurm-%j.log" src/scripts/start_slurm_job.sh)"
 
+cleanup() {
+  if [[ -n "${jobid}" ]]; then
+    echo "Cancelling Slurm JobID: ${jobid}"
+    scancel "${jobid}" >/dev/null 2>&1 || true
+  fi
+}
+
+trap cleanup EXIT INT TERM
+
 echo "Submitted Slurm JobID: ${jobid}"
 
 # Wait until the Slurm job finishes
 while [[ -n "$(squeue -j "${jobid}" -h -o '%i' 2>/dev/null)" ]]; do
-  sleep 10
+  sleep 1
 done
