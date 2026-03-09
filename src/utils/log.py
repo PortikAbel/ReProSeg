@@ -111,10 +111,8 @@ class Log(BasicLog):
         super().__init__(log_dir, name, disable_console)
 
         # Ensure the directories exist
-        self.metadata_dir.mkdir(parents=True, exist_ok=True)
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         self.tensorboard_dir.mkdir(parents=True, exist_ok=True)
-        self.prototypes_dir.mkdir(parents=True, exist_ok=True)
 
         self._tqdm_file = (self._log_dir / "tqdm.txt").open(mode="w")
         self._tensorboard_writer = SummaryWriter(log_dir=self.tensorboard_dir)
@@ -126,10 +124,6 @@ class Log(BasicLog):
     @property
     def checkpoint_dir(self):
         return self._log_dir / "checkpoints"
-
-    @property
-    def metadata_dir(self):
-        return self._log_dir / "metadata"
 
     @property
     def tensorboard_dir(self):

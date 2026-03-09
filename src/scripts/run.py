@@ -20,7 +20,8 @@ def main(cfg_dict: DictConfig):
     if nni_trial_id:
         if nni_params := nni.get_next_parameter():
             OmegaConf.set_struct(cfg_dict, False)
-            cfg_dict = OmegaConf.merge(cfg_dict, nni_params)  # type: ignore[assignment]
+            nni_overrides = OmegaConf.from_dotlist([f"{k}={v}" for k, v in nni_params.items()])
+            cfg_dict = OmegaConf.merge(cfg_dict, nni_overrides)  # type: ignore[assignment]
             OmegaConf.set_struct(cfg_dict, True)
     cfg_object: Dict[str, Any] = OmegaConf.to_container(cfg_dict, resolve=True)  # type: ignore[assignment]
     cfg = ReProSegConfig(**cfg_object)

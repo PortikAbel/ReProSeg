@@ -23,13 +23,15 @@ class Dataset(TorchDataset):
         self.dataset_type = cfg.dataset
         self.transform_set = TransformSet(cfg)
         self.dataset = dataset if dataset is not None else DatasetFactory.create(cfg, split=DataSplit.TRAIN)
-        self.transforms = Compose([
-            StandardTransform(
-                self.transform,
-                self.target_transform,
-            ),
-            self.transform_set.random_crop,
-        ])
+        self.transforms = Compose(
+            [
+                StandardTransform(
+                    self.transform,
+                    self.target_transform,
+                ),
+                self.transform_set.random_crop,
+            ]
+        )
 
     def __getitem__(self, index: int):
         image, target = self.dataset.__getitem__(index)

@@ -180,11 +180,6 @@ class ReProSeg(nn.Module):
             self._log.warning("Layer groups not implemented for selected backbone architecture.")
 
         self.param_groups["to_train"].append(self.layers.shared_weights)
-        for name, param in self.layers.aspp_convs.named_parameters():
-            if "weight" in name:
-                self.param_groups["to_train"].append(param)
-            elif "bias" in name and self._cfg.model.bias:
-                self.param_groups["to_train"].append(param)
         self.param_groups["classification_weight"] = []
         self.param_groups["classification_bias"] = []
         for name, param in self.layers.classification_layer.named_parameters():

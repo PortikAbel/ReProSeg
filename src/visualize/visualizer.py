@@ -159,6 +159,7 @@ class ModelVisualizer:
     @torch.no_grad()
     def visualize_prototypes(self, train_loader_visualization):
         self.log.info(f"Visualizing top {self.k} prototypes for each class...")
+        self.log.prototypes_dir.mkdir(parents=True, exist_ok=True)
         self.net.eval()
         self.collect_topk_prototype_activations(train_loader_visualization)
         self.map_images_to_prototypes()

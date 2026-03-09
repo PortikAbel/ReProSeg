@@ -7,7 +7,5 @@
 
 echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-none}"
 
-# Use SLURM_SUBMIT_DIR which is set to where sbatch was called from
 cd "${SLURM_SUBMIT_DIR}"
-echo "Working directory: $(pwd)"
 uv run python src/scripts/run.py

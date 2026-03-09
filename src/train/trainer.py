@@ -114,10 +114,6 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
                 net.layers.classification_layer.weight.copy_(
                     torch.clamp(net.layers.classification_layer.weight.data - 0.001, min=0.0)
                 )
-                cls_w = net.layers.classification_layer.weight[
-                    net.layers.classification_layer.weight.nonzero(as_tuple=True)
-                ]
-                log.debug(f"Classifier weights:\n{cls_w}\n{cls_w.shape}")
                 if cfg.model.bias:
                     cls_b = net.layers.classification_layer.bias
                     log.debug(f"Classifier bias: {cls_b}")
@@ -134,40 +130,34 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
         )
         # Evaluate model
         eval_info = eval(cfg, log, net, valid_loader, epoch)
-        log.tb_scalar("Acc/eval-epochs", eval_info["test_accuracy"], epoch)
-        log.tb_scalar("Acc/train-epochs", train_info["train_accuracy"], epoch)
-        log.tb_scalar("mIoU/train-epochs", train_info["train_miou"], epoch)
-        log.tb_scalar("mIoU/eval-epochs", eval_info["test_miou"], epoch)
-        log.tb_scalar("loss-train/epochs", train_info["loss"], epoch)
 
-        nni.report_final_result(train_info["train_accuracy"])
+        # Log to TensorBoard
+        log.tb_scalar("Acc/train-epochs", train_info.accuracy, epoch)
+        log.tb_scalar("mIoU/train-epochs", train_info.miou, epoch)
+        log.tb_scalar("loss-train/L", train_info.loss.total.item(), epoch)
+        log.tb_scalar("loss-train/LA", train_info.loss.alignment.item(), epoch)
+        log.tb_scalar("loss-train/L_JSD", train_info.loss.jsd.item(), epoch)
+        log.tb_scalar("loss-train/LT", train_info.loss.tanh.item(), epoch)
+        log.tb_scalar("loss-train/LC", train_info.loss.classification.item(), epoch)
+
+        log.tb_scalar("Acc/eval-epochs", eval_info.accuracy, epoch)
+        log.tb_scalar("mIoU/eval-epochs", eval_info.miou, epoch)
+
+        nni.report_intermediate_result(eval_info.miou)
 
         with torch.no_grad():
             net.eval()
             log.model_checkpoint(get_checkpoint(), "net_trained_last")
 
-            if train_info["train_accuracy"] > best_acc:
-                best_acc = train_info["train_accuracy"]
+            if eval_info.accuracy > best_acc:
+                best_acc = eval_info.accuracy
                 log.info(f"Best accuracy so far: {best_acc}")
                 log.model_checkpoint(get_checkpoint(), "net_trained_best_acc")
 
-            if train_info["train_miou"] > best_miou:
-                best_miou = train_info["train_miou"]
+            if eval_info.miou > best_miou:
+                best_miou = eval_info.miou
                 log.info(f"Best mIoU so far: {best_miou}")
                 log.model_checkpoint(get_checkpoint(), "net_trained_best_miou")
 
-    nonzero_weights = net.layers.classification_layer.weight[
-        net.layers.classification_layer.weight.nonzero(as_tuple=True)
-    ]
-    log.debug(f"Classifier weights:\n{net.layers.classification_layer.weight}")
-    log.debug(f"Classifier weights nonzero:\n{nonzero_weights}\n{nonzero_weights.shape}")
-    log.debug(f"Classifier bias:\n{net.layers.classification_layer.bias}")
-    # Print weights and relevant prototypes per class
-    for c in range(net.layers.classification_layer.weight.shape[0]):
-        relevant_ps = []
-        proto_weights = net.layers.classification_layer.weight[c, :]
-        for p in range(net.layers.classification_layer.weight.shape[1]):
-            if proto_weights[p] > 1e-3:
-                relevant_ps.append((p, proto_weights[p].item()))
-
+    nni.report_final_result(best_miou)
     log.info("Done!")
