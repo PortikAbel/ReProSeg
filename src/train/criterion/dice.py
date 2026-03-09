@@ -7,7 +7,8 @@ class DiceLoss(nn.Module):
         super(DiceLoss, self).__init__()
         self.smooth = smooth
         self.mask = arange(class_weights.size(0)) != ignore_index
-        self.class_weights = class_weights[self.mask]
+        masked_weights = class_weights[self.mask]
+        self.class_weights = masked_weights / masked_weights.sum()
 
     def forward(self, inputs: Tensor, targets: Tensor) -> Tensor:
         inputs = nn.functional.softmax(inputs, dim=1)
@@ -20,5 +21,5 @@ class DiceLoss(nn.Module):
             inputs.sum(dim=dims) + targets.sum(dim=dims) + self.smooth
         )
         dice_by_class = dice_by_class[self.mask]
-        dice_by_class = dice_by_class * self.class_weights
-        return 1 - dice_by_class.mean()
+        weighted_dice_sum = (dice_by_class * self.class_weights).sum()
+        return 1 - weighted_dice_sum
