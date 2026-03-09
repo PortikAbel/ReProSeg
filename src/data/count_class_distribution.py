@@ -21,7 +21,7 @@ def get_class_weights(
         log.info(f"Loaded class counts from {cache_path}")
     else:
         class_counts = count_class_distribution(dl, num_classes, cache_path)
-        log.info(f"Calculated class counts.")
+        log.info("Calculated class counts.")
     class_weights = 1 / class_counts
     class_weights = torch.tensor(class_weights, dtype=torch.float32)
     return class_weights
