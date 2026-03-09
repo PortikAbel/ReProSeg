@@ -73,12 +73,11 @@ def jensen_shannon_divergence(x: torch.Tensor) -> torch.Tensor:
     assert x.dim() == 4
     x = x.flatten(start_dim=2)  # Flatten to (batch_size, num_prototypes, height*width)
 
-    w = F.softmax(x.sum(dim=-1, keepdim=True), dim=1)
-    m = x.mul(w).sum(dim=1, keepdim=True).expand_as(x)
+    m = x.sum(dim=1, keepdim=True).expand_as(x)
     m = F.log_softmax(m, dim=-1)
 
     x = F.log_softmax(x, dim=-1)
-    jsd = F.kl_div(x, m, reduction="none", log_target=True).sum(dim=-1).mul(w.squeeze()).sum(dim=-1)
+    jsd = F.kl_div(x, m, reduction="none", log_target=True).sum(dim=-1).sum(dim=-1)
 
     return torch.exp(-jsd).mean()
 
