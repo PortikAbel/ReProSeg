@@ -17,6 +17,4 @@ loss_weights:
   alignment: 0.1
   jsd: 0.01
   tanh: 0.1
-  unif: 0.0
-  variance: 0.0
   classification: 10.0

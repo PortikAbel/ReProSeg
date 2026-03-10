@@ -32,8 +32,6 @@ class LossWeights(BaseConfig):
     alignment: float = Field(default=1.0, description="Ensures prototypes of similar images are aligned")
     jsd: float = Field(default=0.0, description="Jensen-Shannon Divergence: enforces prototype diversity")
     tanh: float = Field(default=0.0, description="Ensures each prototype is activated at least once per batch")
-    uniformity: float = Field(default=0.0, description="Optional uniformity loss")
-    variance: float = Field(default=0.0, description="Prototype feature variance regularizer")
     classification: float = Field(default=1.0, description="Standard classification loss weight")
 
 
