@@ -43,6 +43,10 @@ class ModelConfig(BaseConfig):
         default=BackboneArchitecture.DEEPLAB_V3, description="Backbone network"
     )
     checkpoint: Optional[Path] = Field(default=None, description="Path to ReProSeg checkpoint to resume from")
+    backbone_checkpoint: Optional[Path] = Field(
+        default=None,
+        description="Optional checkpoint used to initialize backbone weights",
+    )
 
     # Architecture parameters
     num_prototypes: int = Field(default=0, ge=0, description="Number of prototypes. 0 = use backbone output channels")
