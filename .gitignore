@@ -167,4 +167,4 @@ pretrained/
 
 class_counts.npy
 
-config/
+/config/
