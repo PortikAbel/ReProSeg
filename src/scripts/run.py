@@ -29,8 +29,8 @@ def main(cfg_dict: DictConfig):
     # Setup logger
     log = Log(cfg.logging.path, __name__)
 
-    log.info(f"Config: {cfg}")
-    log.info(f"Device used: {cfg.env.device}")
+    log.debug(f"Config: {OmegaConf.to_yaml(cfg_dict)}")
+    log.debug(f"Device used: {cfg.env.device}")
     if nni_trial_id:
         log.info(f"NNI trial ID: {nni_trial_id}")
 
