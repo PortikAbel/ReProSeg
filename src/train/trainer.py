@@ -34,12 +34,14 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
     ).to(cfg.env.device)
     criterion: nn.Module
     match cfg.model.criterion:
+        case LossCriterion.NLL:
+            criterion = nn.NLLLoss()
+        case LossCriterion.WEIGHTED_NLL:
+            criterion = WeightedNLLLoss(class_weights)
         case LossCriterion.DICE:
             criterion = DiceLoss(torch.ones(cfg.data.num_classes, device=cfg.env.device))
         case LossCriterion.WEIGHTED_DICE:
             criterion = DiceLoss(class_weights)
-        case LossCriterion.WEIGHTED_NLL:
-            criterion = WeightedNLLLoss(class_weights)
         case _:
             raise NotImplementedError(f"criterion {cfg.model.criterion} not implemented")
 
