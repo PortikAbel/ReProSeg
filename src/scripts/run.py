@@ -14,7 +14,7 @@ from utils.log import Log
 load_dotenv()
 
 
-@hydra.main(version_base=None, config_path="../config/yaml", config_name="config")
+@hydra.main(version_base=None, config_path="../../config/hydra", config_name="config")
 def main(cfg_dict: DictConfig):
     nni_trial_id = os.environ.get("NNI_TRIAL_JOB_ID")
     if nni_trial_id:

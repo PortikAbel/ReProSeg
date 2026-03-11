@@ -166,3 +166,5 @@ runs/
 pretrained/
 
 class_counts.npy
+
+config/
