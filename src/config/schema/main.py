@@ -22,7 +22,3 @@ class ReProSegConfig(BaseConfig):
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     visualization: VisualizationConfig = Field(default_factory=VisualizationConfig)
     evaluation: EvaluationConfig = Field(default_factory=EvaluationConfig)
-
-    def _post_init_setup(self):
-        if self.model.checkpoint:
-            self.logging.path = self.model.checkpoint.parent.parent
