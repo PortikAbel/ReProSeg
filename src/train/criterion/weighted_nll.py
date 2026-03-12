@@ -18,5 +18,4 @@ class WeightedNLLLoss(nn.Module):
         ).to(self.device)
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        input = nn.functional.log_softmax(input, dim=1)
         return self.nll_loss(input, target)
