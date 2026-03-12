@@ -35,7 +35,7 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
     criterion: nn.Module
     match cfg.model.criterion:
         case LossCriterion.NLL:
-            criterion = nn.NLLLoss()
+            criterion = WeightedNLLLoss()
         case LossCriterion.WEIGHTED_NLL:
             criterion = WeightedNLLLoss(class_weights)
         case LossCriterion.DICE:

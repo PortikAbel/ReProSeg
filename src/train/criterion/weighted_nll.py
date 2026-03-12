@@ -7,7 +7,7 @@ class WeightedNLLLoss(nn.Module):
     NLLLoss with class weights inferred from dataset.
     """
 
-    def __init__(self, class_weights: torch.Tensor, ignore_index=0, reduction="mean"):
+    def __init__(self, class_weights: torch.Tensor | None = None, ignore_index=0, reduction="mean"):
         super().__init__()
         self.device = class_weights.device
         self.class_weights = class_weights
