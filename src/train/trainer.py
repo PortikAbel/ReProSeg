@@ -35,9 +35,9 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
     criterion: nn.Module
     match cfg.model.criterion:
         case LossCriterion.NLL:
-            criterion = WeightedNLLLoss()
+            criterion = WeightedNLLLoss(device=cfg.env.device)
         case LossCriterion.WEIGHTED_NLL:
-            criterion = WeightedNLLLoss(class_weights)
+            criterion = WeightedNLLLoss(device=cfg.env.device, class_weights=class_weights)
         case LossCriterion.DICE:
             criterion = DiceLoss(torch.ones(cfg.data.num_classes, device=cfg.env.device))
         case LossCriterion.WEIGHTED_DICE:
