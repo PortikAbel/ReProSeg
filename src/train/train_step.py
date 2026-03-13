@@ -169,18 +169,6 @@ def train(
                     accumulated_out.clear()
                     accumulated_ys.clear()
 
-                net.layers.classification_layer.weight.copy_(
-                    torch.where(
-                        net.layers.classification_layer.weight < 1e-3,
-                        0.0,
-                        net.layers.classification_layer.weight,
-                    )
-                )  # set weights in classification layer < 1e-3 to zero
-                if net.layers.classification_layer.bias is not None:
-                    net.layers.classification_layer.bias.copy_(
-                        torch.clamp(net.layers.classification_layer.bias.data, min=0.0)
-                    )
-
     # Average the losses over the epoch
     loss_epoch.total /= float(iters)
     loss_epoch.alignment /= float(iters)

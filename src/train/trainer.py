@@ -109,17 +109,6 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
             f"Epoch {epoch} first layers of backbone frozen: "
             f"{net.train_phase in [TrainPhase.FINETUNE, TrainPhase.FREEZE_FIRST_LAYERS]}"
         )
-        if (epoch == cfg.training.epochs.total or epoch % 30 == 0) and cfg.training.epochs.total > 1:
-            # SET SMALL WEIGHTS TO ZERO
-            with torch.no_grad():
-                torch.set_printoptions(profile="full")
-                net.layers.classification_layer.weight.copy_(
-                    torch.clamp(net.layers.classification_layer.weight.data - 0.001, min=0.0)
-                )
-                if cfg.model.bias:
-                    cls_b = net.layers.classification_layer.bias
-                    log.debug(f"Classifier bias: {cls_b}")
-                torch.set_printoptions(profile="default")
 
         train_info = train(
             cfg,
