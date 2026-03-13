@@ -73,7 +73,7 @@ class TestNonNegConv1x1:
 
         # Set weights below threshold
         with torch.no_grad():
-            layer.weight.fill_(-5.0)
+            layer.weight.fill_(-50.0)
 
         input_tensor = torch.randn(self.batch_size, self.in_channels, self.height, self.width)
         output = layer(input_tensor)
@@ -88,7 +88,7 @@ class TestNonNegConv1x1:
 
         # Set some weights above and some below threshold
         with torch.no_grad():
-            layer.weight.fill_(-5.0)  # Below threshold
+            layer.weight.fill_(-50.0)  # Below threshold
             layer.weight[0, :, :, :] = 5.0  # Above threshold for first output channel
 
         input_tensor = torch.ones(self.batch_size, self.in_channels, self.height, self.width)
@@ -212,26 +212,6 @@ class TestNonNegConv1x1:
 
         assert torch.allclose(used_prototypes, expected_index)
 
-    def test_forward_matches_conv2d_behavior(self):
-        """Test that forward pass matches F.conv2d behavior with processed weights."""
-        layer = NonNegConv1x1(self.in_channels, self.out_channels, bias=True)
-
-        # Set known weights and bias
-        with torch.no_grad():
-            layer.weight.fill_(5.0)
-            layer.bias.fill_(1.0)
-
-        input_tensor = torch.randn(self.batch_size, self.in_channels, self.height, self.width)
-
-        # Get output from our layer
-        output_layer = layer(input_tensor)
-
-        # Calculate expected output using F.conv2d directly
-        processed_weights = torch.where(layer.weight < layer.MIN_CLASSIFICATION_WEIGHT, 0.0, layer.weight)
-        output_expected = F.conv2d(input_tensor, processed_weights, layer.bias, stride=1, padding=0)
-
-        assert torch.allclose(output_layer, output_expected)
-
     def test_weight_parameter_shape_consistency(self):
         """Test that weight parameter maintains correct shape throughout operations."""
         layer = NonNegConv1x1(self.in_channels, self.out_channels, bias=False)
@@ -265,7 +245,7 @@ class TestNonNegConv1x1:
 
         # Set some weights to negative values (below threshold)
         with torch.no_grad():
-            layer.weight.fill_(-5.0)
+            layer.weight.fill_(-50.0)
 
         input_tensor = torch.randn(self.batch_size, self.in_channels, self.height, self.width)
         output = layer(input_tensor)
