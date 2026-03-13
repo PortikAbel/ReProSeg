@@ -3,7 +3,6 @@
 import pytest
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from model.model import NonNegConv1x1
 

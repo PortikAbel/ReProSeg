@@ -1,5 +1,5 @@
-from pathlib import Path
 import importlib
+from pathlib import Path
 
 import torch
 import torch.nn as nn
@@ -75,7 +75,7 @@ def test_deeplab_v3_features_loads_external_checkpoint(monkeypatch):
     assert backbone is loaded_model.backbone
     expected_aspp_convs = loaded_model.classifier[0].convs[1:-1]
     assert len(aspp_convs) == len(expected_aspp_convs)
-    assert all(returned is expected for returned, expected in zip(aspp_convs, expected_aspp_convs))
+    assert all(returned is expected for returned, expected in zip(aspp_convs, expected_aspp_convs, strict=False))
     assert torch.allclose(backbone[0].weight, checkpoint_state_dict["model.backbone.0.weight"])
     assert torch.allclose(aspp_convs[0][0].weight, checkpoint_state_dict["model.classifier.0.convs.1.0.weight"])
     assert torch.allclose(aspp_convs[1][0].weight, checkpoint_state_dict["model.classifier.0.convs.2.0.weight"])

@@ -39,16 +39,16 @@ def compute_prototype_stats(pooled: torch.Tensor) -> PrototypeStats:
         # pooled shape: (N, P, H, W)
         flat = pooled.flatten(2)  # (N, P, HW)
         proto_mean = flat.mean(dim=(0, 2))  # mean per prototype across batch and spatial
-        
+
         # Active ratio at different thresholds
         per_pixel = pooled.permute(0, 2, 3, 1).reshape(-1, pooled.shape[1])  # (N*H*W, P)
         active_1e3 = (per_pixel > 1e-3).float().mean().item()
         active_1e2 = (per_pixel > 1e-2).float().mean().item()
-        
+
         # Dead prototypes: mean activation below threshold
         dead_threshold = 1e-4
         dead_count = (proto_mean < dead_threshold).sum().item()
-        
+
         return PrototypeStats(
             mean_activation=proto_mean.mean().item(),
             active_ratio_1e3=active_1e3,
@@ -78,7 +78,7 @@ def train(
     total_acc = 0.0
     total_intersections_by_class = torch.zeros(cfg.data.num_classes - 1).to(cfg.env.device)
     total_unions_by_class = torch.zeros(cfg.data.num_classes - 1).to(cfg.env.device)
-    
+
     # Prototype activation monitoring
     accumulated_pooled = []
 
@@ -147,7 +147,7 @@ def train(
             loss_epoch.jsd += loss.jsd
             loss_epoch.tanh += loss.tanh
             loss_epoch.classification += loss.classification
-            
+
             # Collect pooled activations for monitoring (sample periodically to avoid memory issues)
             if i % 10 == 0:
                 accumulated_pooled.append(pooled.detach().cpu())
@@ -175,7 +175,7 @@ def train(
     loss_epoch.jsd /= float(iters)
     loss_epoch.tanh /= float(iters)
     loss_epoch.classification /= float(iters)
-    
+
     # Compute prototype statistics from accumulated pooled activations
     proto_stats = None
     if accumulated_pooled:

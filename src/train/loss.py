@@ -89,7 +89,7 @@ def jensen_shannon_divergence(x: torch.Tensor) -> torch.Tensor:
 
 
 def log_tanh_loss(x: torch.Tensor, EPS=1e-10) -> torch.Tensor:
-    return -torch.log(torch.tanh(torch.sum(torch.amax(x, dim=(2,3)), dim=0)) + EPS).mean()
+    return -torch.log(torch.tanh(torch.sum(torch.amax(x, dim=(2, 3)), dim=0)) + EPS).mean()
 
 
 # from https://gitlab.com/mipl/carl/-/blob/main/losses.py

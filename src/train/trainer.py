@@ -130,7 +130,7 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
         log.tb_scalar("loss-train/L_JSD", train_info.loss.jsd.item(), epoch)
         log.tb_scalar("loss-train/LT", train_info.loss.tanh.item(), epoch)
         log.tb_scalar("loss-train/LC", train_info.loss.classification.item(), epoch)
-        
+
         # Log prototype activation statistics
         if train_info.prototype_stats is not None:
             stats = train_info.prototype_stats
