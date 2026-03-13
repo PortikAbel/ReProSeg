@@ -315,7 +315,7 @@ class NonNegConv1x1(nn.Module):
             self.register_parameter("bias", None)
 
     def forward(self, input_: torch.Tensor) -> torch.Tensor:
-        weight = torch.where(self.weight < self.MIN_CLASSIFICATION_WEIGHT, 0.0, self.weight)
+        weight = F.softplus(self.weight)
         return F.conv2d(input_, weight, self.bias, stride=1, padding=0)
 
     @property
