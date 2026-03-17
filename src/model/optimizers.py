@@ -9,7 +9,6 @@ class OptimizerSchedulerManager:
         self.scheduler_net = CosineAnnealingLR(
             self.optimizer_net,
             T_max=t_max_backbone,
-            eta_min=lr_backbone / 100,
         )
         # scheduler for the classification layer is with restarts,
         # such that the model can re-activated zeroed-out prototypes.
@@ -17,7 +16,6 @@ class OptimizerSchedulerManager:
         self.scheduler_classifier = CosineAnnealingWarmRestarts(
             self.optimizer_classifier,
             T_0=5,
-            eta_min=0.001,
         )
 
     def load_state_dict(self, state_dict):
