@@ -119,10 +119,7 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
             criterion,
             epoch,
         )
-        # Evaluate model
-        eval_info = eval(cfg, log, net, valid_loader, epoch)
 
-        # Log to TensorBoard
         log.tb_scalar("Acc/train-epochs", train_info.accuracy, epoch)
         log.tb_scalar("mIoU/train-epochs", train_info.miou, epoch)
         log.tb_scalar("loss-train/L", train_info.loss.total.item(), epoch)
@@ -131,15 +128,8 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
         log.tb_scalar("loss-train/LT", train_info.loss.tanh.item(), epoch)
         log.tb_scalar("loss-train/LC", train_info.loss.classification.item(), epoch)
 
-        # Log prototype activation statistics
-        if train_info.prototype_stats is not None:
-            stats = train_info.prototype_stats
-            log.tb_scalar("prototype/mean_activation", stats.mean_activation, epoch)
-            log.tb_scalar("prototype/active_ratio_1e-3", stats.active_ratio_1e3, epoch)
-            log.tb_scalar("prototype/active_ratio_1e-2", stats.active_ratio_1e2, epoch)
-            log.tb_scalar("prototype/dead_count", stats.dead_count, epoch)
-            log.tb_scalar("prototype/alive_ratio", 1.0 - (stats.dead_count / stats.total_prototypes), epoch)
-
+        eval_info = eval(cfg, log, net, valid_loader, epoch)
+        
         log.tb_scalar("Acc/eval-epochs", eval_info.accuracy, epoch)
         log.tb_scalar("mIoU/eval-epochs", eval_info.miou, epoch)
 

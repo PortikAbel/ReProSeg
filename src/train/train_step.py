@@ -16,46 +16,11 @@ CONFUSION_MATRIX_COMPUTE_INTERVAL = 10
 
 
 @dataclass
-class PrototypeStats:
-    mean_activation: float
-    active_ratio_1e3: float
-    active_ratio_1e2: float
-    dead_count: int
-    total_prototypes: int
-
-
-@dataclass
 class TrainInfo:
     loss: Loss
     accuracy: float
     miou: float
     iou_by_class: np.ndarray
-    prototype_stats: PrototypeStats | None = None
-
-
-def compute_prototype_stats(pooled: torch.Tensor) -> PrototypeStats:
-    """Compute statistics about prototype activation for monitoring."""
-    with torch.no_grad():
-        # pooled shape: (N, P, H, W)
-        flat = pooled.flatten(2)  # (N, P, HW)
-        proto_mean = flat.mean(dim=(0, 2))  # mean per prototype across batch and spatial
-
-        # Active ratio at different thresholds
-        per_pixel = pooled.permute(0, 2, 3, 1).reshape(-1, pooled.shape[1])  # (N*H*W, P)
-        active_1e3 = (per_pixel > 1e-3).float().mean().item()
-        active_1e2 = (per_pixel > 1e-2).float().mean().item()
-
-        # Dead prototypes: mean activation below threshold
-        dead_threshold = 1e-4
-        dead_count = (proto_mean < dead_threshold).sum().item()
-
-        return PrototypeStats(
-            mean_activation=proto_mean.mean().item(),
-            active_ratio_1e3=active_1e3,
-            active_ratio_1e2=active_1e2,
-            dead_count=dead_count,
-            total_prototypes=pooled.shape[1],
-        )
 
 
 def train(
@@ -176,22 +141,9 @@ def train(
     loss_epoch.tanh /= float(iters)
     loss_epoch.classification /= float(iters)
 
-    # Compute prototype statistics from accumulated pooled activations
-    proto_stats = None
-    if accumulated_pooled:
-        pooled_sample = torch.cat(accumulated_pooled[:10], dim=0).to(cfg.env.device)  # Use first 10 batches
-        proto_stats = compute_prototype_stats(pooled_sample)
-        log.debug(
-            f"Prototype stats: mean_act={proto_stats.mean_activation:.4f}, "
-            f"active@1e-3={proto_stats.active_ratio_1e3:.2%}, "
-            f"active@1e-2={proto_stats.active_ratio_1e2:.2%}, "
-            f"dead={proto_stats.dead_count}/{proto_stats.total_prototypes}"
-        )
-
     return TrainInfo(
         loss=loss_epoch,
         accuracy=total_acc / np.ceil(iters / CONFUSION_MATRIX_COMPUTE_INTERVAL),
         miou=(total_intersections_by_class / total_unions_by_class).mean().item(),
         iou_by_class=(total_intersections_by_class / total_unions_by_class).detach().cpu().numpy(),
-        prototype_stats=proto_stats,
     )
