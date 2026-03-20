@@ -62,26 +62,8 @@ class ReProSegLayers(nn.Module):
         # the sum of prototype activations should be 1 for each patch in each scale
         self.add_on_layers: nn.Module = nn.Softmax(dim=1)
 
-        if cfg.model.num_prototypes == 0:
-            self.num_prototypes = first_add_on_layer_in_channels
-            log.info(f"Number of prototypes: {self.num_prototypes}")
-        else:
-            self.num_prototypes = cfg.model.num_prototypes
-            log.info(
-                f"Number of prototypes set from {first_add_on_layer_in_channels} to {self.num_prototypes}. "
-                "Extra 1x1 conv layer added. Not recommended."
-            )
-            self.add_on_layers = nn.Sequential(
-                nn.Conv2d(
-                    in_channels=first_add_on_layer_in_channels,
-                    out_channels=self.num_prototypes,
-                    kernel_size=1,
-                    stride=1,
-                    padding=0,
-                    bias=False,
-                ),
-                self.add_on_layers,
-            )
+        self.num_prototypes = first_add_on_layer_in_channels
+        log.info(f"Number of prototypes: {self.num_prototypes}")
 
         self.max_pool = nn.AdaptiveMaxPool3d((1, None, None))
         self.classification_layer = NonNegConv1x1(self.num_prototypes, cfg.data.num_classes, bias=cfg.model.bias)

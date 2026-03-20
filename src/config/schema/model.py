@@ -50,7 +50,6 @@ class ModelConfig(BaseConfig):
     )
 
     # Architecture parameters
-    num_prototypes: int = Field(default=0, ge=0, description="Number of prototypes. 0 = use backbone output channels")
     bias: bool = Field(default=False, description="Include a bias in classification layer if true")
     disable_pretrained: bool = Field(
         default=False, description="Initialize backbone randomly instead of using pretrained weights"
