@@ -7,7 +7,7 @@ from config import ReProSegConfig
 from config.schema.model import LossCriterion
 from data import DataLoader, Dataset, DoubleAugmentDataset
 from data.count_class_distribution import get_class_weights
-from model.model import ReProSeg, TrainPhase
+from model.model import ReProSeg
 from model.optimizers import OptimizerSchedulerManager
 from train.criterion.dice import DiceLoss
 from train.criterion.weighted_nll import WeightedNLLLoss
@@ -22,9 +22,7 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
     train_loader = DataLoader(double_augment_set, cfg)
     valid_loader = DataLoader(valid_set, cfg)
 
-    optimizer_scheduler_manager = OptimizerSchedulerManager(
-        net, len(train_loader) * cfg.training.epochs.pretrain, cfg.training.learning_rates.backbone_end
-    )
+    optimizer_scheduler_manager = OptimizerSchedulerManager(net, len(train_loader) * cfg.training.epochs.pretrain)
     if cfg.model.checkpoint is not None:
         checkpoint = torch.load(cfg.model.checkpoint, map_location=cfg.env.device, weights_only=False)
         optimizer_scheduler_manager.load_state_dict(checkpoint)
@@ -85,7 +83,6 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
         optimizer_scheduler_manager = OptimizerSchedulerManager(
             net,
             len(train_loader) * cfg.training.epochs.total,
-            cfg.training.learning_rates.backbone_full,
         )
 
     best_acc = 0.0
@@ -95,20 +92,10 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
         if epoch <= cfg.training.epochs.finetune and (
             cfg.training.epochs.pretrain > 0 or cfg.model.checkpoint is not None
         ):
-            # during fine-tuning, only train classification layer and freeze rest.
-            # usually done for a few epochs (at least 1, more depends on size of dataset)
             net.finetune()
-        elif epoch <= cfg.training.epochs.freeze:
-            # freeze first layers of backbone, train rest
-            net.freeze()
         else:
             # unfreeze backbone
-            net.unfreeze()
-
-        log.info(
-            f"Epoch {epoch} first layers of backbone frozen: "
-            f"{net.train_phase in [TrainPhase.FINETUNE, TrainPhase.FREEZE_FIRST_LAYERS]}"
-        )
+            net.full_train()
 
         train_info = train(
             cfg,
@@ -129,7 +116,7 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
         log.tb_scalar("loss-train/LC", train_info.loss.classification.item(), epoch)
 
         eval_info = eval(cfg, log, net, valid_loader, epoch)
-        
+
         log.tb_scalar("Acc/eval-epochs", eval_info.accuracy, epoch)
         log.tb_scalar("mIoU/eval-epochs", eval_info.miou, epoch)
 

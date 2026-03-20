@@ -7,10 +7,7 @@ import torchvision.transforms as transforms
 
 from config.schema.main import ReProSegConfig
 from config.schema.training import OptimizerType
-from model.segmentation_features import (
-    base_architecture_to_features,
-    base_architecture_to_layer_groups,
-)
+from model.segmentation_features import base_architecture_to_features
 from utils.func import init_weights_xavier
 from utils.log import Log
 
@@ -30,12 +27,7 @@ class TrainPhase(Enum):
     Finetuning phase.
     """
 
-    FREEZE_FIRST_LAYERS = 2
-    """
-    Freeze first layers of the backbone.
-    """
-
-    FULL_TRAINING = 3
+    FULL_TRAINING = 2
     """
     Full training phase.
     """
@@ -49,7 +41,7 @@ class ReProSegLayers(nn.Module):
             pretrained=not cfg.model.disable_pretrained,
             checkpoint_path=cfg.model.backbone_checkpoint,
         )
-        self.feature_net = features
+        self.backbone = features
         self.aspp_convs = aspp_convs
 
         self.shared_weights = self.aspp_convs[0][0].weight
@@ -91,7 +83,7 @@ class ReProSeg(nn.Module):
         self._init_param_groups()
 
     def forward(self, xs, inference=False):
-        backbone_features = self.layers.feature_net(xs)["out"]
+        backbone_features = self.layers.backbone(xs)["out"]
         # (b x num_concepts x num_scales x h x w)
         aspp_features = torch.cat([conv(backbone_features) for conv in self.layers.aspp_convs], dim=0)
         aspp_features = self.layers.concept_activations(aspp_features)
@@ -139,75 +131,42 @@ class ReProSeg(nn.Module):
             torch.nn.init.constant_(self.layers.classification_layer.bias, val=0.0)
 
     def _init_param_groups(self):
-        self.param_groups = dict()
+        self.param_groups = dict[str, list[torch.nn.Parameter]]()
         self.param_groups["backbone"] = []
-        self.param_groups["to_train"] = []
-        self.param_groups["to_freeze"] = []
+        self.param_groups["classifier_head"] = []
 
-        if self._cfg.model.backbone_network in base_architecture_to_layer_groups.keys():
-            layer_groups = base_architecture_to_layer_groups[self._cfg.model.backbone_network]
-            for name, param in self.layers.feature_net.named_parameters():
-                if any(layer in name for layer in layer_groups["to_train"]):
-                    self.param_groups["to_train"].append(param)
-                elif any(layer in name for layer in layer_groups["to_freeze"]):
-                    self.param_groups["to_freeze"].append(param)
-                elif any(layer in name for layer in layer_groups["backbone"]):
-                    self.param_groups["backbone"].append(param)
-                else:
-                    param.requires_grad = False
-        else:
-            self._log.warning("Layer groups not implemented for selected backbone architecture.")
+        for _name, param in self.layers.backbone.named_parameters():
+            self.param_groups["backbone"].append(param)
 
-        self.param_groups["to_train"].append(self.layers.shared_weights)
-        self.param_groups["classification_weight"] = []
-        self.param_groups["classification_bias"] = []
+        self.param_groups["classifier_head"].append(self.layers.shared_weights)
+
         for name, param in self.layers.classification_layer.named_parameters():
             if "weight" in name:
-                self.param_groups["classification_weight"].append(param)
+                self.param_groups["classifier_head"].append(param)
             elif self._cfg.model.bias:
-                self.param_groups["classification_bias"].append(param)
+                self.param_groups["classifier_head"].append(param)
 
     def get_optimizers(self):
-        paramlist_net = [
+        paramlist_backbone = [
             {
                 "params": self.param_groups["backbone"],
-                "lr": self._cfg.training.learning_rates.backbone_full,
-                "weight_decay_rate": self._cfg.training.weight_decay,
-            },
-            {
-                "params": self.param_groups["to_freeze"],
-                "lr": self._cfg.training.learning_rates.backbone_end,
-                "weight_decay_rate": self._cfg.training.weight_decay,
-            },
-            {
-                "params": self.param_groups["to_train"],
-                "lr": self._cfg.training.learning_rates.backbone_end,
-                "weight_decay_rate": self._cfg.training.weight_decay,
-            },
-            {
-                "params": self.layers.concept_activations.parameters(),
-                "lr": self._cfg.training.learning_rates.backbone_end * 10.0,
+                "lr": self._cfg.training.learning_rates.backbone,
                 "weight_decay_rate": self._cfg.training.weight_decay,
             },
         ]
 
         paramlist_classifier = [
             {
-                "params": self.param_groups["classification_weight"],
+                "params": self.param_groups["classifier_head"],
                 "lr": self._cfg.training.learning_rates.classifier,
                 "weight_decay_rate": self._cfg.training.weight_decay,
-            },
-            {
-                "params": self.param_groups["classification_bias"],
-                "lr": self._cfg.training.learning_rates.classifier,
-                "weight_decay_rate": 0,
             },
         ]
 
         if self._cfg.training.optimizer == OptimizerType.ADAMW:
-            optimizer_net = torch.optim.AdamW(
-                paramlist_net,
-                lr=self._cfg.training.learning_rates.backbone_full,
+            optimizer_backbone = torch.optim.AdamW(
+                paramlist_backbone,
+                lr=self._cfg.training.learning_rates.backbone,
                 weight_decay=self._cfg.training.weight_decay,
             )
             optimizer_classifier = torch.optim.AdamW(
@@ -215,59 +174,18 @@ class ReProSeg(nn.Module):
                 lr=self._cfg.training.learning_rates.classifier,
                 weight_decay=self._cfg.training.weight_decay,
             )
-            return (optimizer_net, optimizer_classifier)
+            return (optimizer_backbone, optimizer_classifier)
         else:
             raise ValueError("this optimizer type is not implemented")
 
     def pretrain(self):
         self.train_phase = TrainPhase.PRETRAIN
 
-        for param in self.param_groups["to_train"]:
-            param.requires_grad = True
-        for param in self.layers.concept_activations.parameters():
-            param.requires_grad = True
-        for param in self.layers.classification_layer.parameters():
-            param.requires_grad = False
-        for param in self.param_groups["to_freeze"]:
-            param.requires_grad = True  # can be set to False when you want to freeze more layers
-        for param in self.param_groups["backbone"]:
-            # can be set to True when you want to train whole backbone
-            # (e.g. if dataset is very different from ImageNet)
-            param.requires_grad = self._cfg.model.train_backbone_during_pretrain
-
     def finetune(self):
         self.train_phase = TrainPhase.FINETUNE
 
-        for param in self.parameters():
-            param.requires_grad = False
-        for param in self.layers.classification_layer.parameters():
-            param.requires_grad = True
-
-    def freeze(self):
-        self.train_phase = TrainPhase.FREEZE_FIRST_LAYERS
-
-        for param in self.param_groups["to_freeze"]:
-            # Can be set to False if you want
-            # to train fewer layers of backbone
-            param.requires_grad = True
-        for param in self.layers.concept_activations.parameters():
-            param.requires_grad = True
-        for param in self.param_groups["to_train"]:
-            param.requires_grad = True
-        for param in self.param_groups["backbone"]:
-            param.requires_grad = False
-
-    def unfreeze(self):
+    def full_train(self):
         self.train_phase = TrainPhase.FULL_TRAINING
-
-        for param in self.layers.concept_activations.parameters():
-            param.requires_grad = True
-        for param in self.param_groups["to_freeze"]:
-            param.requires_grad = True
-        for param in self.param_groups["to_train"]:
-            param.requires_grad = True
-        for param in self.param_groups["backbone"]:
-            param.requires_grad = True
 
 
 class NonNegConv1x1(nn.Module):

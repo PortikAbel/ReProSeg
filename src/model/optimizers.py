@@ -4,11 +4,11 @@ from model.model import ReProSeg, TrainPhase
 
 
 class OptimizerSchedulerManager:
-    def __init__(self, model: ReProSeg, t_max_backbone, lr_backbone):
+    def __init__(self, model: ReProSeg, max_iterations: int):
         self.optimizer_net, self.optimizer_classifier = model.get_optimizers()
         self.scheduler_net = CosineAnnealingLR(
             self.optimizer_net,
-            T_max=t_max_backbone,
+            T_max=max_iterations,
         )
         # scheduler for the classification layer is with restarts,
         # such that the model can re-activated zeroed-out concepts.

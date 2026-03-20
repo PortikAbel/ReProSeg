@@ -21,9 +21,6 @@ class EpochConfig(BaseConfig):
     pretrain: int = Field(default=0, ge=0, description="Epochs for concept pretraining (stage 1)")
     total: int = Field(default=0, gt=0, description="Total training epochs (stage 2)")
     finetune: int = Field(default=0, ge=0, description="Finetuning epochs with frozen backbone")
-    freeze: int = Field(
-        default=0, ge=0, description="Epochs where last layers of backbone are trained with the classifier."
-    )
     start: int = Field(default=1, gt=0, description="Starting epoch (for resuming)")
 
     @field_validator("finetune")
@@ -32,19 +29,12 @@ class EpochConfig(BaseConfig):
             raise ValueError("finetune epochs cannot be greater than total epochs")
         return v
 
-    @field_validator("freeze")
-    def validate_freeze(cls, v, values: ValidationInfo):
-        if "total" in values.data and v > values.data["total"]:
-            raise ValueError("freeze epochs cannot be greater than total epochs")
-        return v
-
 
 class LearningRateConfig(BaseConfig):
     """Learning rate configuration for different network components."""
 
-    classifier: float = Field(default=1.0, gt=0.0, description="Learning rate for prototype → class weights")
-    backbone_end: float = Field(default=1.0, gt=0.0, description="Learning rate for final backbone layers")
-    backbone_full: float = Field(default=1.0, gt=0.0, description="Learning rate for rest of backbone")
+    backbone: float = Field(default=1.0, gt=0.0, description="Learning rate for backbone network")
+    classifier: float = Field(default=1.0, gt=0.0, description="Learning rate for concept → class weights")
 
 
 class TrainingConfig(BaseConfig):
