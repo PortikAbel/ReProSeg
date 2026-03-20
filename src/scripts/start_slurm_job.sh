@@ -9,4 +9,4 @@
 echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-none}"
 
 cd "${SLURM_SUBMIT_DIR}"
-uv run python src/scripts/run.py
+uv run python src/scripts/run.py "$@"
