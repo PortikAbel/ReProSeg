@@ -30,9 +30,9 @@ class LossCriterion(str, Enum):
 class LossWeights(BaseConfig):
     """Weights for different loss components."""
 
-    alignment: float = Field(default=1.0, description="Ensures prototypes of similar images are aligned")
-    jsd: float = Field(default=0.0, description="Jensen-Shannon Divergence: enforces prototype diversity")
-    tanh: float = Field(default=0.0, description="Ensures each prototype is activated at least once per batch")
+    alignment: float = Field(default=1.0, description="Ensures concepts of similar images are aligned")
+    jsd: float = Field(default=0.0, description="Jensen-Shannon Divergence: enforces concept diversity")
+    tanh: float = Field(default=0.0, description="Ensures each concept is activated at least once per batch")
     classification: float = Field(default=1.0, description="Standard classification loss weight")
 
 

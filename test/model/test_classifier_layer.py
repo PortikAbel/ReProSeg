@@ -155,35 +155,35 @@ class TestNonNegConv1x1:
         # but gradients can still flow through the original weights
         assert layer.weight.grad is not None
 
-    def test_used_prototypes_all_above_threshold(self):
-        """Test used_prototypes property when all prototypes are above threshold."""
+    def test_used_concepts_all_above_threshold(self):
+        """Test used_concepts property when all concepts are above threshold."""
         layer = NonNegConv1x1(self.in_channels, self.out_channels, bias=False)
 
         # Set all weights above threshold
         with torch.no_grad():
             layer.weight.fill_(5.0)
 
-        used_prototypes = layer.used_prototypes
-        print(used_prototypes)
+        used_concepts = layer.used_concepts
+        print(used_concepts)
         expected_indices = torch.arange(self.in_channels)
 
-        assert torch.allclose(used_prototypes.sort()[0], expected_indices)
+        assert torch.allclose(used_concepts.sort()[0], expected_indices)
 
-    def test_used_prototypes_none_above_threshold(self):
-        """Test used_prototypes property when no prototypes are above threshold."""
+    def test_used_concepts_none_above_threshold(self):
+        """Test used_concepts property when no concepts are above threshold."""
         layer = NonNegConv1x1(self.in_channels, self.out_channels, bias=False)
 
         # Set all weights below threshold
         with torch.no_grad():
             layer.weight.fill_(-5.0)
 
-        used_prototypes = layer.used_prototypes
+        used_concepts = layer.used_concepts
 
-        # Should return empty tensor when no prototypes are used
-        assert used_prototypes.numel() == 0
+        # Should return empty tensor when no concepts are used
+        assert used_concepts.numel() == 0
 
-    def test_used_prototypes_partial_above_threshold(self):
-        """Test used_prototypes property when some prototypes are above threshold."""
+    def test_used_concepts_partial_above_threshold(self):
+        """Test used_concepts property when some concepts are above threshold."""
         layer = NonNegConv1x1(self.in_channels, self.out_channels, bias=False)
 
         # Set some weights above threshold
@@ -192,24 +192,24 @@ class TestNonNegConv1x1:
             layer.weight[:, 0, :, :] = 5.0  # First input channel above threshold
             layer.weight[:, 5, :, :] = 5.0  # Sixth input channel above threshold
 
-        used_prototypes = layer.used_prototypes
+        used_concepts = layer.used_concepts
         expected_indices = torch.tensor([0, 5])
 
-        assert torch.allclose(used_prototypes.sort()[0], expected_indices)
+        assert torch.allclose(used_concepts.sort()[0], expected_indices)
 
-    def test_used_prototypes_single_prototype(self):
-        """Test used_prototypes property with single prototype above threshold."""
+    def test_used_concepts_single_concept(self):
+        """Test used_concepts property with single concept above threshold."""
         layer = NonNegConv1x1(2, self.out_channels, bias=False)  # Only 2 input channels
 
-        # Set only one prototype above threshold
+        # Set only one concept above threshold
         with torch.no_grad():
             layer.weight.fill_(-5.0)  # All below threshold
             layer.weight[:, 1, :, :] = 5.0  # Second input channel above threshold
 
-        used_prototypes = layer.used_prototypes
+        used_concepts = layer.used_concepts
         expected_index = torch.tensor([1])
 
-        assert torch.allclose(used_prototypes, expected_index)
+        assert torch.allclose(used_concepts, expected_index)
 
     def test_weight_parameter_shape_consistency(self):
         """Test that weight parameter maintains correct shape throughout operations."""
@@ -252,6 +252,6 @@ class TestNonNegConv1x1:
         # All weights are negative (below threshold), so output should be zero
         assert torch.allclose(output, torch.zeros_like(output))
 
-        # No prototypes should be used
-        used_prototypes = layer.used_prototypes
-        assert used_prototypes.numel() == 0
+        # No concepts should be used
+        used_concepts = layer.used_concepts
+        assert used_concepts.numel() == 0

@@ -11,7 +11,7 @@ class OptimizerSchedulerManager:
             T_max=t_max_backbone,
         )
         # scheduler for the classification layer is with restarts,
-        # such that the model can re-activated zeroed-out prototypes.
+        # such that the model can re-activated zeroed-out concepts.
         # Hence, an intuitive choice.
         self.scheduler_classifier = CosineAnnealingWarmRestarts(
             self.optimizer_classifier,

@@ -20,7 +20,7 @@ from .utils import activations_to_alpha, draw_activation_minmax_text_on_image, p
 class ModelVisualizer:
     topks: dict[int, list]
     i_to_p: dict
-    tensors_per_prototype: dict[int, list]
+    tensors_per_concept: dict[int, list]
 
     MIN_ACTIVATION_SCORE = 0.1
 
@@ -31,22 +31,22 @@ class ModelVisualizer:
         self.image_shape = cfg.data.img_shape
         self.k = cfg.visualization.top_k
 
-    def collect_topk_prototype_activations(self, train_loader_visualization):
+    def collect_topk_concept_activations(self, train_loader_visualization):
         topks_path = self.log.prototypes_dir / f"topks_k{self.k}.pkl"
         if os.path.exists(topks_path):
-            self.log.info(f"Loading top {self.k} prototype activations from {topks_path}")
+            self.log.info(f"Loading top {self.k} concept activations from {topks_path}")
             with open(topks_path, "rb") as f:
                 self.topks = pickle.load(f)
             return
 
-        self.log.info(f"Collecting top {self.k} prototype activations for each class...")
+        self.log.info(f"Collecting top {self.k} concept activations for each class...")
         self.topks = defaultdict(list)
 
         img_iter = tqdm(
             enumerate(train_loader_visualization),
             total=len(train_loader_visualization),
             mininterval=100.0,
-            desc=f"Searching for top {self.k} prototype activations",
+            desc=f"Searching for top {self.k} concept activations",
             ncols=0,
             file=self.log.tqdm_file,
         )
@@ -55,7 +55,7 @@ class ModelVisualizer:
             _aspp, aspp_maxpooled, _out = self.net(xs)
             aspp_maxpooled = aspp_maxpooled.squeeze(0)
             aspp_maxpooled_sum = aspp_maxpooled.sum(dim=(1, 2))
-            for p in self.net.layers.classification_layer.used_prototypes:
+            for p in self.net.layers.classification_layer.used_concepts:
                 score = aspp_maxpooled_sum[p].item()
                 if len(self.topks[p]) < self.k:
                     heapq.heappush(self.topks[p], (score, i))
@@ -74,7 +74,7 @@ class ModelVisualizer:
             return
 
         self.log.info("Mapping images to prototypes based on topk activations...")
-        prototypes_not_activated = []
+        concepts_not_activated = []
         self.i_to_p = defaultdict(list)
         for p in self.topks.keys():
             scores, img_idxs = zip(*self.topks[p], strict=True)
@@ -82,9 +82,9 @@ class ModelVisualizer:
                 for i in img_idxs:
                     self.i_to_p[i].append(p)
             else:
-                prototypes_not_activated.append(p)
+                concepts_not_activated.append(p)
         self.log.info(
-            f"{len(prototypes_not_activated)} prototypes do not have"
+            f"{len(concepts_not_activated)} concepts do not have"
             f" any similarity score > {self.MIN_ACTIVATION_SCORE}. "
             "Will be ignored in visualisation."
         )
@@ -97,18 +97,18 @@ class ModelVisualizer:
         if os.path.exists(tensors_path):
             self.log.info(f"Loading prototype tensors from {tensors_path}")
             with open(tensors_path, "rb") as f:
-                self.tensors_per_prototype = pickle.load(f)
+                self.tensors_per_concept = pickle.load(f)
             return
 
         self.log.info(f"Collecting prototype tensors for top {self.k} activations...")
-        self.tensors_per_prototype = defaultdict(list)
+        self.tensors_per_concept = defaultdict(list)
         resize_image = transforms.Resize(size=tuple(self.image_shape))
         pil_to_tensor = transforms.ToTensor()
         img_iter = tqdm(
             enumerate(train_loader_visualization),
             total=len(train_loader_visualization),
             mininterval=100.0,
-            desc=f"Collecting top {self.k} activations for each prototype",
+            desc=f"Collecting top {self.k} activations for each concept",
             ncols=0,
             file=self.log.tqdm_file,
         )
@@ -119,26 +119,26 @@ class ModelVisualizer:
             image = pil_to_tensor(Image.open(img_to_open).convert("RGB"))
             image = resize_image(image)
             xs, ys = xs.to(self.device), ys.to(self.device)
-            prototype_activations = self.net.interpolate_prototype_activations(xs).to(image.device)
+            concept_activations = self.net.interpolate_concept_activations(xs).to(image.device)
             for p in self.i_to_p[i]:
-                alpha = activations_to_alpha(prototype_activations[p])
+                alpha = activations_to_alpha(concept_activations[p])
                 prototype_img = torch.cat((image, alpha), 0)
                 prototype_img = draw_activation_minmax_text_on_image(
                     prototype_img,
-                    prototype_activations[p],
+                    concept_activations[p],
                 )
-                self.tensors_per_prototype[p].append(prototype_img)
+                self.tensors_per_concept[p].append(prototype_img)
         with open(tensors_path, "wb") as f:
-            pickle.dump(self.tensors_per_prototype, f)
+            pickle.dump(self.tensors_per_concept, f)
 
-    def render_prototype_activations(self):
-        self.log.info(f"Saving top {self.k} prototype activations to images...")
+    def render_prototypes(self):
+        self.log.info(f"Saving top {self.k} prototypes to images...")
         all_tensors = []
         prototype_iter = tqdm(
-            self.tensors_per_prototype.items(),
-            total=len(self.tensors_per_prototype),
+            self.tensors_per_concept.items(),
+            total=len(self.tensors_per_concept),
             mininterval=100.0,
-            desc=f"Visualizing top {self.k} activations of prototypes",
+            desc=f"Visualizing top {self.k} activations of concepts",
             ncols=0,
             file=self.log.tqdm_file,
         )
@@ -154,14 +154,14 @@ class ModelVisualizer:
             grid = torchvision.utils.make_grid(all_tensors, nrow=self.k + 1, padding=1)
             torchvision.utils.save_image(grid, self.log.prototypes_dir / f"grid_top_{self.k}_prototype_activations.png")
         else:
-            self.log.warning("Pretrained prototypes not visualized. Try to pretrain longer.")
+            self.log.warning("No concepts to visualize with prototypes.")
 
     @torch.no_grad()
     def visualize_prototypes(self, train_loader_visualization):
-        self.log.info(f"Visualizing top {self.k} prototypes for each class...")
+        self.log.info(f"Visualizing top {self.k} prototypes for each concept...")
         self.log.prototypes_dir.mkdir(parents=True, exist_ok=True)
         self.net.eval()
-        self.collect_topk_prototype_activations(train_loader_visualization)
+        self.collect_topk_concept_activations(train_loader_visualization)
         self.map_images_to_prototypes()
         self.collect_prototype_tensors(train_loader_visualization)
-        self.render_prototype_activations()
+        self.render_prototypes()

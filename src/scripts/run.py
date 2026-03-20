@@ -66,7 +66,7 @@ def main(cfg_dict: DictConfig):
         panoptic_parts_loader = DataLoader(panoptic_parts_subset, cfg)
 
         interpretability = ModelInterpretability(net, cfg, log)
-        interpretability.compute_prototype_consistency_score(panoptic_parts_loader)
+        interpretability.compute_concept_consistency_score(panoptic_parts_loader)
 
     log.close()
 

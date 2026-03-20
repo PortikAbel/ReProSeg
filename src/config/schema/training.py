@@ -18,7 +18,7 @@ class OptimizerType(str, Enum):
 class EpochConfig(BaseConfig):
     """Epoch configuration for different training phases."""
 
-    pretrain: int = Field(default=0, ge=0, description="Epochs for prototype pretraining (stage 1)")
+    pretrain: int = Field(default=0, ge=0, description="Epochs for concept pretraining (stage 1)")
     total: int = Field(default=0, gt=0, description="Total training epochs (stage 2)")
     finetune: int = Field(default=0, ge=0, description="Finetuning epochs with frozen backbone")
     freeze: int = Field(
@@ -51,7 +51,7 @@ class TrainingConfig(BaseConfig):
     """Training parameters and optimization configuration."""
 
     skip_training: bool = Field(
-        default=False, description="Skips training and only visualizes prototypes and predictions"
+        default=False, description="Skips training and only visualizes concepts and predictions"
     )
     epochs: EpochConfig = Field(default_factory=lambda: EpochConfig(), description="Epoch configuration")
     optimizer: OptimizerType = Field(default=OptimizerType.ADAMW, description="Optimizer type")

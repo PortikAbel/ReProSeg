@@ -21,7 +21,7 @@ class ModelInterpretability:
     """
     _part_activations: list[dict[int, list[float]]]
     """
-    For each prototype,
+    For each concept,
     a dictionary mapping panoptic part labels
     to lists of average activation scores in relevant images.
     """
@@ -31,31 +31,31 @@ class ModelInterpretability:
         self.device = cfg.env.device
         self.consistency_score = cfg.evaluation.consistency_score.threshold
         self.log = log
-        self._part_activations = [defaultdict(list) for _ in range(self.net.num_prototypes)]
+        self._part_activations = [defaultdict(list) for _ in range(self.net.num_concepts)]
 
     @torch.no_grad()
-    def compute_prototype_consistency_score(self, panoptic_parts_loader: DataLoader):
-        self.log.info("Computing prototype consistency score...")
-        self._collect_prototype_activations_by_object_parts(panoptic_parts_loader)
-        is_consistent = self._compute_if_prototype_consistent()
+    def compute_concept_consistency_score(self, panoptic_parts_loader: DataLoader):
+        self.log.info("Computing concept consistency score...")
+        self._collect_concept_activations_by_object_parts(panoptic_parts_loader)
+        is_consistent = self._compute_if_concept_consistent()
 
-        num_consistent_prototypes = sum(is_consistent)
+        num_consistent_concepts = sum(is_consistent)
 
         self.log.info(
-            f"Found {num_consistent_prototypes} consistent prototypes "
+            f"Found {num_consistent_concepts} consistent concepts "
             f"with per object part activation > {self.consistency_score} "
             f"out of {len(is_consistent)}."
         )
-        return num_consistent_prototypes / len(is_consistent)
+        return num_consistent_concepts / len(is_consistent)
 
-    def _collect_prototype_activations_by_object_parts(self, panoptic_parts_loader: DataLoader):
-        self.log.info("Collecting average object part activations of prototypes from images...")
+    def _collect_concept_activations_by_object_parts(self, panoptic_parts_loader: DataLoader):
+        self.log.info("Collecting average object part activations of concepts from images...")
         self.net.eval()
         img_iter = tqdm(
             enumerate(panoptic_parts_loader),
             total=len(panoptic_parts_loader),
             mininterval=100.0,
-            desc="Collecting average object part activations of prototypes from images",
+            desc="Collecting average object part activations of concepts from images",
             ncols=0,
             file=self.log.tqdm_file,
         )
@@ -66,19 +66,19 @@ class ModelInterpretability:
                 continue
 
             xs, ys, pps = xs.to(self.device), ys.to(self.device), pps.to(self.device)
-            prototype_activations = self.net.interpolate_prototype_activations(xs)
-            for p in self.net.layers.classification_layer.used_prototypes:
-                alpha = activations_to_alpha(prototype_activations[:, p])
+            concept_activations = self.net.interpolate_concept_activations(xs)
+            for p in self.net.layers.classification_layer.used_concepts:
+                alpha = activations_to_alpha(concept_activations[:, p])
                 for label, avg_value in self._compute_part_activation_averages(alpha, pps):
                     self._part_activations[p][label].append(avg_value)
-        self.log.info("Collected average object part activations of prototypes from images.")
+        self.log.info("Collected average object part activations of concepts from images.")
 
     def _compute_part_activation_averages(self, alpha: torch.Tensor, pps: torch.Tensor) -> Iterator[tuple[int, float]]:
         """
-        Compute average activation scores for a single prototype across different object parts in an image.
+        Compute average activation scores for a single concept across different object parts in an image.
 
         Args:
-            alpha: Activation values tensor of shape (H, W) containing prototype activations
+            alpha: Activation values tensor of shape (H, W) containing concept activations
             pps: Panoptic parts tensor of shape (H, W) containing part labels for each pixel
 
         Returns:
@@ -105,7 +105,7 @@ class ModelInterpretability:
 
         return zip(unique_labels.tolist(), average_alpha.tolist(), strict=False)
 
-    def _compute_if_prototype_consistent(self) -> list[bool]:
+    def _compute_if_concept_consistent(self) -> list[bool]:
         return list(
             [
                 any(

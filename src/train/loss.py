@@ -71,18 +71,18 @@ def calculate_loss(
 
 def jensen_shannon_divergence(x: torch.Tensor) -> torch.Tensor:
     assert x.dim() == 4
-    # Flatten to (batch_size, num_prototypes, height*width)
+    # Flatten to (batch_size, num_concepts, height*width)
     x = x.flatten(start_dim=2)
     x_log = F.log_softmax(x, dim=-1)
 
-    # Compute log of the mean prototype distribution: log(mean_i p_i)
-    num_prototypes = x_log.size(1)
+    # Compute log of the mean concept distribution: log(mean_i p_i)
+    num_concepts = x_log.size(1)
     m_log = torch.logsumexp(x_log, dim=1, keepdim=True) - torch.log(
-        torch.tensor(float(num_prototypes), device=x_log.device, dtype=x_log.dtype)
+        torch.tensor(float(num_concepts), device=x_log.device, dtype=x_log.dtype)
     )
     m_log = m_log.expand_as(x_log)
 
-    # JSD over spatial distributions: average prototype-wise KLs
+    # JSD over spatial distributions: average concept-wise KLs
     jsd = F.kl_div(x_log, m_log, reduction="none", log_target=True).sum(dim=-1).mean(dim=-1)
 
     return torch.exp(-jsd).mean()

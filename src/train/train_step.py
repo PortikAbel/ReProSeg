@@ -44,7 +44,7 @@ def train(
     total_intersections_by_class = torch.zeros(cfg.data.num_classes - 1).to(cfg.env.device)
     total_unions_by_class = torch.zeros(cfg.data.num_classes - 1).to(cfg.env.device)
 
-    # Prototype activation monitoring
+    # Concept activation monitoring
     accumulated_pooled = []
 
     iters = len(train_loader)
@@ -67,7 +67,7 @@ def train(
     accumulated_out = []
     accumulated_ys = []
 
-    # Iterate through the data set to update leaves, prototypes and network
+    # Iterate through the data set to update leaves, concepts and network
     for i, (xs1, xs2, ys) in train_iter:
         xs1 = xs1.to(cfg.env.device, non_blocking=True)
         xs2 = xs2.to(cfg.env.device, non_blocking=True)

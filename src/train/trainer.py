@@ -53,11 +53,11 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
         log.debug(f"ASPP features output shape: {_aspp_features.shape}")
         log.debug(f"pooled ASPP output shape: {pooled.shape}")
 
-    # PRETRAINING PROTOTYPES PHASE
+    # PRETRAINING CONCEPTS PHASE
     for epoch in range(1, cfg.training.epochs.pretrain + 1):
         log.info(f"Pretrain Epoch {epoch} with batch size {train_loader.batch_size}")
 
-        # Pretrain prototypes
+        # Pretrain concepts
         net.pretrain()
         train_info = train(
             cfg,
