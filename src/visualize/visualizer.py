@@ -18,9 +18,18 @@ from .utils import activations_to_alpha, draw_activation_minmax_text_on_image, p
 
 
 class ModelVisualizer:
-    topks: dict[int, list]
-    i_to_p: dict
-    tensors_per_concept: dict[int, list]
+    topks_of_concept: dict[int, list[tuple[float, int]]]
+    """
+    dict mapping concept index to list of (activation score, image index) tuples for the top `k` activations of that concept.
+    """
+    image_to_concepts: dict[int, list[int]]
+    """
+    dict mapping image index to list of concept indices that has a top `k` activation (the prototypes) for that image.
+    """
+    tensors_per_concept: dict[int, list[torch.Tensor]]
+    """
+    dict mapping concept index to list of tensors representing the top `k` activations (the prototypes) for that concept.
+    """
 
     MIN_ACTIVATION_SCORE = 0.1
 
@@ -36,11 +45,11 @@ class ModelVisualizer:
         if os.path.exists(topks_path):
             self.log.info(f"Loading top {self.k} concept activations from {topks_path}")
             with open(topks_path, "rb") as f:
-                self.topks = pickle.load(f)
+                self.topks_of_concept = pickle.load(f)
             return
 
         self.log.info(f"Collecting top {self.k} concept activations for each class...")
-        self.topks = defaultdict(list)
+        self.topks_of_concept = defaultdict(list)
 
         img_iter = tqdm(
             enumerate(train_loader_visualization),
@@ -52,35 +61,34 @@ class ModelVisualizer:
         )
         for i, (xs, ys) in img_iter:
             xs, ys = xs.to(self.device), ys.to(self.device)
-            _aspp, aspp_maxpooled, _out = self.net(xs)
-            aspp_maxpooled = aspp_maxpooled.squeeze(0)
-            aspp_maxpooled_sum = aspp_maxpooled.sum(dim=(1, 2))
+            _aspp, aspp_maxpooled, _out = self.net(xs) # aspp_maxpooled shape: (batch x num_concepts x h x w)
+            aspp_maxpooled_sum = aspp_maxpooled.sum(dim=(2, 3))
             for p in self.net.layers.classification_layer.used_concepts:
                 score = aspp_maxpooled_sum[p].item()
-                if len(self.topks[p]) < self.k:
-                    heapq.heappush(self.topks[p], (score, i))
+                if len(self.topks_of_concept[p]) < self.k:
+                    heapq.heappush(self.topks_of_concept[p], (score, i))
                 else:
-                    heapq.heappushpop(self.topks[p], (score, i))
+                    heapq.heappushpop(self.topks_of_concept[p], (score, i))
         # Save to file
         with open(topks_path, "wb") as f:
-            pickle.dump(self.topks, f)
+            pickle.dump(self.topks_of_concept, f)
 
     def map_images_to_prototypes(self):
         i_to_p_path = self.log.prototypes_dir / "i_to_p.pkl"
         if os.path.exists(i_to_p_path):
             self.log.info(f"Loading image to prototype mapping from {i_to_p_path}")
             with open(i_to_p_path, "rb") as f:
-                self.i_to_p = pickle.load(f)
+                self.image_to_concepts = pickle.load(f)
             return
 
         self.log.info("Mapping images to prototypes based on topk activations...")
         concepts_not_activated = []
-        self.i_to_p = defaultdict(list)
-        for p in self.topks.keys():
-            scores, img_idxs = zip(*self.topks[p], strict=True)
+        self.image_to_concepts = defaultdict(list)
+        for p in self.topks_of_concept.keys():
+            scores, img_idxs = zip(*self.topks_of_concept[p], strict=True)
             if any(np.array(scores) > self.MIN_ACTIVATION_SCORE):
                 for i in img_idxs:
-                    self.i_to_p[i].append(p)
+                    self.image_to_concepts[i].append(p)
             else:
                 concepts_not_activated.append(p)
         self.log.info(
@@ -89,7 +97,7 @@ class ModelVisualizer:
             "Will be ignored in visualisation."
         )
         with open(i_to_p_path, "wb") as f:
-            pickle.dump(self.i_to_p, f)
+            pickle.dump(self.image_to_concepts, f)
 
     def collect_prototype_tensors(self, train_loader_visualization):
         proto_dir = self.log.prototypes_dir
@@ -113,14 +121,14 @@ class ModelVisualizer:
             file=self.log.tqdm_file,
         )
         for i, (xs, ys) in img_iter:
-            if i not in self.i_to_p.keys():
+            if i not in self.image_to_concepts.keys():
                 continue
             img_to_open = train_loader_visualization.dataset.images[i]
             image = pil_to_tensor(Image.open(img_to_open).convert("RGB"))
             image = resize_image(image)
             xs, ys = xs.to(self.device), ys.to(self.device)
             concept_activations = self.net.interpolate_concept_activations(xs).to(image.device)
-            for p in self.i_to_p[i]:
+            for p in self.image_to_concepts[i]:
                 alpha = activations_to_alpha(concept_activations[p])
                 prototype_img = torch.cat((image, alpha), 0)
                 prototype_img = draw_activation_minmax_text_on_image(
