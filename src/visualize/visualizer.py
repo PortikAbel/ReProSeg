@@ -108,15 +108,18 @@ class ModelVisualizer:
 
     def collect_prototype_tensors(self, train_loader_visualization: DataLoader):
         proto_dir = self.log.prototypes_dir
-        tensors_path = proto_dir / f"tensors_per_prototype_k{self.k}.pkl"
-        if os.path.exists(tensors_path):
-            self.log.info(f"Loading prototype tensors from {tensors_path}")
-            with open(tensors_path, "rb") as f:
+        tensors_cache_path = proto_dir / f"tensors_per_concept_k{self.k}.pkl"
+        if os.path.exists(tensors_cache_path):
+            self.log.info(f"Loading prototype tensors from {tensors_cache_path}")
+            with open(tensors_cache_path, "rb") as f:
                 self.tensors_per_concept = pickle.load(f)
             return
 
         self.log.info(f"Collecting prototype tensors for top {self.k} activations...")
+
         self.tensors_per_concept = defaultdict(list)
+        batch_size = train_loader_visualization.batch_size
+        image_paths = train_loader_visualization.dataset.dataset.dataset.images  # type: ignore[attr-defined]
         resize_image = transforms.Resize(size=tuple(self.image_shape))
         pil_to_tensor = transforms.ToTensor()
         img_iter = tqdm(
@@ -127,23 +130,28 @@ class ModelVisualizer:
             ncols=0,
             file=self.log.tqdm_file,
         )
-        for i, (xs, ys) in img_iter:
-            if i not in self.image_to_concepts.keys():
+        for batch_idx, (xs, _ys) in img_iter:
+            base_idx = batch_idx * batch_size
+            local_image_idxs = [i for i in range(xs.shape[0]) if (base_idx + i) in self.image_to_concepts]
+            if not local_image_idxs:
                 continue
-            img_to_open = train_loader_visualization.dataset.images[i]
-            image = pil_to_tensor(Image.open(img_to_open).convert("RGB"))
-            image = resize_image(image)
-            xs, ys = xs.to(self.device), ys.to(self.device)
-            concept_activations = self.net.interpolate_concept_activations(xs).to(image.device)
-            for p in self.image_to_concepts[i]:
-                alpha = activations_to_alpha(concept_activations[p])
-                prototype_img = torch.cat((image, alpha), 0)
-                prototype_img = draw_activation_minmax_text_on_image(
-                    prototype_img,
-                    concept_activations[p],
-                )
-                self.tensors_per_concept[p].append(prototype_img)
-        with open(tensors_path, "wb") as f:
+            images = []
+            for idx in local_image_idxs:
+                image = pil_to_tensor(Image.open(image_paths[base_idx + idx]).convert("RGB"))
+                image = resize_image(image)
+                images.append(image)
+            xs = xs[local_image_idxs].to(self.device)
+            concept_activations = self.net.interpolate_concept_activations(xs)
+            alpha = activations_to_alpha(concept_activations).cpu()
+            for i, image in enumerate(images):
+                for concept in self.image_to_concepts[base_idx + local_image_idxs[i]]:
+                    prototype_img = torch.cat((image, alpha[i, concept].unsqueeze(0)), 0)
+                    prototype_img = draw_activation_minmax_text_on_image(
+                        prototype_img,
+                        concept_activations[i, concept],
+                    )
+                    self.tensors_per_concept[concept].append(prototype_img)
+        with open(tensors_cache_path, "wb") as f:
             pickle.dump(self.tensors_per_concept, f)
 
     def render_prototypes(self):
