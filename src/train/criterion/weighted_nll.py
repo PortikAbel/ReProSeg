@@ -7,10 +7,12 @@ class WeightedNLLLoss(nn.Module):
     NLLLoss with class weights inferred from dataset.
     """
 
-    def __init__(self, class_weights: torch.Tensor, ignore_index=0, reduction="mean"):
+    def __init__(
+        self, device: torch.device, class_weights: torch.Tensor | None = None, ignore_index=0, reduction="mean"
+    ):
         super().__init__()
-        self.device = class_weights.device
-        self.class_weights = class_weights
+        self.device = device
+        self.class_weights = class_weights.to(self.device) if class_weights is not None else None
         self.ignore_index = ignore_index
         self.reduction = reduction
         self.nll_loss = nn.NLLLoss(
@@ -18,5 +20,4 @@ class WeightedNLLLoss(nn.Module):
         ).to(self.device)
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        input = nn.functional.log_softmax(input, dim=1)
         return self.nll_loss(input, target)
