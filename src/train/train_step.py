@@ -44,9 +44,6 @@ def train(
     total_intersections_by_class = torch.zeros(cfg.data.num_classes - 1).to(cfg.env.device)
     total_unions_by_class = torch.zeros(cfg.data.num_classes - 1).to(cfg.env.device)
 
-    # Concept activation monitoring
-    accumulated_pooled = []
-
     iters = len(train_loader)
     # Show progress on progress bar.
     train_iter = tqdm(
@@ -112,10 +109,6 @@ def train(
             loss_epoch.jsd += loss.jsd
             loss_epoch.tanh += loss.tanh
             loss_epoch.classification += loss.classification
-
-            # Collect pooled activations for monitoring (sample periodically to avoid memory issues)
-            if i % 10 == 0:
-                accumulated_pooled.append(pooled.detach().cpu())
 
             if net.train_phase is not TrainPhase.PRETRAIN:
                 accumulated_out.append(out.detach())
