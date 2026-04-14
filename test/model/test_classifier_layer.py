@@ -164,7 +164,6 @@ class TestNonNegConv1x1:
             layer.weight.fill_(5.0)
 
         used_concepts = layer.used_concepts
-        print(used_concepts)
         expected_indices = torch.arange(self.in_channels)
 
         assert torch.allclose(used_concepts.sort()[0], expected_indices)
