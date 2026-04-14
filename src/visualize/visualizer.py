@@ -3,6 +3,7 @@ import os
 import pickle
 from collections import defaultdict
 
+from data.dataloader import DataLoader
 import numpy as np
 import torch
 import torchvision
@@ -40,7 +41,7 @@ class ModelVisualizer:
         self.image_shape = cfg.data.img_shape
         self.k = cfg.visualization.top_k
 
-    def collect_topk_concept_activations(self, train_loader_visualization):
+    def collect_topk_concept_activations(self, train_loader_visualization: DataLoader):
         topks_path = self.log.prototypes_dir / f"topks_k{self.k}.pkl"
         if os.path.exists(topks_path):
             self.log.info(f"Loading top {self.k} concept activations from {topks_path}")
@@ -48,8 +49,10 @@ class ModelVisualizer:
                 self.topks_of_concept = pickle.load(f)
             return
 
-        self.log.info(f"Collecting top {self.k} concept activations for each class...")
+        self.log.info(f"Collecting top {self.k} activations for each concept...")
         self.topks_of_concept = defaultdict(list)
+
+        used_concepts = self.net.layers.classification_layer.used_concepts.cpu().tolist()
 
         img_iter = tqdm(
             enumerate(train_loader_visualization),
@@ -59,16 +62,15 @@ class ModelVisualizer:
             ncols=0,
             file=self.log.tqdm_file,
         )
-        for i, (xs, ys) in img_iter:
-            xs, ys = xs.to(self.device), ys.to(self.device)
-            _aspp, aspp_maxpooled, _out = self.net(xs) # aspp_maxpooled shape: (batch x num_concepts x h x w)
-            aspp_maxpooled_sum = aspp_maxpooled.sum(dim=(2, 3))
-            for p in self.net.layers.classification_layer.used_concepts:
-                score = aspp_maxpooled_sum[p].item()
-                if len(self.topks_of_concept[p]) < self.k:
-                    heapq.heappush(self.topks_of_concept[p], (score, i))
-                else:
-                    heapq.heappushpop(self.topks_of_concept[p], (score, i))
+        for batch_idx, (xs, _ys) in img_iter:
+            xs = xs.to(self.device)
+            _aspp, aspp_maxpooled, _out = self.net(xs)
+            aspp_maxpooled_sums = aspp_maxpooled.sum(dim=(2, 3)).cpu().numpy()
+            for i, aspp_maxpooled_sum in enumerate(aspp_maxpooled_sums):
+                img_idx = batch_idx * train_loader_visualization.batch_size + i
+                for concept in used_concepts:
+                    insertion_method = heapq.heappush if len(self.topks_of_concept[concept]) < self.k else heapq.heappushpop
+                    insertion_method(self.topks_of_concept[concept], (aspp_maxpooled_sum[concept], img_idx))
         # Save to file
         with open(topks_path, "wb") as f:
             pickle.dump(self.topks_of_concept, f)
@@ -99,7 +101,7 @@ class ModelVisualizer:
         with open(i_to_p_path, "wb") as f:
             pickle.dump(self.image_to_concepts, f)
 
-    def collect_prototype_tensors(self, train_loader_visualization):
+    def collect_prototype_tensors(self, train_loader_visualization: DataLoader):
         proto_dir = self.log.prototypes_dir
         tensors_path = proto_dir / f"tensors_per_prototype_k{self.k}.pkl"
         if os.path.exists(tensors_path):
@@ -165,7 +167,7 @@ class ModelVisualizer:
             self.log.warning("No concepts to visualize with prototypes.")
 
     @torch.no_grad()
-    def visualize_prototypes(self, train_loader_visualization):
+    def visualize_prototypes(self, train_loader_visualization: DataLoader):
         self.log.info(f"Visualizing top {self.k} prototypes for each concept...")
         self.log.prototypes_dir.mkdir(parents=True, exist_ok=True)
         self.net.eval()
