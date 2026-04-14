@@ -106,7 +106,7 @@ class ReProSeg(nn.Module):
 
         activations = self.forward(xs, inference=True)[0]  # (batch x num_concepts x scales x h x w)
         activations = activations.permute(2, 0, 1, 3, 4)  # (scales x batch x num_concepts x h x w)
-        max_scale = torch.argmax(activations, dim=(0))
+        max_scale = torch.argmax(activations, dim=0)
         scales = activations.shape[0]
 
         interpolated_activations = torch.zeros(original_shape, device=activations.device)
