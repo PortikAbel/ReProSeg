@@ -8,6 +8,7 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 from PIL import Image
+from torch.utils.data.dataset import Subset
 from tqdm import tqdm
 
 from config import ReProSegConfig
@@ -121,7 +122,14 @@ class ModelVisualizer:
 
         self.tensors_per_concept = defaultdict(list)
         batch_size = train_loader_visualization.batch_size
-        image_paths = train_loader_visualization.dataset.dataset.dataset.images  # type: ignore[attr-defined]
+        dataset = train_loader_visualization.dataset.dataset  # type: ignore[attr-defined]
+        if isinstance(dataset, Subset):
+            image_indices = dataset.indices
+            base_dataset = dataset.dataset
+        else:
+            image_indices = range(len(dataset))
+            base_dataset = dataset
+        image_paths = base_dataset.images  # type: ignore[attr-defined]
         resize_image = transforms.Resize(size=tuple(self.image_shape))
         pil_to_tensor = transforms.ToTensor()
         img_iter = tqdm(
@@ -139,7 +147,8 @@ class ModelVisualizer:
                 continue
             images = []
             for idx in local_image_idxs:
-                image = pil_to_tensor(Image.open(image_paths[base_idx + idx]).convert("RGB"))
+                image_path_idx = image_indices[base_idx + idx]
+                image = pil_to_tensor(Image.open(image_paths[image_path_idx]).convert("RGB"))
                 image = resize_image(image)
                 images.append(image)
             xs = xs[local_image_idxs].to(self.device)
