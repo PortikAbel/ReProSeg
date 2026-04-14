@@ -3,7 +3,6 @@ import os
 import pickle
 from collections import defaultdict
 
-from data.dataloader import DataLoader
 import numpy as np
 import torch
 import torchvision
@@ -12,6 +11,7 @@ from PIL import Image
 from tqdm import tqdm
 
 from config import ReProSegConfig
+from data.dataloader import DataLoader
 from model.model import ReProSeg
 from utils.log import Log
 
@@ -74,7 +74,9 @@ class ModelVisualizer:
             for i, aspp_maxpooled_sum in enumerate(aspp_maxpooled_sums):
                 img_idx = batch_idx * train_loader_visualization.batch_size + i
                 for concept in used_concepts:
-                    insertion_method = heapq.heappush if len(self.topks_of_concept[concept]) < self.k else heapq.heappushpop
+                    insertion_method = (
+                        heapq.heappush if len(self.topks_of_concept[concept]) < self.k else heapq.heappushpop
+                    )
                     insertion_method(self.topks_of_concept[concept], (aspp_maxpooled_sum[concept], img_idx))
         # Save to file
         with open(topks_cache_path, "wb") as f:
