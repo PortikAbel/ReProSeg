@@ -21,15 +21,20 @@ from .utils import activations_to_alpha, draw_activation_minmax_text_on_image, p
 class ModelVisualizer:
     topks_of_concept: dict[int, list[tuple[float, int]]]
     """
-    dict mapping concept index to list of (activation score, image index) tuples for the top `k` activations of that concept.
+    key: concept index
+    value: list of (activation score, image index) tuples for the top `k` activations of that concept.
     """
     image_to_concepts: dict[int, list[int]]
     """
-    dict mapping image index to list of concept indices that has a top `k` activation (the prototypes) for that image.
+    key: image index
+    value: list of concept indices that the image is a prototype for 
+        (i.e. has one of the top `k` activations for those concepts).
     """
     tensors_per_concept: dict[int, list[torch.Tensor]]
     """
-    dict mapping concept index to list of tensors representing the top `k` activations (the prototypes) for that concept.
+    key: concept index
+    value: list of tensors representing the top `k` activations for that concept
+        (i.e. the prototypes for that concept).
     """
 
     MIN_ACTIVATION_SCORE = 0.1
@@ -42,10 +47,10 @@ class ModelVisualizer:
         self.k = cfg.visualization.top_k
 
     def collect_topk_concept_activations(self, train_loader_visualization: DataLoader):
-        topks_path = self.log.prototypes_dir / f"topks_k{self.k}.pkl"
-        if os.path.exists(topks_path):
-            self.log.info(f"Loading top {self.k} concept activations from {topks_path}")
-            with open(topks_path, "rb") as f:
+        topks_cache_path = self.log.prototypes_dir / f"topks_of_concept_k{self.k}.pkl"
+        if os.path.exists(topks_cache_path):
+            self.log.info(f"Loading top {self.k} concept activations from {topks_cache_path}")
+            with open(topks_cache_path, "rb") as f:
                 self.topks_of_concept = pickle.load(f)
             return
 
@@ -72,33 +77,33 @@ class ModelVisualizer:
                     insertion_method = heapq.heappush if len(self.topks_of_concept[concept]) < self.k else heapq.heappushpop
                     insertion_method(self.topks_of_concept[concept], (aspp_maxpooled_sum[concept], img_idx))
         # Save to file
-        with open(topks_path, "wb") as f:
+        with open(topks_cache_path, "wb") as f:
             pickle.dump(self.topks_of_concept, f)
 
     def map_images_to_prototypes(self):
-        i_to_p_path = self.log.prototypes_dir / "i_to_p.pkl"
-        if os.path.exists(i_to_p_path):
-            self.log.info(f"Loading image to prototype mapping from {i_to_p_path}")
-            with open(i_to_p_path, "rb") as f:
+        image_to_concepts_cache_path = self.log.prototypes_dir / "image_to_concepts.pkl"
+        if os.path.exists(image_to_concepts_cache_path):
+            self.log.info(f"Loading image to concepts mapping from {image_to_concepts_cache_path}")
+            with open(image_to_concepts_cache_path, "rb") as f:
                 self.image_to_concepts = pickle.load(f)
             return
 
-        self.log.info("Mapping images to prototypes based on topk activations...")
+        self.log.info("Mapping images to concepts based on topk activations...")
         concepts_not_activated = []
         self.image_to_concepts = defaultdict(list)
-        for p in self.topks_of_concept.keys():
-            scores, img_idxs = zip(*self.topks_of_concept[p], strict=True)
+        for concept_idx in self.topks_of_concept.keys():
+            scores, img_idxs = zip(*self.topks_of_concept[concept_idx], strict=True)
             if any(np.array(scores) > self.MIN_ACTIVATION_SCORE):
                 for i in img_idxs:
-                    self.image_to_concepts[i].append(p)
+                    self.image_to_concepts[i].append(concept_idx)
             else:
-                concepts_not_activated.append(p)
+                concepts_not_activated.append(concept_idx)
         self.log.info(
             f"{len(concepts_not_activated)} concepts do not have"
             f" any similarity score > {self.MIN_ACTIVATION_SCORE}. "
             "Will be ignored in visualisation."
         )
-        with open(i_to_p_path, "wb") as f:
+        with open(image_to_concepts_cache_path, "wb") as f:
             pickle.dump(self.image_to_concepts, f)
 
     def collect_prototype_tensors(self, train_loader_visualization: DataLoader):
