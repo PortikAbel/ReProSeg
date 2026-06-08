@@ -1,5 +1,0 @@
-# Debug logging configuration - saves all models
-
-# Logging
-path: ${oc.env:LOG_ROOT}/debug/
-save_all_models: true

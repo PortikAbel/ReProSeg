@@ -16,7 +16,7 @@ from .eval import acc_from_cm, compute_absained, compute_cm, miou_from_cm
 @dataclass
 class EvalInfo:
     abstained: float
-    num_non_zero_prototypes: int
+    num_non_zero_concepts: int
     confusion_matrix: np.ndarray
     accuracy: float
     miou: float
@@ -69,13 +69,13 @@ def eval(
     abstained /= len(test_iter)
     log.info(f"model abstained from a decision for {abstained * 100}% of images")
 
-    num_nonzero_prototypes = int(torch.count_nonzero(F.relu(net.layers.classification_layer.weight - 1e-3)).item())
-    num_prototypes = torch.numel(net.layers.classification_layer.weight)
-    log.info(f"sparsity ratio: {(num_prototypes - num_nonzero_prototypes) / num_prototypes}")
+    num_nonzero_concepts = int(torch.count_nonzero(F.relu(net.layers.classification_layer.weight - 1e-3)).item())
+    num_concepts = torch.numel(net.layers.classification_layer.weight)
+    log.info(f"sparsity ratio: {(num_concepts - num_nonzero_concepts) / num_concepts}")
 
     return EvalInfo(
         abstained=abstained,
-        num_non_zero_prototypes=num_nonzero_prototypes,
+        num_non_zero_concepts=num_nonzero_concepts,
         confusion_matrix=cm.detach().cpu().numpy(),
         accuracy=acc_from_cm(cm),
         miou=miou_from_cm(cm),

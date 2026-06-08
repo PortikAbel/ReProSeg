@@ -54,7 +54,7 @@ def calculate_loss(
         loss += weights.tanh * tanh_loss
 
     if train_phase is not TrainPhase.PRETRAIN:
-        softmax_inputs = torch.log1p(out**2)
+        softmax_inputs = torch.nn.functional.softmax(torch.log1p(out**2), dim=1)
         class_loss = criterion(softmax_inputs, ys.squeeze())
 
         loss += weights.classification * class_loss
@@ -71,20 +71,25 @@ def calculate_loss(
 
 def jensen_shannon_divergence(x: torch.Tensor) -> torch.Tensor:
     assert x.dim() == 4
-    x = x.flatten(start_dim=2)  # Flatten to (batch_size, num_prototypes, height*width)
+    # Flatten to (batch_size, num_concepts, height*width)
+    x = x.flatten(start_dim=2)
+    x_log = F.log_softmax(x, dim=-1)
 
-    w = F.softmax(x.sum(dim=-1, keepdim=True), dim=1)
-    m = x.mul(w).sum(dim=1, keepdim=True).expand_as(x)
-    m = F.log_softmax(m, dim=-1)
+    # Compute log of the mean concept distribution: log(mean_i p_i)
+    num_concepts = x_log.size(1)
+    m_log = torch.logsumexp(x_log, dim=1, keepdim=True) - torch.log(
+        torch.tensor(float(num_concepts), device=x_log.device, dtype=x_log.dtype)
+    )
+    m_log = m_log.expand_as(x_log)
 
-    x = F.log_softmax(x, dim=-1)
-    jsd = F.kl_div(x, m, reduction="none", log_target=True).sum(dim=-1).mul(w.squeeze()).sum(dim=-1)
+    # JSD over spatial distributions: average concept-wise KLs
+    jsd = F.kl_div(x_log, m_log, reduction="none", log_target=True).sum(dim=-1).mean(dim=-1)
 
     return torch.exp(-jsd).mean()
 
 
 def log_tanh_loss(x: torch.Tensor, EPS=1e-10) -> torch.Tensor:
-    return -torch.log(torch.tanh(torch.sum(x, dim=(0, 2, 3))) + EPS).mean()
+    return -torch.log(torch.tanh(torch.sum(torch.amax(x, dim=(2, 3)), dim=0)) + EPS).mean()
 
 
 # from https://gitlab.com/mipl/carl/-/blob/main/losses.py

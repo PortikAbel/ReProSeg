@@ -7,7 +7,7 @@ from config import ReProSegConfig
 from config.schema.model import LossCriterion
 from data import DataLoader, Dataset, DoubleAugmentDataset
 from data.count_class_distribution import get_class_weights
-from model.model import ReProSeg, TrainPhase
+from model.model import ReProSeg
 from model.optimizers import OptimizerSchedulerManager
 from train.criterion.dice import DiceLoss
 from train.criterion.weighted_nll import WeightedNLLLoss
@@ -22,9 +22,7 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
     train_loader = DataLoader(double_augment_set, cfg)
     valid_loader = DataLoader(valid_set, cfg)
 
-    optimizer_scheduler_manager = OptimizerSchedulerManager(
-        net, len(train_loader) * cfg.training.epochs.pretrain, cfg.training.learning_rates.backbone_end
-    )
+    optimizer_scheduler_manager = OptimizerSchedulerManager(net, len(train_loader) * cfg.training.epochs.pretrain)
     if cfg.model.checkpoint is not None:
         checkpoint = torch.load(cfg.model.checkpoint, map_location=cfg.env.device, weights_only=False)
         optimizer_scheduler_manager.load_state_dict(checkpoint)
@@ -34,12 +32,14 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
     ).to(cfg.env.device)
     criterion: nn.Module
     match cfg.model.criterion:
+        case LossCriterion.NLL:
+            criterion = WeightedNLLLoss(device=cfg.env.device)
+        case LossCriterion.WEIGHTED_NLL:
+            criterion = WeightedNLLLoss(device=cfg.env.device, class_weights=class_weights)
         case LossCriterion.DICE:
             criterion = DiceLoss(torch.ones(cfg.data.num_classes, device=cfg.env.device))
         case LossCriterion.WEIGHTED_DICE:
             criterion = DiceLoss(class_weights)
-        case LossCriterion.WEIGHTED_NLL:
-            criterion = WeightedNLLLoss(class_weights)
         case _:
             raise NotImplementedError(f"criterion {cfg.model.criterion} not implemented")
 
@@ -51,11 +51,11 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
         log.debug(f"ASPP features output shape: {_aspp_features.shape}")
         log.debug(f"pooled ASPP output shape: {pooled.shape}")
 
-    # PRETRAINING PROTOTYPES PHASE
+    # PRETRAINING CONCEPTS PHASE
     for epoch in range(1, cfg.training.epochs.pretrain + 1):
         log.info(f"Pretrain Epoch {epoch} with batch size {train_loader.batch_size}")
 
-        # Pretrain prototypes
+        # Pretrain concepts
         net.pretrain()
         train_info = train(
             cfg,
@@ -83,7 +83,6 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
         optimizer_scheduler_manager = OptimizerSchedulerManager(
             net,
             len(train_loader) * cfg.training.epochs.total,
-            cfg.training.learning_rates.backbone_full,
         )
 
     best_acc = 0.0
@@ -93,31 +92,10 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
         if epoch <= cfg.training.epochs.finetune and (
             cfg.training.epochs.pretrain > 0 or cfg.model.checkpoint is not None
         ):
-            # during fine-tuning, only train classification layer and freeze rest.
-            # usually done for a few epochs (at least 1, more depends on size of dataset)
             net.finetune()
-        elif epoch <= cfg.training.epochs.freeze:
-            # freeze first layers of backbone, train rest
-            net.freeze()
         else:
             # unfreeze backbone
-            net.unfreeze()
-
-        log.info(
-            f"Epoch {epoch} first layers of backbone frozen: "
-            f"{net.train_phase in [TrainPhase.FINETUNE, TrainPhase.FREEZE_FIRST_LAYERS]}"
-        )
-        if (epoch == cfg.training.epochs.total or epoch % 30 == 0) and cfg.training.epochs.total > 1:
-            # SET SMALL WEIGHTS TO ZERO
-            with torch.no_grad():
-                torch.set_printoptions(profile="full")
-                net.layers.classification_layer.weight.copy_(
-                    torch.clamp(net.layers.classification_layer.weight.data - 0.001, min=0.0)
-                )
-                if cfg.model.bias:
-                    cls_b = net.layers.classification_layer.bias
-                    log.debug(f"Classifier bias: {cls_b}")
-                torch.set_printoptions(profile="default")
+            net.full_train()
 
         train_info = train(
             cfg,
@@ -128,10 +106,7 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
             criterion,
             epoch,
         )
-        # Evaluate model
-        eval_info = eval(cfg, log, net, valid_loader, epoch)
 
-        # Log to TensorBoard
         log.tb_scalar("Acc/train-epochs", train_info.accuracy, epoch)
         log.tb_scalar("mIoU/train-epochs", train_info.miou, epoch)
         log.tb_scalar("loss-train/L", train_info.loss.total.item(), epoch)
@@ -139,6 +114,8 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
         log.tb_scalar("loss-train/L_JSD", train_info.loss.jsd.item(), epoch)
         log.tb_scalar("loss-train/LT", train_info.loss.tanh.item(), epoch)
         log.tb_scalar("loss-train/LC", train_info.loss.classification.item(), epoch)
+
+        eval_info = eval(cfg, log, net, valid_loader, epoch)
 
         log.tb_scalar("Acc/eval-epochs", eval_info.accuracy, epoch)
         log.tb_scalar("mIoU/eval-epochs", eval_info.miou, epoch)

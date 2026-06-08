@@ -14,7 +14,7 @@ from utils.log import Log
 load_dotenv()
 
 
-@hydra.main(version_base=None, config_path="../config/yaml", config_name="config")
+@hydra.main(version_base=None, config_path="../../config/hydra", config_name="config")
 def main(cfg_dict: DictConfig):
     nni_trial_id = os.environ.get("NNI_TRIAL_JOB_ID")
     if nni_trial_id:
@@ -29,8 +29,8 @@ def main(cfg_dict: DictConfig):
     # Setup logger
     log = Log(cfg.logging.path, __name__)
 
-    log.info(f"Config: {cfg}")
-    log.info(f"Device used: {cfg.env.device}")
+    log.debug(f"Config: {OmegaConf.to_yaml(cfg_dict)}")
+    log.debug(f"Device used: {cfg.env.device}")
     if nni_trial_id:
         log.info(f"NNI trial ID: {nni_trial_id}")
 
@@ -66,7 +66,7 @@ def main(cfg_dict: DictConfig):
         panoptic_parts_loader = DataLoader(panoptic_parts_subset, cfg)
 
         interpretability = ModelInterpretability(net, cfg, log)
-        interpretability.compute_prototype_consistency_score(panoptic_parts_loader)
+        interpretability.compute_concept_consistency_score(panoptic_parts_loader)
 
     log.close()
 

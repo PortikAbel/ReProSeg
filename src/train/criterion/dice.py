@@ -11,7 +11,6 @@ class DiceLoss(nn.Module):
         self.class_weights = masked_weights / masked_weights.sum()
 
     def forward(self, inputs: Tensor, targets: Tensor) -> Tensor:
-        inputs = nn.functional.softmax(inputs, dim=1)
         inputs = inputs.permute(0, 2, 3, 1)  # Change to (batch_size, height, width, num_classes)
         if targets.dim() == inputs.dim() - 1:
             targets = nn.functional.one_hot(targets, num_classes=inputs.shape[-1])

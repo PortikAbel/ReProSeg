@@ -88,7 +88,6 @@ uv run python src/scripts/run.py training=fast data.batch_size=4 env.gpu_id=0
 uv run python src/scripts/run.py \
   training.epochs.total=200 \
   training.epochs.pretrain=50 \
-  model.num_prototypes=64 \
   model.loss_weights.classification=5.0
 
 # Run only evaluation without training

@@ -7,10 +7,7 @@ import torchvision.transforms as transforms
 
 from config.schema.main import ReProSegConfig
 from config.schema.training import OptimizerType
-from model.segmentation_features import (
-    base_architecture_to_features,
-    base_architecture_to_layer_groups,
-)
+from model.segmentation_features import base_architecture_to_features
 from utils.func import init_weights_xavier
 from utils.log import Log
 
@@ -30,12 +27,7 @@ class TrainPhase(Enum):
     Finetuning phase.
     """
 
-    FREEZE_FIRST_LAYERS = 2
-    """
-    Freeze first layers of the backbone.
-    """
-
-    FULL_TRAINING = 3
+    FULL_TRAINING = 2
     """
     Full training phase.
     """
@@ -47,10 +39,9 @@ class ReProSegLayers(nn.Module):
 
         features, aspp_convs = base_architecture_to_features[cfg.model.backbone_network](
             pretrained=not cfg.model.disable_pretrained,
-            in_channels=cfg.data.color_channels,
-            model_dir=cfg.env.pretrained_backbones_dir.as_posix(),
+            checkpoint_path=cfg.model.backbone_checkpoint,
         )
-        self.feature_net = features
+        self.backbone = features
         self.aspp_convs = aspp_convs
 
         self.shared_weights = self.aspp_convs[0][0].weight
@@ -58,34 +49,14 @@ class ReProSegLayers(nn.Module):
         for conv in self.aspp_convs:
             conv[0].weight.data = self.shared_weights
 
-        first_add_on_layer_in_channels = [m for m in aspp_convs.modules() if isinstance(m, nn.Conv2d)][-1].out_channels
+        # the sum of concept activations should be 1 for each patch in each scale
+        self.concept_activations: nn.Module = nn.Softmax(dim=1)
 
-        # the sum of prototype activations should be 1 for each patch in each scale
-        self.add_on_layers: nn.Module = nn.Softmax(dim=1)
-
-        if cfg.model.num_prototypes == 0:
-            self.num_prototypes = first_add_on_layer_in_channels
-            log.info(f"Number of prototypes: {self.num_prototypes}")
-        else:
-            self.num_prototypes = cfg.model.num_prototypes
-            log.info(
-                f"Number of prototypes set from {first_add_on_layer_in_channels} to {self.num_prototypes}. "
-                "Extra 1x1 conv layer added. Not recommended."
-            )
-            self.add_on_layers = nn.Sequential(
-                nn.Conv2d(
-                    in_channels=first_add_on_layer_in_channels,
-                    out_channels=self.num_prototypes,
-                    kernel_size=1,
-                    stride=1,
-                    padding=0,
-                    bias=False,
-                ),
-                self.add_on_layers,
-            )
+        self.num_concepts = [m for m in aspp_convs.modules() if isinstance(m, nn.Conv2d)][-1].out_channels
+        log.info(f"Number of concepts: {self.num_concepts}")
 
         self.max_pool = nn.AdaptiveMaxPool3d((1, None, None))
-        self.classification_layer = NonNegConv1x1(self.num_prototypes, cfg.data.num_classes, bias=cfg.model.bias)
+        self.classification_layer = NonNegConv1x1(self.num_concepts, cfg.data.num_classes, bias=cfg.model.bias)
 
 
 class ReProSeg(nn.Module):
@@ -100,7 +71,7 @@ class ReProSeg(nn.Module):
         self._log = log
 
         self.layers = ReProSegLayers(cfg, log)
-        self.num_prototypes = self.layers.num_prototypes
+        self.num_concepts = self.layers.num_concepts
 
         if cfg.model.checkpoint is not None:
             checkpoint = torch.load(cfg.model.checkpoint, map_location=cfg.env.device, weights_only=False)
@@ -112,15 +83,15 @@ class ReProSeg(nn.Module):
         self._init_param_groups()
 
     def forward(self, xs, inference=False):
-        backbone_features = self.layers.feature_net(xs)["out"]
-        # (b x num_prototypes x num_scales x h x w)
+        backbone_features = self.layers.backbone(xs)["out"]
+        # (b x num_concepts x num_scales x h x w)
         aspp_features = torch.cat([conv(backbone_features) for conv in self.layers.aspp_convs], dim=0)
-        aspp_features = self.layers.add_on_layers(aspp_features)
+        aspp_features = self.layers.concept_activations(aspp_features)
         aspp_features = torch.stack(torch.chunk(aspp_features, len(self.layers.aspp_convs), dim=0), dim=2)
         pooled = torch.squeeze(self.layers.max_pool(aspp_features), dim=2)
 
         if inference:
-            # ignore all prototypes that have 0.1 similarity or lower
+            # ignore all concepts that have 0.1 similarity or lower
             pooled = torch.where(pooled < 0.1, 0.0, pooled)
 
         out = self.layers.classification_layer(pooled)
@@ -130,12 +101,12 @@ class ReProSeg(nn.Module):
 
         return aspp_features, pooled, out
 
-    def interpolate_prototype_activations(self, xs: torch.Tensor) -> torch.Tensor:
+    def interpolate_concept_activations(self, xs: torch.Tensor) -> torch.Tensor:
         original_shape = xs.shape[2:]
 
-        activations = self.forward(xs, inference=True)[0]  # (batch x num_prototypes x scales x h x w)
-        activations = activations.permute(2, 0, 1, 3, 4)  # (scales x batch x num_prototypes x h x w)
-        max_scale = torch.argmax(activations, dim=(0))
+        activations = self.forward(xs, inference=True)[0]  # (batch x num_concepts x scales x h x w)
+        activations = activations.permute(2, 0, 1, 3, 4)  # (scales x batch x num_concepts x h x w)
+        max_scale = torch.argmax(activations, dim=0)
         scales = activations.shape[0]
 
         interpolated_activations = torch.zeros(original_shape, device=activations.device)
@@ -149,7 +120,7 @@ class ReProSeg(nn.Module):
         return interpolated_activations
 
     def _init_add_on_weights(self):
-        self.layers.add_on_layers.apply(init_weights_xavier)
+        self.layers.concept_activations.apply(init_weights_xavier)
 
     def _init_classifier_weights(self):
         torch.nn.init.normal_(self.layers.classification_layer.weight, mean=1.0, std=0.1)
@@ -160,75 +131,42 @@ class ReProSeg(nn.Module):
             torch.nn.init.constant_(self.layers.classification_layer.bias, val=0.0)
 
     def _init_param_groups(self):
-        self.param_groups = dict()
+        self.param_groups = dict[str, list[torch.nn.Parameter]]()
         self.param_groups["backbone"] = []
-        self.param_groups["to_train"] = []
-        self.param_groups["to_freeze"] = []
+        self.param_groups["classifier_head"] = []
 
-        if self._cfg.model.backbone_network in base_architecture_to_layer_groups.keys():
-            layer_groups = base_architecture_to_layer_groups[self._cfg.model.backbone_network]
-            for name, param in self.layers.feature_net.named_parameters():
-                if any(layer in name for layer in layer_groups["to_train"]):
-                    self.param_groups["to_train"].append(param)
-                elif any(layer in name for layer in layer_groups["to_freeze"]):
-                    self.param_groups["to_freeze"].append(param)
-                elif any(layer in name for layer in layer_groups["backbone"]):
-                    self.param_groups["backbone"].append(param)
-                else:
-                    param.requires_grad = False
-        else:
-            self._log.warning("Layer groups not implemented for selected backbone architecture.")
+        for _name, param in self.layers.backbone.named_parameters():
+            self.param_groups["backbone"].append(param)
 
-        self.param_groups["to_train"].append(self.layers.shared_weights)
-        self.param_groups["classification_weight"] = []
-        self.param_groups["classification_bias"] = []
+        self.param_groups["classifier_head"].append(self.layers.shared_weights)
+
         for name, param in self.layers.classification_layer.named_parameters():
             if "weight" in name:
-                self.param_groups["classification_weight"].append(param)
+                self.param_groups["classifier_head"].append(param)
             elif self._cfg.model.bias:
-                self.param_groups["classification_bias"].append(param)
+                self.param_groups["classifier_head"].append(param)
 
     def get_optimizers(self):
-        paramlist_net = [
+        paramlist_backbone = [
             {
                 "params": self.param_groups["backbone"],
-                "lr": self._cfg.training.learning_rates.backbone_full,
-                "weight_decay_rate": self._cfg.training.weight_decay,
-            },
-            {
-                "params": self.param_groups["to_freeze"],
-                "lr": self._cfg.training.learning_rates.backbone_end,
-                "weight_decay_rate": self._cfg.training.weight_decay,
-            },
-            {
-                "params": self.param_groups["to_train"],
-                "lr": self._cfg.training.learning_rates.backbone_end,
-                "weight_decay_rate": self._cfg.training.weight_decay,
-            },
-            {
-                "params": self.layers.add_on_layers.parameters(),
-                "lr": self._cfg.training.learning_rates.backbone_end * 10.0,
+                "lr": self._cfg.training.learning_rates.backbone,
                 "weight_decay_rate": self._cfg.training.weight_decay,
             },
         ]
 
         paramlist_classifier = [
             {
-                "params": self.param_groups["classification_weight"],
+                "params": self.param_groups["classifier_head"],
                 "lr": self._cfg.training.learning_rates.classifier,
                 "weight_decay_rate": self._cfg.training.weight_decay,
-            },
-            {
-                "params": self.param_groups["classification_bias"],
-                "lr": self._cfg.training.learning_rates.classifier,
-                "weight_decay_rate": 0,
             },
         ]
 
         if self._cfg.training.optimizer == OptimizerType.ADAMW:
-            optimizer_net = torch.optim.AdamW(
-                paramlist_net,
-                lr=self._cfg.training.learning_rates.backbone_full,
+            optimizer_backbone = torch.optim.AdamW(
+                paramlist_backbone,
+                lr=self._cfg.training.learning_rates.backbone,
                 weight_decay=self._cfg.training.weight_decay,
             )
             optimizer_classifier = torch.optim.AdamW(
@@ -236,59 +174,18 @@ class ReProSeg(nn.Module):
                 lr=self._cfg.training.learning_rates.classifier,
                 weight_decay=self._cfg.training.weight_decay,
             )
-            return (optimizer_net, optimizer_classifier)
+            return (optimizer_backbone, optimizer_classifier)
         else:
             raise ValueError("this optimizer type is not implemented")
 
     def pretrain(self):
         self.train_phase = TrainPhase.PRETRAIN
 
-        for param in self.param_groups["to_train"]:
-            param.requires_grad = True
-        for param in self.layers.add_on_layers.parameters():
-            param.requires_grad = True
-        for param in self.layers.classification_layer.parameters():
-            param.requires_grad = False
-        for param in self.param_groups["to_freeze"]:
-            param.requires_grad = True  # can be set to False when you want to freeze more layers
-        for param in self.param_groups["backbone"]:
-            # can be set to True when you want to train whole backbone
-            # (e.g. if dataset is very different from ImageNet)
-            param.requires_grad = self._cfg.model.train_backbone_during_pretrain
-
     def finetune(self):
         self.train_phase = TrainPhase.FINETUNE
 
-        for param in self.parameters():
-            param.requires_grad = False
-        for param in self.layers.classification_layer.parameters():
-            param.requires_grad = True
-
-    def freeze(self):
-        self.train_phase = TrainPhase.FREEZE_FIRST_LAYERS
-
-        for param in self.param_groups["to_freeze"]:
-            # Can be set to False if you want
-            # to train fewer layers of backbone
-            param.requires_grad = True
-        for param in self.layers.add_on_layers.parameters():
-            param.requires_grad = True
-        for param in self.param_groups["to_train"]:
-            param.requires_grad = True
-        for param in self.param_groups["backbone"]:
-            param.requires_grad = False
-
-    def unfreeze(self):
+    def full_train(self):
         self.train_phase = TrainPhase.FULL_TRAINING
-
-        for param in self.layers.add_on_layers.parameters():
-            param.requires_grad = True
-        for param in self.param_groups["to_freeze"]:
-            param.requires_grad = True
-        for param in self.param_groups["to_train"]:
-            param.requires_grad = True
-        for param in self.param_groups["backbone"]:
-            param.requires_grad = True
 
 
 class NonNegConv1x1(nn.Module):
@@ -316,9 +213,9 @@ class NonNegConv1x1(nn.Module):
             self.register_parameter("bias", None)
 
     def forward(self, input_: torch.Tensor) -> torch.Tensor:
-        weight = torch.where(self.weight < self.MIN_CLASSIFICATION_WEIGHT, 0.0, self.weight)
+        weight = F.softplus(self.weight)
         return F.conv2d(input_, weight, self.bias, stride=1, padding=0)
 
     @property
-    def used_prototypes(self) -> torch.Tensor:
+    def used_concepts(self) -> torch.Tensor:
         return (self.weight >= self.MIN_CLASSIFICATION_WEIGHT).any(dim=0).squeeze().nonzero().squeeze()

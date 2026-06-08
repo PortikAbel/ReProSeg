@@ -22,19 +22,3 @@ class ReProSegConfig(BaseConfig):
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     visualization: VisualizationConfig = Field(default_factory=VisualizationConfig)
     evaluation: EvaluationConfig = Field(default_factory=EvaluationConfig)
-
-    def _post_init_setup(self):
-        # Ensure that at least one loss is specified
-        loss_weights = [
-            self.model.loss_weights.jsd,
-            self.model.loss_weights.tanh,
-            self.model.loss_weights.uniformity,
-            self.model.loss_weights.variance,
-        ]
-
-        if all(weight == 0.0 for weight in loss_weights):
-            # Set default JSD loss if no loss specified
-            self.model.loss_weights.jsd = 5.0
-
-        if self.model.checkpoint:
-            self.logging.path = self.model.checkpoint.parent.parent

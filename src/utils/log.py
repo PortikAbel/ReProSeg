@@ -16,7 +16,7 @@ class BasicLog(logging.Logger):
         # Ensure the directories exist
         self._log_dir.mkdir(parents=True, exist_ok=True)
 
-        self._log_file = self._log_dir / "log.txt"
+        self._log_file = self._log_dir / "train.log"
 
         if self._log_file.is_file():
             # make log file empty if it already exists
@@ -114,7 +114,7 @@ class Log(BasicLog):
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         self.tensorboard_dir.mkdir(parents=True, exist_ok=True)
 
-        self._tqdm_file = (self._log_dir / "tqdm.txt").open(mode="w")
+        self._tqdm_file = (self._log_dir / "tqdm.log").open(mode="w")
         self._tensorboard_writer = SummaryWriter(log_dir=self.tensorboard_dir)
 
     @property
