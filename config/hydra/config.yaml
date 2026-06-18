@@ -1,0 +1,21 @@
+# Base configuration file
+# This is the main entry point for Hydra configuration
+
+defaults:
+  - env: default
+  - data: cityscapes
+  - model: default
+  - training: default
+  - logging: default
+  - visualization: default
+  - _self_
+
+# Hydra configuration to use custom output directory
+hydra:
+  run:
+    dir: ${oc.env:NNI_OUTPUT_DIR,${oc.env:LOG_ROOT}/${now:%Y_%m_%d-%H_%M_%S}}
+
+# Environment Settings
+env:
+  gpu_id: 0
+  seed: 1

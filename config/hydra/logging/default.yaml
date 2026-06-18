@@ -1,0 +1,5 @@
+# Default logging configuration
+
+# Logging
+path: ${hydra:runtime.output_dir}
+save_all_models: false

@@ -1,0 +1,21 @@
+# Fast debug experiment for quick testing
+
+defaults:
+  - /env: default
+  - /data: cityscapes
+  - /model: default
+  - /training: fast
+  - /logging: debug
+  - /visualization: default
+  - _self_
+
+# Hydra configuration to use custom output directory
+hydra:
+  run:
+    dir: ${oc.env:LOG_ROOT}/debug
+
+env:
+  gpu_id: 0
+  seed: 42
+
+data.path: ${oc.env:DATA_ROOT}/Cityscapes_small
