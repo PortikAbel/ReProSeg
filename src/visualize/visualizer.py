@@ -130,7 +130,7 @@ class ModelVisualizer:
             image_indices = range(len(dataset))
             base_dataset = dataset
         image_paths = base_dataset.images  # type: ignore[attr-defined]
-        resize_image = transforms.Resize(size=tuple(self.image_shape))
+        crop_image = transforms.CenterCrop(size=tuple(self.image_shape))
         pil_to_tensor = transforms.ToTensor()
         img_iter = tqdm(
             enumerate(train_loader_visualization),
@@ -149,7 +149,7 @@ class ModelVisualizer:
             for idx in local_image_idxs:
                 image_path_idx = image_indices[base_idx + idx]
                 image = pil_to_tensor(Image.open(image_paths[image_path_idx]).convert("RGB"))
-                image = resize_image(image)
+                image = crop_image(image)
                 images.append(image)
             xs = xs[local_image_idxs].to(self.device)
             concept_activations = self.net.interpolate_concept_activations(xs)
@@ -181,12 +181,12 @@ class ModelVisualizer:
             prototype_tensors.append(txt_tensor)
             grid = torchvision.utils.make_grid(prototype_tensors, nrow=self.k + 1, padding=1)
             torchvision.utils.save_image(
-                grid, self.log.prototypes_dir / f"grid_top_{self.k}_activations_of_prototype_{p}.png"
+                grid, self.log.prototypes_dir / "all" / f"grid_top_{self.k}_activations_of_prototype_{p}.png"
             )
             all_tensors += prototype_tensors
         if len(all_tensors) > 0:
             grid = torchvision.utils.make_grid(all_tensors, nrow=self.k + 1, padding=1)
-            torchvision.utils.save_image(grid, self.log.prototypes_dir / f"grid_top_{self.k}_prototype_activations.png")
+            torchvision.utils.save_image(grid, self.log.prototypes_dir / "all" / f"grid_top_{self.k}_prototype_activations.png")
         else:
             self.log.warning("No concepts to visualize with prototypes.")
 

@@ -122,7 +122,7 @@ class TransformSet:
             ]
         )
 
-        self.random_crop = transforms.RandomCrop(size=img_shape)
+        self.random_crop = transforms.CenterCrop(size=img_shape)
 
         self.shrink_target = transforms.Resize(
             size=(img_shape[0] // 8, img_shape[1] // 8),
