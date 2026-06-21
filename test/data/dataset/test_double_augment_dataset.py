@@ -3,15 +3,23 @@
 import pytest
 import torch
 
+from config.schema.data import DatasetType
 from data import DoubleAugmentDataset
 
 
 class TestDoubleAugmentDataset:
     """Test cases for the DoubleAugmentDataset class."""
 
-    @pytest.fixture(autouse=True)
-    def setup(self, mock_config, mock_cityscapes_constructor, mock_transform_set_constructor):
+    @pytest.fixture(
+        params=[
+            pytest.param(DatasetType.CITYSCAPES, id="cityscapes"),
+            pytest.param(DatasetType.VOC_SEGMENTATION, id="pascal_voc"),
+        ],
+        autouse=True,
+    )
+    def setup(self, request, mock_config, mock_cityscapes_constructor, mock_voc_constructor, mock_transform_set_constructor):
         """Run before each test method to create a fresh dataset instance."""
+        mock_config.data.dataset = request.param
         self.dataset = DoubleAugmentDataset(mock_config.data)
 
     def test_getitem_transforms_sequence(self, sample_image, sample_target):
@@ -24,7 +32,11 @@ class TestDoubleAugmentDataset:
 
         self.dataset.transform_set.base_image.assert_called_once_with(sample_image)
         self.dataset.transform_set.base_target.assert_called_once_with(sample_target)
-        self.dataset.transform_set.filter_classes.assert_called_once()
+
+        if self.dataset.dataset_type == DatasetType.CITYSCAPES:
+            self.dataset.transform_set.filter_classes.assert_called_once()
+        else:
+            self.dataset.transform_set.filter_classes.assert_not_called()
 
         self.dataset.transform_set.geometry_augmentation.assert_called_once()
 

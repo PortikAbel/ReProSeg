@@ -10,24 +10,29 @@ from config.schema.data import DatasetType
 from data import Dataset, DataSplit
 from data.dataset.factory import DatasetFactory
 from data.dataset.transform_set import TransformSet
+from utils.errors import DatasetNotImplementedError
 
 
 class TestBaseDataset:
     """Test cases for the base Dataset class."""
 
-    def setup_method(self):
-        """Set up test fixtures before each test method."""
-        self.dataset_name = DatasetType.CITYSCAPES
+    @pytest.fixture(
+        params=[
+            pytest.param(DatasetType.CITYSCAPES, id="cityscapes"),
+            pytest.param(DatasetType.VOC_SEGMENTATION, id="pascal_voc"),
+        ],
+        autouse=True,
+    )
+    def setup(self, request, mock_config, mock_cityscapes_constructor, mock_voc_constructor, mock_transform_set_constructor):
+        self.dataset_type = request.param
         self.split = DataSplit.TRAIN
-
-    @pytest.fixture(autouse=True)
-    def setup(self, mock_config, mock_cityscapes_constructor, mock_transform_set_constructor):
+        mock_config.data.dataset = request.param
         self.dataset = Dataset(mock_config.data)
 
     def test_init_valid_dataset(self):
         """Test Dataset initializes all attributes."""
 
-        assert self.dataset.dataset_type == self.dataset_name
+        assert self.dataset.dataset_type == self.dataset_type
         assert isinstance(self.dataset.dataset, TorchDataset)
         assert isinstance(self.dataset.transform_set, TransformSet)
 
@@ -42,7 +47,9 @@ class TestBaseDataset:
         self.dataset.transform_set.base_image.assert_called_once_with(sample_image)
         self.dataset.transform_set.image_normalization.assert_called_once()
         self.dataset.transform_set.base_target.assert_called_once_with(sample_target)
-        self.dataset.transform_set.filter_classes.assert_called_once()
+
+        if self.dataset_type == DatasetType.CITYSCAPES:
+            self.dataset.transform_set.filter_classes.assert_called_once()
 
         assert isinstance(result[0], torch.Tensor)
         assert isinstance(result[1], torch.Tensor)
@@ -62,13 +69,25 @@ class TestBaseDataset:
             Dataset(mock_config.data)
             mock_create.assert_called_once_with(mock_config.data, split=self.split)
 
-    def test_classes_property(self):
-        """Test classes property."""
+    def test_classes_property_cityscapes(self):
+        """Test classes property for Cityscapes dataset."""
+
+        if self.dataset_type != DatasetType.CITYSCAPES:
+            pytest.skip("Classes property only supported for Cityscapes dataset")
 
         mock_classes = ["class1", "class2", "class3"]
         self.dataset.dataset.classes = mock_classes
 
         assert self.dataset.classes == mock_classes
+
+    def test_classes_property_raises_for_non_cityscapes(self):
+        """Test classes property raises DatasetNotImplementedError for non-Cityscapes datasets."""
+
+        if self.dataset_type == DatasetType.CITYSCAPES:
+            pytest.skip("This test is for non-Cityscapes datasets only")
+
+        with pytest.raises(DatasetNotImplementedError):
+            _ = self.dataset.classes
 
     def test_transform_property(self):
         """Test transform property."""
