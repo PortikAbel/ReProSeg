@@ -1,5 +1,5 @@
 from torch.utils.data import Dataset as TorchDataset
-from torchvision.datasets import Cityscapes
+from torchvision.datasets import Cityscapes, VOCSegmentation
 
 from config.schema.data import DataConfig, DatasetType
 from data.data_split import DataSplit
@@ -21,5 +21,12 @@ class DatasetFactory:
                 data.classes = ClassFilter.filter_cityscapes_classes(data.classes)
 
                 return data
+            case DatasetType.VOC_SEGMENTATION:
+                return VOCSegmentation(
+                    root=cfg.path,
+                    year="2012",
+                    image_set=split.value,
+                    download=False,
+                )
             case _:
                 raise DatasetNotImplementedError(cfg.dataset)
