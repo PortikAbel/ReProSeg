@@ -59,7 +59,7 @@ class TestDatasetFactory:
         """Test factory raises error for unsupported dataset types."""
 
         # Set an unsupported dataset type
-        mock_config.data.dataset = DatasetType.PASCAL_PARTS
+        mock_config.data.dataset = DatasetType.VOC_SEGMENTATION
 
         with pytest.raises(DatasetNotImplementedError):
             DatasetFactory.create(mock_config.data, split=DataSplit.TRAIN)

@@ -12,7 +12,7 @@ class DatasetType(str, Enum):
     """Supported dataset types."""
 
     CITYSCAPES = "CityScapes"
-    PASCAL_PARTS = "PascalParts"
+    VOC_SEGMENTATION = "PascalVOC"
 
 
 class DataConfig(BaseConfig):

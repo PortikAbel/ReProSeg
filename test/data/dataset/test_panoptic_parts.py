@@ -24,7 +24,7 @@ class TestPanopticPartsDataset:
         assert self.dataset.dataset_type == DatasetType.CITYSCAPES
 
         # Should raise error with other dataset types
-        mock_config.data.dataset = DatasetType.PASCAL_PARTS
+        mock_config.data.dataset = DatasetType.VOC_SEGMENTATION
         with pytest.raises(ValueError, match="only supports CITYSCAPES"):
             PanopticPartsDataset(mock_config.data)
 
