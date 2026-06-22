@@ -10,7 +10,6 @@ from config.schema.data import DatasetType
 from data import Dataset, DataSplit
 from data.dataset.factory import DatasetFactory
 from data.dataset.transform_set import TransformSet
-from utils.errors import DatasetNotImplementedError
 
 
 class TestBaseDataset:

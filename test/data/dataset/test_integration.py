@@ -9,7 +9,6 @@ import pytest
 
 from config.schema.data import DatasetType
 from data import Dataset, DoubleAugmentDataset
-from utils.errors import DatasetNotImplementedError
 
 
 class TestDatasetIntegration:

@@ -1,8 +1,7 @@
-from typing import Optional, cast
+from typing import Optional
 
 from torch.utils.data import Dataset as TorchDataset
 from torch.utils.data.dataset import Subset
-from torchvision.datasets import Cityscapes
 from torchvision.datasets.vision import StandardTransform
 from torchvision.transforms.v2 import Compose, Transform
 
