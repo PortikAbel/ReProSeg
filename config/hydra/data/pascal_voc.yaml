@@ -2,7 +2,7 @@
 
 # Dataset
 dataset: PascalVOC
-path: ${oc.env:DATA_ROOT}/VOCdevkit/VOC2012
+path: ${oc.env:DATA_ROOT}
 disable_normalize: false
 color_channels: 3
 img_shape: [256, 512]
