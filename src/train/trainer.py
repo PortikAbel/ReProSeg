@@ -19,8 +19,8 @@ from utils.log import Log
 def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDataset, log: Log, cfg: ReProSegConfig):
     double_augment_set = DoubleAugmentDataset(cfg.data, train_data)
     valid_set = Dataset(cfg.data, valid_data)
-    train_loader = DataLoader(double_augment_set, cfg)
-    valid_loader = DataLoader(valid_set, cfg)
+    train_loader = DataLoader(double_augment_set, cfg.data)
+    valid_loader = DataLoader(valid_set, cfg.data)
 
     optimizer_scheduler_manager = OptimizerSchedulerManager(net, len(train_loader) * cfg.training.epochs.pretrain)
     if cfg.model.checkpoint is not None:

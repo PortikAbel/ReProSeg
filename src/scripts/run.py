@@ -52,7 +52,7 @@ def main(cfg_dict: DictConfig):
         from visualize.visualizer import ModelVisualizer
 
         visualize_set = Dataset(cfg.data, train_subset)
-        visualize_loader = DataLoader(visualize_set, cfg)
+        visualize_loader = DataLoader(visualize_set, cfg.data)
 
         visualizer = ModelVisualizer(net, cfg, log)
         visualizer.visualize_prototypes(visualize_loader)
@@ -61,7 +61,7 @@ def main(cfg_dict: DictConfig):
         from visualize.interpretability import ModelInterpretability
 
         panoptic_parts_subset = PanopticPartsDataset(cfg.data, train_subset)
-        panoptic_parts_loader = DataLoader(panoptic_parts_subset, cfg)
+        panoptic_parts_loader = DataLoader(panoptic_parts_subset, cfg.data)
 
         interpretability = ModelInterpretability(net, cfg, log)
         interpretability.compute_concept_consistency_score(panoptic_parts_loader)
