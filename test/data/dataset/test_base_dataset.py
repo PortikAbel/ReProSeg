@@ -23,7 +23,9 @@ class TestBaseDataset:
         ],
         autouse=True,
     )
-    def setup(self, request, mock_config, mock_cityscapes_constructor, mock_voc_constructor, mock_transform_set_constructor):
+    def setup(
+        self, request, mock_config, mock_cityscapes_constructor, mock_voc_constructor, mock_transform_set_constructor
+    ):
         self.dataset_type = request.param
         self.split = DataSplit.TRAIN
         mock_config.data.dataset = request.param
@@ -49,7 +51,7 @@ class TestBaseDataset:
         self.dataset.transform_set.base_target.assert_called_once_with(sample_target)
 
         if self.dataset_type == DatasetType.CITYSCAPES:
-            self.dataset.transform_set.filter_classes.assert_called_once()
+            self.dataset.transform_set.label_mapping.assert_called_once()
 
         assert isinstance(result[0], torch.Tensor)
         assert isinstance(result[1], torch.Tensor)
@@ -69,25 +71,13 @@ class TestBaseDataset:
             Dataset(mock_config.data)
             mock_create.assert_called_once_with(mock_config.data, split=self.split)
 
-    def test_classes_property_cityscapes(self):
-        """Test classes property for Cityscapes dataset."""
-
-        if self.dataset_type != DatasetType.CITYSCAPES:
-            pytest.skip("Classes property only supported for Cityscapes dataset")
+    def test_classes_property(self):
+        """Test classes property of dataset."""
 
         mock_classes = ["class1", "class2", "class3"]
         self.dataset.dataset.classes = mock_classes
 
         assert self.dataset.classes == mock_classes
-
-    def test_classes_property_raises_for_non_cityscapes(self):
-        """Test classes property raises DatasetNotImplementedError for non-Cityscapes datasets."""
-
-        if self.dataset_type == DatasetType.CITYSCAPES:
-            pytest.skip("This test is for non-Cityscapes datasets only")
-
-        with pytest.raises(DatasetNotImplementedError):
-            _ = self.dataset.classes
 
     def test_transform_property(self):
         """Test transform property."""

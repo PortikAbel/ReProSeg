@@ -73,22 +73,7 @@ class TestDatasetIntegration:
 
         assert len(self.base_dataset) == len(self.double_augment_dataset)
 
-    def test_classes_consistency_cityscapes(self):
-        """Test that base and double augment datasets report the same classes (Cityscapes)."""
-
-        if self.dataset_type != DatasetType.CITYSCAPES:
-            pytest.skip("Classes property only supported for Cityscapes dataset")
+    def test_classes_consistency(self):
+        """Test that base and double augment datasets report the same classes."""
 
         assert self.base_dataset.classes == self.double_augment_dataset.classes
-
-    def test_classes_raises_for_non_cityscapes(self):
-        """Test that accessing classes raises DatasetNotImplementedError for non-Cityscapes datasets."""
-
-        if self.dataset_type == DatasetType.CITYSCAPES:
-            pytest.skip("This test is for non-Cityscapes datasets only")
-
-        with pytest.raises(DatasetNotImplementedError):
-            _ = self.base_dataset.classes
-
-        with pytest.raises(DatasetNotImplementedError):
-            _ = self.double_augment_dataset.classes

@@ -17,7 +17,9 @@ class TestDoubleAugmentDataset:
         ],
         autouse=True,
     )
-    def setup(self, request, mock_config, mock_cityscapes_constructor, mock_voc_constructor, mock_transform_set_constructor):
+    def setup(
+        self, request, mock_config, mock_cityscapes_constructor, mock_voc_constructor, mock_transform_set_constructor
+    ):
         """Run before each test method to create a fresh dataset instance."""
         mock_config.data.dataset = request.param
         self.dataset = DoubleAugmentDataset(mock_config.data)
@@ -32,12 +34,7 @@ class TestDoubleAugmentDataset:
 
         self.dataset.transform_set.base_image.assert_called_once_with(sample_image)
         self.dataset.transform_set.base_target.assert_called_once_with(sample_target)
-
-        if self.dataset.dataset_type == DatasetType.CITYSCAPES:
-            self.dataset.transform_set.filter_classes.assert_called_once()
-        else:
-            self.dataset.transform_set.filter_classes.assert_not_called()
-
+        self.dataset.transform_set.label_mapping.assert_called_once()
         self.dataset.transform_set.geometry_augmentation.assert_called_once()
 
         self.dataset.transform_set.color_augmentation.assert_called()

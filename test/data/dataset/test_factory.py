@@ -9,7 +9,6 @@ from data.data_split import DataSplit
 from data.dataset.factory import DatasetFactory
 from utils.errors import DatasetNotImplementedError
 
-
 _DATASET_PARAMS = pytest.mark.parametrize(
     "dataset_type,patch_path,expected_kwargs_fn",
     [
@@ -59,23 +58,24 @@ class TestDatasetFactory:
         with patch(patch_path, return_value=mock_dataset) as mock_constructor:
             dataset = DatasetFactory.create(mock_config.data, split=DataSplit.TRAIN)
 
-            mock_constructor.assert_called_once_with(
-                **expected_kwargs_fn(mock_config.data.path, DataSplit.TRAIN)
-            )
+            mock_constructor.assert_called_once_with(**expected_kwargs_fn(mock_config.data.path, DataSplit.TRAIN))
             assert dataset == mock_dataset
 
-    def test_create_filters_cityscapes_classes(self, mock_config, mock_cityscapes_dataset, mock_cityscapes_classes):
-        """Test factory filters Cityscapes classes."""
+    @pytest.mark.parametrize("dataset_type", list(DatasetType))
+    def test_create_sets_dataset_classes(self, mock_config, dataset_type):
+        """Test factory sets classes on the created dataset."""
+        mock_classes = ["cls_a", "cls_b"]
+        mock_config.data.dataset = dataset_type
+        mock_dataset = MagicMock()
 
-        with patch("data.dataset.factory.Cityscapes", return_value=mock_cityscapes_dataset):
-            with patch("data.dataset.factory.ClassFilter.filter_cityscapes_classes") as mock_filter:
-                filtered_classes = mock_cityscapes_classes[:6]  # Filtered classes
-                mock_filter.return_value = filtered_classes
+        with (
+            patch("data.dataset.factory.Cityscapes", return_value=mock_dataset),
+            patch("data.dataset.factory.VOCSegmentation", return_value=mock_dataset),
+            patch("data.dataset.factory.LabelMapping.get_classes", return_value=mock_classes)
+        ):
+            dataset = DatasetFactory.create(mock_config.data, split=DataSplit.TRAIN)
 
-                dataset = DatasetFactory.create(mock_config.data, split=DataSplit.TRAIN)
-
-                mock_filter.assert_called_once()
-                assert dataset.classes == filtered_classes
+            assert dataset.classes == mock_classes
 
     @_DATASET_PARAMS
     def test_create_with_validation_split(
@@ -94,9 +94,7 @@ class TestDatasetFactory:
         with patch(patch_path, return_value=mock_dataset) as mock_constructor:
             dataset = DatasetFactory.create(mock_config.data, split=DataSplit.VAL)
 
-            mock_constructor.assert_called_once_with(
-                **expected_kwargs_fn(mock_config.data.path, DataSplit.VAL)
-            )
+            mock_constructor.assert_called_once_with(**expected_kwargs_fn(mock_config.data.path, DataSplit.VAL))
             assert dataset is not None
 
     def test_create_raises_for_unsupported_dataset(self):
