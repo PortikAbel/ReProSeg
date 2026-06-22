@@ -37,8 +37,6 @@ def main(cfg_dict: DictConfig):
     # Create the dataloaders
     train_subset, valid_subset = get_train_val_split(cfg)
 
-    cfg.data.num_classes = len(train_subset.dataset.classes)  # type: ignore[attr-defined]
-
     # Model
     net = ReProSeg(cfg=cfg, log=log).to(device=cfg.env.device)
 

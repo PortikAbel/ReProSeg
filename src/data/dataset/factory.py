@@ -19,6 +19,7 @@ class DatasetFactory:
                     target_type="semantic",
                 )
                 data.classes = ClassFilter.filter_cityscapes_classes(data.classes)
+                cfg.set_num_classes(len(data.classes))
 
                 return data
             case DatasetType.VOC_SEGMENTATION:

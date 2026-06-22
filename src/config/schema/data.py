@@ -42,4 +42,11 @@ class DataConfig(BaseConfig):
     batch_size: int = Field(default=2, ge=2, description="Minibatch size (will be multiplied by the number of GPUs)")
 
     # Computed field based on dataset
-    num_classes: int = Field(default=0, description="Number of classes (computed from dataset)")
+    num_classes: int | None = Field(default=None, description="Number of classes (computed from dataset)")
+
+    def set_num_classes(self, num_classes: int):
+        """Set the number of classes in the dataset."""
+        if self.num_classes is not None:
+            assert self.num_classes == num_classes, "Number of classes already set and does not match the provided value"
+        else:
+            self.num_classes = num_classes
