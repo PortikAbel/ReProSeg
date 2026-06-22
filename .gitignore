@@ -165,4 +165,4 @@ node_modules/
 runs/
 pretrained/
 
-class_counts.npy
+class_distribution/
