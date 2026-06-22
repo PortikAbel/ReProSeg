@@ -21,8 +21,8 @@ class DataConfig(BaseConfig):
     # Dataset settings
     dataset: DatasetType = Field(default=DatasetType.CITYSCAPES, description="Dataset to train ReProSeg on")
     path: Path = Field(default=Path("./data"), description="Root path to dataset")
-    validation_size: float = Field(
-        default=0.2, ge=0.0, le=1.0, description="Fraction of training data to use as validation"
+    validation_size: float | None = Field(
+        default=None, ge=0.0, le=1.0, description="Fraction of training data to use as validation"
     )
     disable_normalize: bool = Field(default=False, description="Disable normalization of images if set")
     color_channels: int = Field(default=3, description="Number of color channels in the images")
