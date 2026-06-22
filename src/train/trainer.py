@@ -27,9 +27,7 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
         checkpoint = torch.load(cfg.model.checkpoint, map_location=cfg.env.device, weights_only=False)
         optimizer_scheduler_manager.load_state_dict(checkpoint)
 
-    class_weights = get_class_weights(
-        train_data, cfg.data, log
-    ).to(cfg.env.device)
+    class_weights = get_class_weights(train_data, cfg.data, log).to(cfg.env.device)
     criterion: nn.Module
     match cfg.model.criterion:
         case LossCriterion.NLL:

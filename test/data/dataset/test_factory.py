@@ -71,7 +71,7 @@ class TestDatasetFactory:
         with (
             patch("data.dataset.factory.Cityscapes", return_value=mock_dataset),
             patch("data.dataset.factory.VOCSegmentation", return_value=mock_dataset),
-            patch("data.dataset.factory.LabelMapping.get_classes", return_value=mock_classes)
+            patch("data.dataset.factory.LabelMapping.get_classes", return_value=mock_classes),
         ):
             dataset = DatasetFactory.create(mock_config.data, split=DataSplit.TRAIN)
 

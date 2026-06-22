@@ -9,10 +9,12 @@ from config import DataConfig
 
 NUMPY_SEED_MODULUS = 2**32  # numpy seeds must be in range [0, 2^32)
 
+
 def seed_worker(_worker_id):
     worker_seed = torch.initial_seed() % NUMPY_SEED_MODULUS
     np.random.seed(worker_seed)
     random.seed(worker_seed)
+
 
 class DataLoader(TorchDataLoader):
     """Custom wrapper for `torch.utils.data.DataLoader`."""

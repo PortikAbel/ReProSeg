@@ -10,9 +10,7 @@ from data.dataset.base import Dataset
 from utils.log import Log
 
 
-def get_class_weights(
-    data: TorchDataset, cfg: DataConfig, log: Log
-) -> torch.Tensor:
+def get_class_weights(data: TorchDataset, cfg: DataConfig, log: Log) -> torch.Tensor:
     cache_path = cfg.class_distribution_cache_path
     if cache_path.is_file():
         class_counts = np.load(cache_path)
