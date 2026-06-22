@@ -22,6 +22,7 @@ training:
 
 visualization:
   generate_explanations: true
+  use_log: ""
 
 data:
   img_shape: [512, 1024]

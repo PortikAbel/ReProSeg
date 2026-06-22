@@ -49,7 +49,7 @@ class ModelVisualizer:
 
     def collect_topk_concept_activations(self, train_loader_visualization: DataLoader):
         topks_cache_path = self.log.prototypes_dir / f"topks_of_concept_k{self.k}.pkl"
-        if os.path.exists(topks_cache_path):
+        if topks_cache_path.exists():
             self.log.info(f"Loading top {self.k} concept activations from {topks_cache_path}")
             with open(topks_cache_path, "rb") as f:
                 self.topks_of_concept = pickle.load(f)
@@ -85,7 +85,7 @@ class ModelVisualizer:
 
     def map_images_to_prototypes(self):
         image_to_concepts_cache_path = self.log.prototypes_dir / "image_to_concepts.pkl"
-        if os.path.exists(image_to_concepts_cache_path):
+        if image_to_concepts_cache_path.exists():
             self.log.info(f"Loading image to concepts mapping from {image_to_concepts_cache_path}")
             with open(image_to_concepts_cache_path, "rb") as f:
                 self.image_to_concepts = pickle.load(f)
@@ -112,7 +112,7 @@ class ModelVisualizer:
     def collect_prototype_tensors(self, train_loader_visualization: DataLoader):
         proto_dir = self.log.prototypes_dir
         tensors_cache_path = proto_dir / f"tensors_per_concept_k{self.k}.pkl"
-        if os.path.exists(tensors_cache_path):
+        if tensors_cache_path.exists():
             self.log.info(f"Loading prototype tensors from {tensors_cache_path}")
             with open(tensors_cache_path, "rb") as f:
                 self.tensors_per_concept = pickle.load(f)
@@ -176,6 +176,8 @@ class ModelVisualizer:
             ncols=0,
             file=self.log.tqdm_file,
         )
+        all_dir = self.log.prototypes_dir / "all"
+        all_dir.mkdir(exist_ok=True)
         for p, prototype_tensors in prototype_iter:
             txt_tensor = prototype_text(p, self.image_shape[::-1])
             prototype_tensors.append(txt_tensor)

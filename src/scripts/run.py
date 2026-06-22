@@ -6,6 +6,8 @@ import nni  # type: ignore[import-untyped]
 from dotenv import load_dotenv
 from omegaconf import DictConfig, OmegaConf
 
+from pathlib import Path
+
 from config import ReProSegConfig
 from data import DataLoader, Dataset, PanopticPartsDataset, get_train_val_split
 from model.model import ReProSeg
@@ -27,7 +29,10 @@ def main(cfg_dict: DictConfig):
     cfg = ReProSegConfig(**cfg_object)
 
     # Setup logger
-    log = Log(cfg.logging.path, __name__)
+    if cfg.training.skip_training and cfg.visualization.generate_explanations and len(cfg.visualization.use_log) > 0:
+        log = Log(Path(cfg.visualization.use_log), __name__)
+    else:
+        log = Log(cfg.logging.path, __name__)
 
     log.debug(f"Config: {OmegaConf.to_yaml(cfg_dict)}")
     log.debug(f"Device used: {cfg.env.device}")

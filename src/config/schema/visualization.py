@@ -9,3 +9,4 @@ class VisualizationConfig(BaseModel):
     # Concept visualization
     generate_explanations: bool = Field(default=False, description="Whether to generate model explanations")
     top_k: int = Field(default=10, gt=0, description="Number `k` for top-k prototypes per concept")
+    use_log: str = Field(default="", description="Whether to use a given directory for visualization")
