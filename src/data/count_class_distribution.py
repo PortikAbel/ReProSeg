@@ -31,8 +31,9 @@ def _count_class_distribution(dl: DataLoader, num_classes: int, save_path: Path)
         for c in range(num_classes):
             class_counts[c] += (label == c).sum()
 
-    if not save_path.parent.exists():
-        save_path.parent.mkdir(parents=True, exist_ok=True)
-    np.save(save_path, class_counts)
+    if save_path is not None:
+        if not save_path.parent.exists():
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+        np.save(save_path, class_counts)
 
     return class_counts

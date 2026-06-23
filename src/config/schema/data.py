@@ -53,7 +53,7 @@ class DataConfig(BaseConfig):
         else:
             self.num_classes = num_classes
 
-    class_distribution_cache_path: Path = Field(
-        default=Path("data/class_distribution/default.npy"),
+    class_distribution_cache_path: Path | None = Field(
+        default=None,
         description="Path to cache class distribution counts",
     )
