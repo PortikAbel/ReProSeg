@@ -1,5 +1,7 @@
 # Pascal VOC dataset configuration
 
+class_distribution_cache_path: ${oc.env:PROJECT_ROOT}/src/data/class_distribution/pascal_voc.npy
+
 # Dataset
 dataset: PascalVOC
 path: ${oc.env:DATA_ROOT}
