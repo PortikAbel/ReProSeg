@@ -12,7 +12,7 @@ class DatasetType(str, Enum):
     """Supported dataset types."""
 
     CITYSCAPES = "CityScapes"
-    PASCAL_PARTS = "PascalParts"
+    VOC_SEGMENTATION = "PascalVOC"
 
 
 class DataConfig(BaseConfig):
@@ -21,8 +21,8 @@ class DataConfig(BaseConfig):
     # Dataset settings
     dataset: DatasetType = Field(default=DatasetType.CITYSCAPES, description="Dataset to train ReProSeg on")
     path: Path = Field(default=Path("./data"), description="Root path to dataset")
-    validation_size: float = Field(
-        default=0.2, ge=0.0, le=1.0, description="Fraction of training data to use as validation"
+    validation_size: float | None = Field(
+        default=None, ge=0.0, le=1.0, description="Fraction of training data to use as validation"
     )
     disable_normalize: bool = Field(default=False, description="Disable normalization of images if set")
     color_channels: int = Field(default=3, description="Number of color channels in the images")
@@ -42,4 +42,18 @@ class DataConfig(BaseConfig):
     batch_size: int = Field(default=2, ge=2, description="Minibatch size (will be multiplied by the number of GPUs)")
 
     # Computed field based on dataset
-    num_classes: int = Field(default=0, description="Number of classes (computed from dataset)")
+    num_classes: int | None = Field(default=None, description="Number of classes (computed from dataset)")
+
+    def set_num_classes(self, num_classes: int):
+        """Set the number of classes in the dataset."""
+        if self.num_classes is not None:
+            assert self.num_classes == num_classes, (
+                "Number of classes already set and does not match the provided value"
+            )
+        else:
+            self.num_classes = num_classes
+
+    class_distribution_cache_path: Path | None = Field(
+        default=None,
+        description="Path to cache class distribution counts",
+    )

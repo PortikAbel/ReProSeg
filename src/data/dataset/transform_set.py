@@ -2,10 +2,9 @@ from typing import Tuple
 
 import torch
 import torchvision.transforms.v2 as transforms
-from torchvision.datasets import Cityscapes
 
 from config.schema.data import DataConfig
-from data.dataset.class_filter import ClassFilter
+from data.dataset.label_mapping import LabelMapping
 
 
 class AugmentGeometry(transforms.Compose):
@@ -84,10 +83,10 @@ class TransformSet:
     Shrink target transform:
         - Resize target to the size of model output
     """
-    filter_classes: transforms.Compose
+    label_mapping: transforms.Compose
     """
-    Filter classes transform:
-        - Maps the original Cityscapes classes to a reduced set of classes
+    Label mapping transform:
+        - Maps the original dataset classes to a reduced set of classes
     """
 
     def __init__(self, dataset_cfg: DataConfig):
@@ -129,4 +128,4 @@ class TransformSet:
             interpolation=transforms.InterpolationMode.NEAREST_EXACT,
         )
 
-        self.filter_classes = ClassFilter.get_cityscapes_transform(Cityscapes.classes)
+        self.label_mapping = LabelMapping.get_mapping(dataset_cfg.dataset)

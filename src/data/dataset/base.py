@@ -1,8 +1,7 @@
-from typing import Optional, cast
+from typing import Optional
 
 from torch.utils.data import Dataset as TorchDataset
 from torch.utils.data.dataset import Subset
-from torchvision.datasets import Cityscapes
 from torchvision.datasets.vision import StandardTransform
 from torchvision.transforms.v2 import Compose, Transform
 
@@ -45,12 +44,9 @@ class Dataset(TorchDataset):
         dataset = self.dataset
         if isinstance(self.dataset, Subset):
             dataset = self.dataset.dataset
-        match self.dataset_type:
-            case DatasetType.CITYSCAPES:
-                city_scapes_dataset = cast(Cityscapes, dataset)
-                return city_scapes_dataset.classes
-            case _:
-                raise DatasetNotImplementedError(self.dataset_type)
+        if self.dataset_type not in [DatasetType.CITYSCAPES, DatasetType.VOC_SEGMENTATION]:
+            raise DatasetNotImplementedError(self.dataset_type)
+        return dataset.classes
 
     @property
     def transform(self) -> Transform:
@@ -60,13 +56,9 @@ class Dataset(TorchDataset):
     @property
     def target_transform(self) -> Transform:
         """Transform to be applied to the dataset targets"""
-        match self.dataset_type:
-            case DatasetType.CITYSCAPES:
-                return Compose(
-                    [
-                        self.transform_set.base_target,
-                        self.transform_set.filter_classes,
-                    ]
-                )
-            case _:
-                return self.transform_set.base_target
+        return Compose(
+            [
+                self.transform_set.base_target,
+                self.transform_set.label_mapping,
+            ]
+        )

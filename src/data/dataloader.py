@@ -1,9 +1,19 @@
+import random
+
 import numpy as np
 import torch
 from torch.utils.data import DataLoader as TorchDataLoader
 from torch.utils.data import Dataset as TorchDataset
 
-from config import ReProSegConfig
+from config import DataConfig
+
+NUMPY_SEED_MODULUS = 2**32  # numpy seeds must be in range [0, 2^32)
+
+
+def seed_worker(_worker_id):
+    worker_seed = torch.initial_seed() % NUMPY_SEED_MODULUS
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
 
 
 class DataLoader(TorchDataLoader):
@@ -13,15 +23,15 @@ class DataLoader(TorchDataLoader):
     to_shuffle: bool = False
     to_drop_last: bool = False
 
-    def __init__(self, dataset: TorchDataset, cfg: ReProSegConfig):
+    def __init__(self, dataset: TorchDataset, cfg: DataConfig):
         self.dataset = dataset
         super().__init__(
             self.dataset,
-            batch_size=cfg.data.batch_size,
+            batch_size=cfg.batch_size,
             shuffle=self.to_shuffle,
             sampler=None,
             pin_memory=torch.cuda.is_available(),
-            num_workers=cfg.data.num_workers,
-            worker_init_fn=lambda worker_id: np.random.seed(cfg.env.seed + worker_id),
+            num_workers=cfg.num_workers,
+            worker_init_fn=seed_worker,
             drop_last=self.to_drop_last,
         )

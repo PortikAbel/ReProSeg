@@ -1,9 +1,9 @@
 from torch.utils.data import Dataset as TorchDataset
-from torchvision.datasets import Cityscapes
+from torchvision.datasets import Cityscapes, VOCSegmentation
 
 from config.schema.data import DataConfig, DatasetType
 from data.data_split import DataSplit
-from data.dataset.class_filter import ClassFilter
+from data.dataset.label_mapping import LabelMapping
 from utils.errors import DatasetNotImplementedError
 
 
@@ -18,8 +18,17 @@ class DatasetFactory:
                     mode="fine",
                     target_type="semantic",
                 )
-                data.classes = ClassFilter.filter_cityscapes_classes(data.classes)
-
-                return data
+            case DatasetType.VOC_SEGMENTATION:
+                data = VOCSegmentation(
+                    root=cfg.path,
+                    year="2012",
+                    image_set=split.value,
+                    download=False,
+                )
             case _:
                 raise DatasetNotImplementedError(cfg.dataset)
+
+        data.classes = LabelMapping.get_classes(cfg.dataset)
+        cfg.set_num_classes(len(data.classes))
+
+        return data

@@ -20,10 +20,6 @@ class EnvironmentConfig(BaseConfig):
     pretrained_backbones_dir: Path = Field(
         default=Path("pretrained"), description="Directory to store pretrained backbone checkpoints"
     )
-    class_distribution_cache_path: Path = Field(
-        default=Path("data/class_counts.npy"),
-        description="Path to cache class distribution counts",
-    )
 
     seed: int = Field(default=1, description="Random seed. Note: nondeterminism may still occur")
 

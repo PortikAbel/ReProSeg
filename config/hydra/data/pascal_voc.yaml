@@ -1,0 +1,16 @@
+# Pascal VOC dataset configuration
+
+class_distribution_cache_path: ${oc.env:PROJECT_ROOT}/src/data/class_distribution/pascal_voc.npy
+
+# Dataset
+dataset: PascalVOC
+path: ${oc.env:DATA_ROOT}
+disable_normalize: false
+color_channels: 3
+img_shape: [512, 512]
+mean: [0.485, 0.456, 0.406]
+std: [0.229, 0.224, 0.225]
+
+# Dataloader settings
+num_workers: 4
+batch_size: 8

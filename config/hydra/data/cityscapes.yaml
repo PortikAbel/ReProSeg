@@ -1,5 +1,7 @@
 # CityScapes dataset configuration
 
+class_distribution_cache_path: ${oc.env:PROJECT_ROOT}/src/data/class_distribution/cityscapes.npy
+
 # Dataset
 dataset: CityScapes
 path: ${oc.env:DATA_ROOT}/Cityscapes
