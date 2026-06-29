@@ -8,6 +8,8 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 from PIL import Image
+from PIL import ImageFilter, ImageEnhance
+import PIL.ImageOps
 from torch.utils.data.dataset import Subset
 from tqdm import tqdm
 
@@ -46,6 +48,7 @@ class ModelVisualizer:
         self.log = log
         self.image_shape = cfg.data.img_shape
         self.k = cfg.visualization.top_k
+        self.concatenate_all = cfg.visualization.concatenate_all
 
     def collect_topk_concept_activations(self, train_loader_visualization: DataLoader):
         topks_cache_path = self.log.prototypes_dir / f"topks_of_concept_k{self.k}.pkl"
@@ -109,6 +112,21 @@ class ModelVisualizer:
         with open(image_to_concepts_cache_path, "wb") as f:
             pickle.dump(self.image_to_concepts, f)
 
+    def create_contour(self, image_pil: Image.Image) -> Image.Image:
+        """
+        Creates contour of a given image using the Laplacian kernel.
+        Returns a grayscale image.
+        """
+        im = image_pil.convert("L")
+        # Laplacian kernel:
+        im = im.filter(ImageFilter.Kernel((3, 3), 
+                                          (0, 1, 0, 1, -4, 1, 0, 1, 0), 
+                                          1, 0))
+        im = PIL.ImageOps.invert(im)
+        # Can be put in hydra as parameters (cutoff):
+        im = PIL.ImageOps.autocontrast(im, cutoff=(0.3, 0.5))
+        return im
+
     def collect_prototype_tensors(self, train_loader_visualization: DataLoader):
         proto_dir = self.log.prototypes_dir
         tensors_cache_path = proto_dir / f"tensors_per_concept_k{self.k}.pkl"
@@ -146,17 +164,24 @@ class ModelVisualizer:
             if not local_image_idxs:
                 continue
             images = []
+            contour_images = []
             for idx in local_image_idxs:
                 image_path_idx = image_indices[base_idx + idx]
-                image = pil_to_tensor(Image.open(image_paths[image_path_idx]).convert("RGB"))
+                image_pil = Image.open(image_paths[image_path_idx]).convert("RGB")
+                image = pil_to_tensor(image_pil)
                 image = crop_image(image)
                 images.append(image)
+                contour_images.append(self.create_contour(crop_image(image_pil)))
             xs = xs[local_image_idxs].to(self.device)
             concept_activations = self.net.interpolate_concept_activations(xs)
-            alpha = activations_to_alpha(concept_activations).cpu()
+            alpha = activations_to_alpha(concept_activations).cpu() # <- !!!!!!!!!
             for i, image in enumerate(images):
                 for concept in self.image_to_concepts[base_idx + local_image_idxs[i]]:
-                    prototype_img = torch.cat((image, alpha[i, concept].unsqueeze(0)), 0)
+                    image[:, alpha[i, concept] == 0] = pil_to_tensor(contour_images[i]).squeeze(0)[alpha[i, concept] == 0]
+                    alpha2 = alpha[i, concept]
+                    alpha2[alpha[i, concept] == 0] = 1.
+                    # prototype_img = torch.cat((image, alpha[i, concept].unsqueeze(0)), 0)
+                    prototype_img = torch.cat((image, alpha2.unsqueeze(0)), 0)
                     prototype_img = draw_activation_minmax_text_on_image(
                         prototype_img,
                         concept_activations[i, concept],
@@ -187,8 +212,9 @@ class ModelVisualizer:
             )
             all_tensors += prototype_tensors
         if len(all_tensors) > 0:
-            grid = torchvision.utils.make_grid(all_tensors, nrow=self.k + 1, padding=1)
-            torchvision.utils.save_image(grid, self.log.prototypes_dir / "all" / f"grid_top_{self.k}_prototype_activations.png")
+            if self.concatenate_all:
+                grid = torchvision.utils.make_grid(all_tensors, nrow=self.k + 1, padding=1)
+                torchvision.utils.save_image(grid, self.log.prototypes_dir / "all" / f"grid_top_{self.k}_prototype_activations.png")
         else:
             self.log.warning("No concepts to visualize with prototypes.")
 

@@ -29,10 +29,7 @@ def main(cfg_dict: DictConfig):
     cfg = ReProSegConfig(**cfg_object)
 
     # Setup logger
-    if cfg.training.skip_training and cfg.visualization.generate_explanations and len(cfg.visualization.use_log) > 0:
-        log = Log(Path(cfg.visualization.use_log), __name__)
-    else:
-        log = Log(cfg.logging.path, __name__)
+    log = Log(cfg.logging.path, __name__)
 
     log.debug(f"Config: {OmegaConf.to_yaml(cfg_dict)}")
     log.debug(f"Device used: {cfg.env.device}")
