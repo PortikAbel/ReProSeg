@@ -12,8 +12,8 @@ dependencies = [
     "pillow~=11.2.1",
     "pydantic>=2.12.3",
     "tensorboard>=2.19.0",
-    "torch~=2.7",
-    "torchvision~=0.22.1",
+    "torch~=2.12.1",
+    "torchvision~=0.27.1",
     "tqdm~=4.67.1",
 ]
 
@@ -45,3 +45,12 @@ explicit_package_bases = true
 [[tool.mypy.overrides]]
 module = ["torchvision.*", "tqdm.*"]
 ignore_missing_imports = true
+
+[tool.uv.sources]
+torch = [{index = "pytorch-cu130"}]
+torchvision = [{index = "pytorch-cu130"}]
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
