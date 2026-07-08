@@ -1,11 +1,11 @@
+import os
+import random
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 import torch
 from pydantic import Field, field_validator
-import random
-import numpy as np
-import os
 
 from .base import BaseConfig
 
@@ -42,8 +42,8 @@ class EnvironmentConfig(BaseConfig):
         if self.gpu_id is not None:
             self.device = torch.device(f"cuda:{self.gpu_id}")
 
-        os.environ['PYTHONHASHSEED'] = str(self.seed)
-        os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
+        os.environ["PYTHONHASHSEED"] = str(self.seed)
+        os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
         random.seed(self.seed)
         np.random.seed(self.seed)
         torch.manual_seed(self.seed)
