@@ -66,9 +66,20 @@ class ModelInterpretability:
                 continue
 
             xs, ys, pps = xs.to(self.device), ys.to(self.device), pps.to(self.device)
+
             concept_activations = self.net.interpolate_concept_activations(xs)
-            for p in self.net.layers.classification_layer.used_concepts:
-                alpha = activations_to_alpha(concept_activations[:, p])
+            concept_alphas = activations_to_alpha(concept_activations)
+
+            used_concepts = (
+                self.net.layers.classification_layer.used_concepts
+                .detach()
+                .cpu()
+                .reshape(-1)
+                .tolist()
+            )
+            
+            for p in used_concepts:
+                alpha = concept_alphas[:, p]
                 for label, avg_value in self._compute_part_activation_averages(alpha, pps):
                     self._part_activations[p][label].append(avg_value)
         self.log.info("Collected average object part activations of concepts from images.")
@@ -86,8 +97,8 @@ class ModelInterpretability:
                 - part_label (int): Unique panoptic part label
                 - average_activation (float): Mean activation score for that part
         """
-        alpha_flat = alpha.view(-1)
-        part_labels_flat = pps.view(-1)
+        alpha_flat = alpha.reshape(-1)
+        part_labels_flat = pps.reshape(-1)
 
         mask = part_labels_flat != 0  # ignore unlabeled parts
 
