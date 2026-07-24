@@ -1,0 +1,28 @@
+
+defaults:
+  - env: default
+  - data: cityscapes
+  - model: default
+  - training: default
+  - logging: default
+  - visualization: default
+  - _self_
+
+# Hydra configuration to use custom output directory
+hydra:
+  run:
+    dir: ${oc.env:LOG_ROOT}/debug
+
+env:
+  gpu_id: 0
+  seed: 1
+
+training:
+  skip_training: true
+
+visualization:
+  generate_explanations: true
+
+data:
+  img_shape: [512, 1024]
+  batch_size: 4

@@ -1,8 +1,9 @@
 # Fast training configuration for quick debugging
 
+skip_training: false
+
 epochs: 
   pretrain: 0
-  total: 3
+  total: 2
   finetune: 1
-  freeze: 2
   start: 1

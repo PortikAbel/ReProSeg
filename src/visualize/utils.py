@@ -10,15 +10,17 @@ def activations_to_alpha(activations: torch.Tensor) -> torch.Tensor:
 
     Args:
         activations (torch.Tensor): Activation scores.
-        min_activation_score (float): Minimum activation score to consider.
 
     Returns:
         torch.Tensor: Alpha values for visualization.
     """
+    assert activations.dim() == 4, "Expected activations to have shape (B, C, H, W)"
     alpha = activations.clone()
-    alpha[alpha < alpha.mean()] = 0
-    alpha /= alpha.max() if alpha.max() > 0 else 1
-    return alpha.unsqueeze(0)  # Add batch dimension for consistency
+    alpha[alpha < alpha.mean(dim=(2, 3), keepdim=True)] = 0
+    max_by_image_by_concept = alpha.amax(dim=(2, 3), keepdim=True)
+    max_by_image_by_concept = torch.where(max_by_image_by_concept > 0, max_by_image_by_concept, 1.0)
+    alpha /= max_by_image_by_concept
+    return alpha
 
 
 def prototype_text(p: int, shape: tuple) -> torch.Tensor:

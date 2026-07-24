@@ -16,7 +16,7 @@ class TestModelInterpretabilityMethods:
         """Set up test fixtures before each test method."""
         # Create mock objects
         self.mock_net = MagicMock()
-        self.mock_net.num_prototypes = 5
+        self.mock_net.num_concepts = 5
         self.mock_log = MagicMock()
 
     def _create_interpretability_instance(self, consistency_threshold=0.7):
@@ -110,22 +110,22 @@ class TestModelInterpretabilityMethods:
     @pytest.mark.parametrize(
         "part_activations, consistency_threshold, expected",
         [
-            # Test case 1: All prototypes consistent
+            # Test case 1: All concepts consistent
             (
                 [
-                    {1: [0.8, 0.9, 0.75], 2: [0.6, 0.7, 0.65]},  # prototype 0: max avg = 0.8167 > 0.7
-                    {3: [0.85, 0.8, 0.9], 4: [0.5, 0.6, 0.55]},  # prototype 1: max avg = 0.85 > 0.7
-                    {1: [0.72, 0.78, 0.74], 5: [0.4, 0.3, 0.2]},  # prototype 2: max avg = 0.7467 > 0.7
+                    {1: [0.8, 0.9, 0.75], 2: [0.6, 0.7, 0.65]},  # concept 0: max avg = 0.8167 > 0.7
+                    {3: [0.85, 0.8, 0.9], 4: [0.5, 0.6, 0.55]},  # concept 1: max avg = 0.85 > 0.7
+                    {1: [0.72, 0.78, 0.74], 5: [0.4, 0.3, 0.2]},  # concept 2: max avg = 0.7467 > 0.7
                 ],
                 0.7,
                 [True, True, True],
             ),
-            # Test case 2: No prototypes consistent
+            # Test case 2: No concepts consistent
             (
                 [
-                    {1: [0.5, 0.6, 0.4], 2: [0.3, 0.4, 0.2]},  # prototype 0: max avg = 0.5 < 0.7
-                    {3: [0.6, 0.65, 0.55], 4: [0.1, 0.2, 0.15]},  # prototype 1: max avg = 0.6 < 0.7
-                    {1: [0.45, 0.35, 0.25], 5: [0.0, 0.1, 0.05]},  # prototype 2: max avg = 0.35 < 0.7
+                    {1: [0.5, 0.6, 0.4], 2: [0.3, 0.4, 0.2]},  # concept 0: max avg = 0.5 < 0.7
+                    {3: [0.6, 0.65, 0.55], 4: [0.1, 0.2, 0.15]},  # concept 1: max avg = 0.6 < 0.7
+                    {1: [0.45, 0.35, 0.25], 5: [0.0, 0.1, 0.05]},  # concept 2: max avg = 0.35 < 0.7
                 ],
                 0.7,
                 [False, False, False],
@@ -133,10 +133,10 @@ class TestModelInterpretabilityMethods:
             # Test case 3: Mixed consistency
             (
                 [
-                    {1: [0.8, 0.9, 0.7]},  # prototype 0: avg = 0.8 > 0.7 -> True
-                    {2: [0.5, 0.6, 0.4]},  # prototype 1: avg = 0.5 < 0.7 -> False
-                    {3: [0.75, 0.72, 0.73]},  # prototype 2: avg = 0.7333 > 0.7 -> True
-                    {4: [0.6, 0.65]},  # prototype 3: avg = 0.625 < 0.7 -> False
+                    {1: [0.8, 0.9, 0.7]},  # concept 0: avg = 0.8 > 0.7 -> True
+                    {2: [0.5, 0.6, 0.4]},  # concept 1: avg = 0.5 < 0.7 -> False
+                    {3: [0.75, 0.72, 0.73]},  # concept 2: avg = 0.7333 > 0.7 -> True
+                    {4: [0.6, 0.65]},  # concept 3: avg = 0.625 < 0.7 -> False
                 ],
                 0.7,
                 [True, False, True, False],
@@ -144,9 +144,9 @@ class TestModelInterpretabilityMethods:
             # Test case 4: Empty activations
             (
                 [
-                    {},  # prototype 0: no activations -> False
-                    {1: []},  # prototype 1: empty list -> False (np.mean([]) = nan)
-                    {2: [0.8, 0.9]},  # prototype 2: avg = 0.85 > 0.7 -> True
+                    {},  # concept 0: no activations -> False
+                    {1: []},  # concept 1: empty list -> False (np.mean([]) = nan)
+                    {2: [0.8, 0.9]},  # concept 2: avg = 0.85 > 0.7 -> True
                 ],
                 0.7,
                 [False, False, True],
@@ -154,61 +154,61 @@ class TestModelInterpretabilityMethods:
             # Test case 5: Single value lists
             (
                 [
-                    {1: [0.8]},  # prototype 0: single value 0.8 > 0.7 -> True
-                    {2: [0.6]},  # prototype 1: single value 0.6 < 0.7 -> False
-                    {3: [0.75]},  # prototype 2: single value 0.75 > 0.7 -> True
+                    {1: [0.8]},  # concept 0: single value 0.8 > 0.7 -> True
+                    {2: [0.6]},  # concept 1: single value 0.6 < 0.7 -> False
+                    {3: [0.75]},  # concept 2: single value 0.75 > 0.7 -> True
                 ],
                 0.7,
                 [True, False, True],
             ),
         ],
     )
-    def test_compute_if_prototype_consistent(self, part_activations, consistency_threshold, expected):
-        """Test _compute_if_prototype_consistent with various activation patterns."""
+    def test_compute_if_concept_consistent(self, part_activations, consistency_threshold, expected):
+        """Test _compute_if_concept_consistent with various activation patterns."""
         # Set up the interpretability instance with the test data
         interpretability = self._create_interpretability_instance(consistency_threshold)
         interpretability._part_activations = [defaultdict(list) for _ in range(len(part_activations))]
 
         # Populate the part activations
-        for i, prototype_activations in enumerate(part_activations):
-            for part_label, activation_list in prototype_activations.items():
+        for i, concept_activations in enumerate(part_activations):
+            for part_label, activation_list in concept_activations.items():
                 interpretability._part_activations[i][part_label] = activation_list
 
-        result = interpretability._compute_if_prototype_consistent()
+        result = interpretability._compute_if_concept_consistent()
 
         assert result == expected
 
-    def test_compute_if_prototype_consistent_multiple_parts_per_prototype(self):
-        """Test _compute_if_prototype_consistent where prototypes activate on multiple parts."""
+    def test_compute_if_concept_consistent_multiple_parts_per_concept(self):
+        """Test _compute_if_concept_consistent where concepts activate on multiple parts."""
         interpretability = self._create_interpretability_instance(0.7)
-        # Prototype has multiple parts: one above threshold, one below
+        # Concept has multiple parts: one above threshold, one below
         interpretability._part_activations = [
             {
                 1: [0.6, 0.65, 0.55],  # avg = 0.6 < 0.7
-                2: [0.8, 0.85, 0.75],  # avg = 0.8 > 0.7 -> should make prototype consistent
+                2: [0.8, 0.85, 0.75],  # avg = 0.8 > 0.7 -> should make concept consistent
                 3: [0.4, 0.3, 0.5],  # avg = 0.4 < 0.7
             },
         ]
 
-        result = interpretability._compute_if_prototype_consistent()
+        result = interpretability._compute_if_concept_consistent()
 
         # Should be True because part 2 has average > threshold
         assert result == [True]
 
-    def test_compute_if_prototype_consistent_high_threshold(self):
-        """Test _compute_if_prototype_consistent with a high consistency threshold."""
+    def test_compute_if_concept_consistent_high_threshold(self):
+        """Test _compute_if_concept_consistent with a high consistency threshold."""
         interpretability = self._create_interpretability_instance(0.95)
         interpretability._part_activations = [
             {1: [0.9, 0.92, 0.88]},  # avg = 0.9 < 0.95 -> False
             {2: [0.96, 0.98, 0.94]},  # avg = 0.96 > 0.95 -> True
         ]
 
-        result = interpretability._compute_if_prototype_consistent()
+        result = interpretability._compute_if_concept_consistent()
 
         assert result == [False, True]
 
-    def test_compute_if_prototype_consistent_with_nan_values(self):
-        """Test _compute_if_prototype_consistent handles NaN values gracefully."""
+    def test_compute_if_concept_consistent_with_nan_values(self):
+        """Test _compute_if_concept_consistent handles NaN values gracefully."""
         interpretability = self._create_interpretability_instance(0.7)
         # This test covers the edge case where np.mean([]) returns nan
         interpretability._part_activations = [
@@ -216,7 +216,7 @@ class TestModelInterpretabilityMethods:
             {2: [0.8, 0.9]},  # Normal case
         ]
 
-        result = interpretability._compute_if_prototype_consistent()
+        result = interpretability._compute_if_concept_consistent()
 
         # Empty list should result in False (nan is not > threshold)
         assert result == [False, True]

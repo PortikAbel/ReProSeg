@@ -9,7 +9,7 @@ class ConsistencyScoreConfig(BaseModel):
     # Interpretability
     calculate: bool = Field(default=False, description="Whether to compute consistency score for interpretability")
     threshold: float = Field(
-        default=0.7, ge=0.0, le=1.0, description="Threshold above which a prototype is considered consistent"
+        default=0.7, ge=0.0, le=1.0, description="Threshold above which a concept is considered consistent"
     )
 
 

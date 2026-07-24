@@ -4,9 +4,12 @@ from unittest.mock import patch
 
 import pytest
 import torch
-from torchvision.transforms.v2 import Compose, Transform
+from torch.utils.data import Dataset as TorchDataset
 
-from data.dataset.base import Dataset
+from config.schema.data import DatasetType
+from data import Dataset, DataSplit
+from data.dataset.factory import DatasetFactory
+from data.dataset.transform_set import TransformSet
 
 
 class TestBaseDataset:
@@ -14,184 +17,69 @@ class TestBaseDataset:
 
     def setup_method(self):
         """Set up test fixtures before each test method."""
-        self.dataset_name = "CityScapes"
-        self.split = "train"
+        self.dataset_name = DatasetType.CITYSCAPES
+        self.split = DataSplit.TRAIN
 
-    @staticmethod
-    def create_mock_filter_classes_method(filtered_classes):
-        """Create a mock filter classes method that sets both classes and filter_classes attributes."""
+    @pytest.fixture(autouse=True)
+    def setup(self, mock_config, mock_cityscapes_constructor, mock_transform_set_constructor):
+        self.dataset = Dataset(mock_config.data)
 
-        def mock_filter_classes_method(self):
-            self.classes = filtered_classes
-            self.filter_classes = Transform()
-            return filtered_classes
+    def test_init_valid_dataset(self):
+        """Test Dataset initializes all attributes."""
 
-        return mock_filter_classes_method
+        assert self.dataset.dataset_type == self.dataset_name
+        assert isinstance(self.dataset.dataset, TorchDataset)
+        assert isinstance(self.dataset.transform_set, TransformSet)
 
-    def test_init_valid_dataset(self, mock_config, mock_cityscapes_constructor):
-        """Test Dataset initialization with valid parameters."""
-        dataset = Dataset(mock_config.data, self.split)
+    def test_getitem(self, sample_image, sample_target):
+        """Test __getitem__ method returns tensors."""
 
-        assert dataset.config.dataset == self.dataset_name
-        assert dataset.split == self.split
-        assert dataset.dataset is not None
-        assert dataset.transforms is not None
+        result = self.dataset[0]
 
-    def test_supported_dataset_literal(self, mock_config, mock_cityscapes_constructor):
-        """Test that the SupportedDataset literal type works correctly."""
-        # This should work without any issues
-        dataset = Dataset(mock_config.data, self.split)
-        assert dataset.config.dataset == "CityScapes"
-
-    def test_getitem(self, mock_config, mock_cityscapes_constructor, sample_image, sample_target):
-        """Test __getitem__ method."""
-        dataset = Dataset(mock_config.data, self.split)
-
-        result = dataset[0]
-
-        dataset.dataset.__getitem__.assert_called_once_with(0)
+        self.dataset.dataset.__getitem__.assert_called_once_with(0)
         assert len(result) == 2
-        assert result[0] == sample_image
-        assert result[1] == sample_target
+        # Verify that transforms were applied (transform_set methods should be mocked in fixtures)
+        self.dataset.transform_set.base_image.assert_called_once_with(sample_image)
+        self.dataset.transform_set.image_normalization.assert_called_once()
+        self.dataset.transform_set.base_target.assert_called_once_with(sample_target)
+        self.dataset.transform_set.filter_classes.assert_called_once()
 
-    def test_len(self, mock_config, mock_cityscapes_constructor):
+        assert isinstance(result[0], torch.Tensor)
+        assert isinstance(result[1], torch.Tensor)
+
+    def test_len(self):
         """Test __len__ method."""
-        dataset = Dataset(mock_config.data, self.split)
 
-        # Mock the underlying dataset's __len__
-        dataset.dataset.__len__.return_value = 100
+        # Mock the underlying self.dataset's __len__
+        self.dataset.dataset.__len__.return_value = 100
 
-        assert len(dataset) == 100
-        dataset.dataset.__len__.assert_called_once()
+        assert len(self.dataset) == 100
+        self.dataset.dataset.__len__.assert_called_once()
 
-    def test_getdata_cityscapes(self, mock_config, mock_cityscapes_constructor):
-        """Test __getdata__ method for CityScapes dataset."""
-        _dataset = Dataset(mock_config.data, self.split)
+    def test_dataset_factory_called_by_default(self, mock_config, mock_cityscapes_dataset):
+        """Test that the factory creates the default dataset based on config."""
+        with patch.object(DatasetFactory, "create", return_value=mock_cityscapes_dataset) as mock_create:
+            Dataset(mock_config.data)
+            mock_create.assert_called_once_with(mock_config.data, split=self.split)
 
-        # Verify that Cityscapes was called once with correct basic parameters
-        mock_cityscapes_constructor.assert_called_once()
-        call_kwargs = mock_cityscapes_constructor.call_args.kwargs
-
-        assert call_kwargs["split"] == self.split
-        assert call_kwargs["mode"] == "fine"
-        assert call_kwargs["target_type"] == "semantic"
-        assert call_kwargs["transform"] is not None
-        assert call_kwargs["target_transform"] is not None
-
-    def test_classes_property(self, mock_config, mock_cityscapes_constructor):
+    def test_classes_property(self):
         """Test classes property."""
-        dataset = Dataset(mock_config.data, self.split)
 
         mock_classes = ["class1", "class2", "class3"]
-        dataset.dataset.classes = mock_classes
+        self.dataset.dataset.classes = mock_classes
 
-        assert dataset.classes == mock_classes
+        assert self.dataset.classes == mock_classes
 
-    def test_transform_property(self, mock_config, mock_cityscapes_constructor):
+    def test_transform_property(self):
         """Test transform property."""
-        dataset = Dataset(mock_config.data, self.split)
 
-        transform = dataset.transform
+        transform = self.dataset.transform
         assert transform is not None
         assert callable(transform)  # Should be callable
 
-    def test_target_transform_property(self, mock_config, mock_cityscapes_constructor):
+    def test_target_transform_property(self):
         """Test target_transform property."""
-        dataset = Dataset(mock_config.data, self.split)
 
-        target_transform = dataset.target_transform
+        target_transform = self.dataset.target_transform
         assert target_transform is not None
         assert callable(target_transform)  # Should be callable
-
-    def test_transforms_object_creation(self, mock_config, mock_cityscapes_constructor):
-        """Test that Transforms object is created correctly."""
-        dataset = Dataset(mock_config.data, self.split)
-
-        transforms = dataset.transforms
-        assert transforms is not None
-        assert hasattr(transforms, "base_image")
-        assert hasattr(transforms, "image_normalization")
-        assert hasattr(transforms, "base_target")
-        assert hasattr(transforms, "geometry_augmentation")
-        assert hasattr(transforms, "color_augmentation")
-        assert hasattr(transforms, "shrink_target")
-
-    @pytest.mark.parametrize("split", ["train", "val", "test"])
-    def test_multiple_splits(self, split, mock_config, mock_cityscapes_constructor):
-        """Test Dataset initialization with different splits."""
-        dataset = Dataset(mock_config.data, split)
-        assert dataset.split == split
-
-    def test_transform_integration(self, mock_config, mock_cityscapes_constructor, sample_image):
-        """Test that transforms can be applied to sample data."""
-        dataset = Dataset(mock_config.data, self.split)
-
-        transformed_image = dataset.transform(sample_image)
-
-        assert transformed_image is not None
-        assert isinstance(transformed_image, torch.Tensor)
-
-    def test_target_transform_integration(self, mock_config, mock_cityscapes_constructor, sample_target):
-        """Test that target transforms can be applied to sample data."""
-        dataset = Dataset(mock_config.data, self.split)
-
-        transformed_target = dataset.target_transform(sample_target)
-
-        assert transformed_target is not None
-        assert isinstance(transformed_target, torch.Tensor)
-
-    def test_filtered_classes_assigned_to_dataset(self, mock_config, mock_cityscapes_constructor):
-        """Test that filtered classes are properly assigned to the dataset."""
-        # Mock the _filter_cityscapes_classes method to return specific classes
-        mock_filtered_classes = ["filtered_class_1", "filtered_class_2"]
-
-        mock_filter_method = self.create_mock_filter_classes_method(mock_filtered_classes)
-
-        with patch("data.transforms.Transforms._filter_cityscapes_classes", mock_filter_method):
-            dataset = Dataset(mock_config.data, self.split)
-
-            # Verify that the filtered classes were assigned to the underlying dataset
-            assert dataset.dataset.classes == mock_filtered_classes
-
-    def test_class_filtering_with_ignores(self, mock_config, mock_cityscapes_classes, mock_cityscapes_dataset):
-        """Test class filtering correctly handles ignore_in_eval flag."""
-        # Set the classes on our existing mock dataset
-        mock_cityscapes_dataset.classes = mock_cityscapes_classes
-
-        non_ignored_classes = [c for c in mock_cityscapes_classes if not c.ignore_in_eval]
-        expected_filtered_classes = [mock_cityscapes_classes[0]] + non_ignored_classes
-        mock_filter_method = self.create_mock_filter_classes_method(expected_filtered_classes)
-
-        with (
-            patch("data.dataset.base.Cityscapes") as mock_cityscapes_constructor,
-            patch("data.transforms.Transforms._filter_cityscapes_classes", mock_filter_method),
-        ):
-            mock_cityscapes_constructor.return_value = mock_cityscapes_dataset
-
-            dataset = Dataset(mock_config.data, self.split)
-
-            # Verify the filtered classes were assigned
-            assert dataset.dataset.classes == expected_filtered_classes
-
-    def test_target_transform_contains_class_filtering(self, mock_config, mock_cityscapes_constructor):
-        """Test that class filtering updates the target transform."""
-        dataset = Dataset(mock_config.data, self.split)
-
-        # Verify that target_transform contains the filter_classes transform
-        assert isinstance(dataset.target_transform, Compose)
-        assert dataset.target_transform.transforms[0] == dataset.transforms.base_target
-        assert dataset.target_transform.transforms[1] == dataset.transforms.filter_classes
-
-    def test_class_filtering_preserves_other_dataset_properties(self, mock_config, mock_cityscapes_constructor):
-        """Test that class filtering doesn't interfere with other dataset properties."""
-        dataset = Dataset(mock_config.data, self.split)
-
-        # Verify that other properties are still accessible
-        assert dataset.config == mock_config.data
-        assert dataset.split == self.split
-        assert dataset.transforms is not None
-
-        # Verify that the dataset can still be indexed
-        result = dataset[0]
-        assert result is not None
-        assert len(result) == 2

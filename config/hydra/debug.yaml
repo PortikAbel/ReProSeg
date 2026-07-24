@@ -1,10 +1,12 @@
 # Fast debug experiment for quick testing
 
 defaults:
+  - /env: default
   - /data: cityscapes
   - /model: default
   - /training: fast
   - /logging: debug
+  - /visualization: default
   - _self_
 
 # Hydra configuration to use custom output directory
