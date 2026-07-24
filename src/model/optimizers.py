@@ -13,13 +13,7 @@ class OptimizerSchedulerManager:
         # scheduler for the classification layer is with restarts,
         # such that the model can re-activated zeroed-out concepts.
         # Hence, an intuitive choice.
-        # self.scheduler_classifier = CosineAnnealingWarmRestarts(
-        #     self.optimizer_classifier,
-        #     T_0=5,
-        #     eta_min=0.001,
-        # )
-
-        self.scheduler_classifier = CosineAnnealingLR(
+        self.scheduler_classifier = CosineAnnealingWarmRestarts(
             self.optimizer_classifier,
             T_0=5,
         )
