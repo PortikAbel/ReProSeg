@@ -97,6 +97,12 @@ class ModelInterpretability:
                 - part_label (int): Unique panoptic part label
                 - average_activation (float): Mean activation score for that part
         """
+        if alpha.shape != pps.shape:
+            raise ValueError(
+                "Concept activations and panoptic-part masks must have matching shapes, "
+                f"but received alpha={tuple(alpha.shape)} and pps={tuple(pps.shape)}."
+            )
+
         alpha_flat = alpha.reshape(-1)
         part_labels_flat = pps.reshape(-1)
 
