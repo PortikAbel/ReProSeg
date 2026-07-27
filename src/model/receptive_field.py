@@ -1,15 +1,11 @@
 import math
 
 
-def compute_layer_rf_info(
-    layer_filter_size, layer_stride, layer_padding, previous_layer_rf_info
-):
+def compute_layer_rf_info(layer_filter_size, layer_stride, layer_padding, previous_layer_rf_info):
     n_in = previous_layer_rf_info[0]  # input size
     j_in = previous_layer_rf_info[1]  # receptive field jump of input layer
     r_in = previous_layer_rf_info[2]  # receptive field size of input layer
-    start_in = previous_layer_rf_info[
-        3
-    ]  # center of receptive field of input layer
+    start_in = previous_layer_rf_info[3]  # center of receptive field of input layer
 
     if layer_padding == "SAME":
         n_out = math.ceil(float(n_in) / float(layer_stride))
@@ -17,25 +13,13 @@ def compute_layer_rf_info(
             pad = max(layer_filter_size - layer_stride, 0)
         else:
             pad = max(layer_filter_size - (n_in % layer_stride), 0)
-        assert (
-            n_out
-            == math.floor((n_in - layer_filter_size + pad) / layer_stride) + 1
-        )  # sanity check
-        assert (
-            pad == (n_out - 1) * layer_stride - n_in + layer_filter_size
-        )  # sanity check
+        assert n_out == math.floor((n_in - layer_filter_size + pad) / layer_stride) + 1  # sanity check
+        assert pad == (n_out - 1) * layer_stride - n_in + layer_filter_size  # sanity check
     elif layer_padding == "VALID":
-        n_out = math.ceil(
-            float(n_in - layer_filter_size + 1) / float(layer_stride)
-        )
+        n_out = math.ceil(float(n_in - layer_filter_size + 1) / float(layer_stride))
         pad = 0
-        assert (
-            n_out
-            == math.floor((n_in - layer_filter_size + pad) / layer_stride) + 1
-        )  # sanity check
-        assert (
-            pad == (n_out - 1) * layer_stride - n_in + layer_filter_size
-        )  # sanity check
+        assert n_out == math.floor((n_in - layer_filter_size + pad) / layer_stride) + 1  # sanity check
+        assert pad == (n_out - 1) * layer_stride - n_in + layer_filter_size  # sanity check
     else:
         # layer_padding is an int that is the amount of padding on one side
         pad = layer_padding * 2
@@ -49,9 +33,7 @@ def compute_layer_rf_info(
     return [n_out, j_out, r_out, start_out]
 
 
-def compute_rf_protoL_at_spatial_location(
-    img_height, img_width, height_index, width_index, protoL_rf_info
-):
+def compute_rf_protoL_at_spatial_location(img_height, img_width, height_index, width_index, protoL_rf_info):
     n = protoL_rf_info[0]
     j = protoL_rf_info[1]
     r = protoL_rf_info[2]
@@ -84,9 +66,7 @@ def compute_rf_prototype(img_size, prototype_patch_index, protoL_rf_info):
     img_index = prototype_patch_index[0]
     height_index = prototype_patch_index[1]
     width_index = prototype_patch_index[2]
-    rf_indices = compute_rf_protoL_at_spatial_location(
-        img_height, img_width, height_index, width_index, protoL_rf_info
-    )
+    rf_indices = compute_rf_protoL_at_spatial_location(img_height, img_width, height_index, width_index, protoL_rf_info)
     return [
         img_index,
         rf_indices[0],

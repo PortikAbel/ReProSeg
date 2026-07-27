@@ -39,13 +39,7 @@ class ModelInterpretability:
         self._collect_concept_activations_by_object_parts(panoptic_parts_loader)
         is_consistent = self._compute_if_concept_consistent()
 
-        used_concepts = (
-            self.net.layers.classification_layer.used_concepts
-            .detach()
-            .cpu()
-            .reshape(-1)
-            .tolist()
-        )
+        used_concepts = self.net.layers.classification_layer.used_concepts.detach().cpu().reshape(-1).tolist()
         num_used_concepts = len(used_concepts)
         num_consistent_concepts = sum(is_consistent[concept] for concept in used_concepts)
 
@@ -82,14 +76,8 @@ class ModelInterpretability:
             concept_activations = self.net.interpolate_concept_activations(xs)
             concept_alphas = activations_to_alpha(concept_activations)
 
-            used_concepts = (
-                self.net.layers.classification_layer.used_concepts
-                .detach()
-                .cpu()
-                .reshape(-1)
-                .tolist()
-            )
-            
+            used_concepts = self.net.layers.classification_layer.used_concepts.detach().cpu().reshape(-1).tolist()
+
             for p in used_concepts:
                 alpha = concept_alphas[:, p]
                 for label, avg_value in self._compute_part_activation_averages(alpha, pps):

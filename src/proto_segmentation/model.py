@@ -1,14 +1,12 @@
-    
+from typing import Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional
-
-from model.segmentation_features import base_architecture_to_features
-
-
 
 from model.receptive_field import compute_proto_layer_rf_info_v2
+from model.segmentation_features import base_architecture_to_features
+
 
 class PPNet(nn.Module):
     def __init__(
@@ -30,9 +28,7 @@ class PPNet(nn.Module):
         self.bottleneck_stride = bottleneck_stride
         self.patch_classification = patch_classification
 
-        self.prototype_vectors = nn.Parameter(
-            torch.rand(prototype_shape), requires_grad=True
-        )
+        self.prototype_vectors = nn.Parameter(torch.rand(prototype_shape), requires_grad=True)
 
         # prototype_activation_function could be 'log', 'linear',
         # or a generic function that converts distance to similarity score
@@ -44,16 +40,12 @@ class PPNet(nn.Module):
         prototypes for each class
         """
         # a onehot indication matrix for each prototype's class identity
-        self.prototype_class_identity = torch.zeros(
-            self.num_prototypes, num_classes
-        )
+        self.prototype_class_identity = torch.zeros(self.num_prototypes, num_classes)
 
         num_prototypes_per_class = self.num_prototypes // self.num_classes
         for i in range(self.num_classes):
             self.prototype_class_identity[
-                i
-                * num_prototypes_per_class : (i + 1)
-                * num_prototypes_per_class,
+                i * num_prototypes_per_class : (i + 1) * num_prototypes_per_class,
                 i,
             ] = 1
 
@@ -67,25 +59,23 @@ class PPNet(nn.Module):
 
         features_name = str(self.features).upper()
         if features_name.startswith("VGG") or features_name.startswith("RES"):
-            first_add_on_layer_in_channels = [
-                i for i in features.modules() if isinstance(i, nn.Conv2d)
-            ][-1].out_channels
+            first_add_on_layer_in_channels = [i for i in features.modules() if isinstance(i, nn.Conv2d)][
+                -1
+            ].out_channels
         elif features_name.startswith("DENSE"):
-            first_add_on_layer_in_channels = [
-                i for i in features.modules() if isinstance(i, nn.BatchNorm2d)
-            ][-1].num_features
+            first_add_on_layer_in_channels = [i for i in features.modules() if isinstance(i, nn.BatchNorm2d)][
+                -1
+            ].num_features
         elif features_name.startswith("DEEPLAB"):
-            first_add_on_layer_in_channels = [
-                i for i in features.modules() if isinstance(i, nn.Conv2d)
-            ][-2].out_channels
+            first_add_on_layer_in_channels = [i for i in features.modules() if isinstance(i, nn.Conv2d)][
+                -2
+            ].out_channels
         elif features_name.startswith("MSC"):
-            first_add_on_layer_in_channels = [
-                i for i in features.base.modules() if isinstance(i, nn.Conv2d)
-            ][-2].out_channels
+            first_add_on_layer_in_channels = [i for i in features.base.modules() if isinstance(i, nn.Conv2d)][
+                -2
+            ].out_channels
         else:
-            raise Exception(
-                f"{features_name[:10]} base_architecture NOT implemented"
-            )
+            raise Exception(f"{features_name[:10]} base_architecture NOT implemented")
 
         add_on_layers = []
 
@@ -104,12 +94,8 @@ class PPNet(nn.Module):
 
         if add_on_layers_type.startswith("bottleneck"):
             current_in_channels = first_add_on_layer_in_channels
-            while (current_in_channels > self.prototype_shape[1]) or (
-                len(add_on_layers) == 0
-            ):
-                current_out_channels = max(
-                    self.prototype_shape[1], (current_in_channels // 2)
-                )
+            while (current_in_channels > self.prototype_shape[1]) or (len(add_on_layers) == 0):
+                current_out_channels = max(self.prototype_shape[1], (current_in_channels // 2))
                 add_on_layers.append(
                     nn.Conv2d(
                         in_channels=current_in_channels,
@@ -152,13 +138,9 @@ class PPNet(nn.Module):
 
         # do not make this just a tensor,
         # since it will not be moved automatically to gpu
-        self.ones = nn.Parameter(
-            torch.ones(self.prototype_shape), requires_grad=False
-        )
+        self.ones = nn.Parameter(torch.ones(self.prototype_shape), requires_grad=False)
 
-        self.last_layer = nn.Linear(
-            self.num_prototypes, self.num_classes, bias=False
-        )  # do not use bias
+        self.last_layer = nn.Linear(self.num_prototypes, self.num_classes, bias=False)  # do not use bias
 
         if init_weights:
             self._initialize_weights()
@@ -210,9 +192,7 @@ class PPNet(nn.Module):
         weighted_inner_product = F.conv2d(input=input, weight=weighted_filter)
 
         # use broadcast
-        intermediate_result = (
-            -2 * weighted_inner_product + filter_weighted_norm2_reshape
-        )
+        intermediate_result = -2 * weighted_inner_product + filter_weighted_norm2_reshape
         # x2_patch_sum and intermediate_result are of the same shape
         distances = F.relu(input_patch_weighted_norm2 + intermediate_result)
 
@@ -259,10 +239,7 @@ class PPNet(nn.Module):
 
         # MCS
         if isinstance(conv_features, list):
-            return [
-                self.forward_from_conv_features(c, **kwargs)
-                for c in conv_features
-            ]
+            return [self.forward_from_conv_features(c, **kwargs) for c in conv_features]
 
         return self.forward_from_conv_features(conv_features, **kwargs)
 
@@ -271,20 +248,13 @@ class PPNet(nn.Module):
 
         # MCS
         if isinstance(conv_features, list):
-            results = [
-                self.forward_from_conv_features(c, **kwargs)
-                for c in conv_features
-            ]
+            results = [self.forward_from_conv_features(c, **kwargs) for c in conv_features]
             return [(r[0], r[1], c) for r, c in zip(results, conv_features)]
 
-        logits, distances = self.forward_from_conv_features(
-            conv_features, **kwargs
-        )
+        logits, distances = self.forward_from_conv_features(conv_features, **kwargs)
         return logits, distances, conv_features
 
-    def forward_from_conv_features(
-        self, conv_features, return_activations=False, return_distances=False
-    ):
+    def forward_from_conv_features(self, conv_features, return_activations=False, return_distances=False):
         if isinstance(conv_features, list):
             return [self.forward_from_conv_features(c) for c in conv_features]
 
@@ -308,9 +278,7 @@ class PPNet(nn.Module):
             logits = self.run_last_layer(prototype_activations)
 
             # shape: (batch_size, n_patches_cols, n_patches_rows, num_classes)
-            logits = logits.reshape(
-                batch_size, n_patches_cols, n_patches_rows, -1
-            )
+            logits = logits.reshape(batch_size, n_patches_cols, n_patches_rows, -1)
 
             if return_activations:
                 return logits, prototype_activations
@@ -350,9 +318,7 @@ class PPNet(nn.Module):
         [0, current number of prototypes - 1] that indicates the prototypes to
         be removed
         """
-        prototypes_to_keep = list(
-            sorted(set(range(self.num_prototypes)) - set(prototypes_to_prune))
-        )
+        prototypes_to_keep = list(sorted(set(range(self.num_prototypes)) - set(prototypes_to_prune)))
 
         self.prototype_vectors = nn.Parameter(
             self.prototype_vectors.data[prototypes_to_keep, ...],
@@ -366,19 +332,13 @@ class PPNet(nn.Module):
         # changing in_features and out_features make sure the numbers are consistent
         self.last_layer.in_features = self.num_prototypes
         self.last_layer.out_features = self.num_classes
-        self.last_layer.weight.data = self.last_layer.weight.data[
-            :, prototypes_to_keep
-        ]
+        self.last_layer.weight.data = self.last_layer.weight.data[:, prototypes_to_keep]
 
         # self.ones is nn.Parameter
-        self.ones = nn.Parameter(
-            self.ones.data[prototypes_to_keep, ...], requires_grad=False
-        )
+        self.ones = nn.Parameter(self.ones.data[prototypes_to_keep, ...], requires_grad=False)
         # self.prototype_class_identity is torch tensor
         # so it does not need .data access for value update
-        self.prototype_class_identity = self.prototype_class_identity[
-            prototypes_to_keep, :
-        ]
+        self.prototype_class_identity = self.prototype_class_identity[prototypes_to_keep, :]
 
     def __repr__(self):
         # PPNet(self, features, img_size, prototype_shape,
@@ -422,9 +382,7 @@ class PPNet(nn.Module):
         for m in self.add_on_layers.modules():
             if isinstance(m, nn.Conv2d):
                 # every init technique has an underscore _ in the name
-                nn.init.kaiming_normal_(
-                    m.weight, mode="fan_out", nonlinearity="relu"
-                )
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
 
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
@@ -445,9 +403,7 @@ def construct_PPNet(
     prototype_activation_function="log",
     add_on_layers_type="bottleneck",
 ):
-    features = base_architecture_to_features[base_architecture](
-        pretrained=pretrained
-    )
+    features = base_architecture_to_features[base_architecture](pretrained=pretrained)
     if hasattr(features, "conv_info"):
         (
             layer_filter_sizes,
@@ -475,4 +431,3 @@ def construct_PPNet(
         prototype_activation_function=prototype_activation_function,
         add_on_layers_type=add_on_layers_type,
     )
-

@@ -1,7 +1,7 @@
 from typing import Optional
 
-from proto_segmentation.deeplab_pytorch.libs.models.deeplabv2 import DeepLabV2
 from model.utils import MSC
+from proto_segmentation.deeplab_pytorch.libs.models.deeplabv2 import DeepLabV2
 
 
 def torchvision_resnet_weight_key_to_deeplab2(key: str) -> Optional[str]:

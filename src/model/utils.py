@@ -9,23 +9,13 @@ from PIL import Image
 
 
 def add_margins_to_image(img, margin_size):
-    margin_left = img.crop((0, 0, margin_size, img.height)).transpose(
-        Image.FLIP_LEFT_RIGHT
-    )
-    margin_right = img.crop(
-        (img.width - margin_size, 0, img.width, img.height)
-    ).transpose(Image.FLIP_LEFT_RIGHT)
-    margin_top = img.crop((0, 0, img.width, margin_size)).transpose(
-        Image.FLIP_TOP_BOTTOM
-    )
-    margin_bottom = img.crop(
-        (0, img.height - margin_size, img.width, img.height)
-    ).transpose(Image.FLIP_TOP_BOTTOM)
+    margin_left = img.crop((0, 0, margin_size, img.height)).transpose(Image.FLIP_LEFT_RIGHT)
+    margin_right = img.crop((img.width - margin_size, 0, img.width, img.height)).transpose(Image.FLIP_LEFT_RIGHT)
+    margin_top = img.crop((0, 0, img.width, margin_size)).transpose(Image.FLIP_TOP_BOTTOM)
+    margin_bottom = img.crop((0, img.height - margin_size, img.width, img.height)).transpose(Image.FLIP_TOP_BOTTOM)
 
     margin_top_left = (
-        img.crop((0, 0, margin_size, margin_size))
-        .transpose(Image.FLIP_LEFT_RIGHT)
-        .transpose(Image.FLIP_TOP_BOTTOM)
+        img.crop((0, 0, margin_size, margin_size)).transpose(Image.FLIP_LEFT_RIGHT).transpose(Image.FLIP_TOP_BOTTOM)
     )
     margin_top_right = (
         img.crop((img.width - margin_size, 0, img.width, margin_size))
@@ -50,9 +40,7 @@ def add_margins_to_image(img, margin_size):
         .transpose(Image.FLIP_TOP_BOTTOM)
     )
 
-    concat_img = Image.new(
-        "RGB", (img.width + margin_size * 2, img.height + margin_size * 2)
-    )
+    concat_img = Image.new("RGB", (img.width + margin_size * 2, img.height + margin_size * 2))
 
     concat_img.paste(img, (margin_size, margin_size))
     concat_img.paste(margin_left, (0, margin_size))
@@ -109,9 +97,7 @@ class MSC(nn.Module):
         # Original
         logits = self.base(x)
         _, _, H, W = logits.shape
-        interp = lambda l: F.interpolate(
-            l, size=(H, W), mode="bilinear", align_corners=False
-        )
+        interp = lambda l: F.interpolate(l, size=(H, W), mode="bilinear", align_corners=False)
 
         if len(self.scales) == 0:
             return logits
@@ -119,9 +105,7 @@ class MSC(nn.Module):
         # Scaled
         logits_pyramid = []
         for p in self.scales:
-            h = F.interpolate(
-                x, scale_factor=p, mode="bilinear", align_corners=False
-            )
+            h = F.interpolate(x, scale_factor=p, mode="bilinear", align_corners=False)
             logits_pyramid.append(self.base(h))
 
         # Pixel-wise max
