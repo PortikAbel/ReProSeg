@@ -39,14 +39,25 @@ class ModelInterpretability:
         self._collect_concept_activations_by_object_parts(panoptic_parts_loader)
         is_consistent = self._compute_if_concept_consistent()
 
-        num_consistent_concepts = sum(is_consistent)
+        used_concepts = (
+            self.net.layers.classification_layer.used_concepts
+            .detach()
+            .cpu()
+            .reshape(-1)
+            .tolist()
+        )
+        num_used_concepts = len(used_concepts)
+        num_consistent_concepts = sum(is_consistent[concept] for concept in used_concepts)
 
         self.log.info(
             f"Found {num_consistent_concepts} consistent concepts "
             f"with per object part activation > {self.consistency_score} "
-            f"out of {len(is_consistent)}."
+            f"out of {num_used_concepts} used concepts."
         )
-        return num_consistent_concepts / len(is_consistent)
+        if num_used_concepts == 0:
+            self.log.warning("No used concepts found; returning a consistency score of 0.")
+            return 0.0
+        return num_consistent_concepts / num_used_concepts
 
     def _collect_concept_activations_by_object_parts(self, panoptic_parts_loader: DataLoader):
         self.log.info("Collecting average object part activations of concepts from images...")
@@ -66,6 +77,7 @@ class ModelInterpretability:
                 continue
 
             xs, ys, pps = xs.to(self.device), ys.to(self.device), pps.to(self.device)
+            pps = pps.squeeze(1)
 
             concept_activations = self.net.interpolate_concept_activations(xs)
             concept_alphas = activations_to_alpha(concept_activations)

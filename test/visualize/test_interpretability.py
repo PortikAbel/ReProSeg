@@ -35,6 +35,33 @@ class TestModelInterpretabilityMethods:
     def sort_function(self, x):
         return x[0]
 
+    def test_compute_concept_consistency_score_uses_only_used_concepts(self):
+        interpretability = self._create_interpretability_instance()
+        interpretability._collect_concept_activations_by_object_parts = MagicMock()
+        interpretability._compute_if_concept_consistent = MagicMock(
+            return_value=[False, True, True, True, False]
+        )
+        self.mock_net.layers.classification_layer.used_concepts = torch.tensor([1, 4])
+
+        result = interpretability.compute_concept_consistency_score(MagicMock())
+
+        assert result == 0.5
+
+    def test_compute_concept_consistency_score_without_used_concepts(self):
+        interpretability = self._create_interpretability_instance()
+        interpretability._collect_concept_activations_by_object_parts = MagicMock()
+        interpretability._compute_if_concept_consistent = MagicMock(
+            return_value=[False, False, False, False, False]
+        )
+        self.mock_net.layers.classification_layer.used_concepts = torch.empty(
+            0, dtype=torch.long
+        )
+
+        result = interpretability.compute_concept_consistency_score(MagicMock())
+
+        assert result == 0.0
+        self.mock_log.warning.assert_called_once()
+
     @pytest.mark.parametrize(
         "alpha_values, part_labels, expected_results",
         [
