@@ -20,7 +20,8 @@ def get_class_weights(data: TorchDataset, cfg: DataConfig, log: Log) -> torch.Te
         dl = DataLoader(ds, cfg)
         class_counts = _count_class_distribution(dl, cfg.require_num_classes(), cache_path)
         log.info("Calculated class counts.")
-    class_weights = 1 / class_counts
+    class_counts = np.maximum(class_counts, 1)
+    class_weights = 1.0 / class_counts
     class_weights = torch.tensor(class_weights, dtype=torch.float32)
     return class_weights
 
@@ -28,9 +29,9 @@ def get_class_weights(data: TorchDataset, cfg: DataConfig, log: Log) -> torch.Te
 def _count_class_distribution(dl: DataLoader, num_classes: int, save_path: Path | None) -> np.ndarray:
     class_counts = np.zeros(num_classes, dtype=np.int64)
     for _, label in dl:
+        label_np = label.cpu().numpy()
         for c in range(num_classes):
-            class_counts[c] += (label == c).sum()
-
+            class_counts[c] += np.count_nonzero(label_np == c)
     if save_path is not None:
         if not save_path.parent.exists():
             save_path.parent.mkdir(parents=True, exist_ok=True)

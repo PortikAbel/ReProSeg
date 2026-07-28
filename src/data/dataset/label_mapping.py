@@ -64,6 +64,8 @@ class LabelMapping:
                 return LabelMapping._get_cityscapes_classes()
             case DatasetType.VOC_SEGMENTATION:
                 return LabelMapping._get_pascal_voc_classes()
+            case _:
+                raise ValueError(f"Unsupported dataset type: {dataset_type}")
 
     @staticmethod
     def _get_cityscapes_transform() -> Compose:
