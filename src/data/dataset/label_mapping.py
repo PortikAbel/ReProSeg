@@ -64,6 +64,7 @@ class LabelMapping:
                 return LabelMapping._get_cityscapes_classes()
             case DatasetType.VOC_SEGMENTATION:
                 return LabelMapping._get_pascal_voc_classes()
+
     @staticmethod
     def _get_cityscapes_transform() -> Compose:
         filtered_classes = LabelMapping._get_cityscapes_classes()
