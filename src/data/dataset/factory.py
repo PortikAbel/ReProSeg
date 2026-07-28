@@ -1,5 +1,5 @@
-from torch.utils.data import Dataset as TorchDataset
 from torchvision.datasets import Cityscapes, VOCSegmentation
+from torchvision.datasets.vision import VisionDataset as TorchDataset
 
 from config.schema.data import DataConfig, DatasetType
 from data.data_split import DataSplit
