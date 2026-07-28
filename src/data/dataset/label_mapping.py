@@ -1,4 +1,5 @@
 from collections import namedtuple
+from typing import TypeAlias
 
 import numpy as np
 from torchvision.datasets import Cityscapes
@@ -37,6 +38,8 @@ VOC_CLASSES = [
     VOC_Class("tvmonitor", 20, (0, 0, 0)),
 ]
 
+LabelClass: TypeAlias = Cityscapes.CityscapesClass | VOC_Class
+
 
 class LabelMapping:
     """Handles label mapping logic independent of transforms."""
@@ -54,14 +57,13 @@ class LabelMapping:
         return VOC_CLASSES
 
     @staticmethod
-    def get_classes(dataset_type: DatasetType) -> list[tuple]:
+    def get_classes(dataset_type: DatasetType) -> list[LabelClass]:
         """Returns the list of classes for the given dataset type."""
         match dataset_type:
             case DatasetType.CITYSCAPES:
                 return LabelMapping._get_cityscapes_classes()
             case DatasetType.VOC_SEGMENTATION:
                 return LabelMapping._get_pascal_voc_classes()
-
     @staticmethod
     def _get_cityscapes_transform() -> Compose:
         filtered_classes = LabelMapping._get_cityscapes_classes()
