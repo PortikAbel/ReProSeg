@@ -53,6 +53,12 @@ class DataConfig(BaseConfig):
         else:
             self.num_classes = num_classes
 
+    def require_num_classes(self) -> int:
+        """Return the configured number of classes or fail if it has not been set yet."""
+        if self.num_classes is None:
+            raise ValueError("num_classes is not set. Call DatasetFactory.create() before using data-dependent code.")
+        return self.num_classes
+
     class_distribution_cache_path: Path | None = Field(
         default=None,
         description="Path to cache class distribution counts",

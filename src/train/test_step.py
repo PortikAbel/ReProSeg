@@ -34,7 +34,7 @@ def eval(
     net = net.to(cfg.env.device)
     net.eval()
 
-    n_classes: int = cfg.data.num_classes - 1
+    n_classes: int = cfg.data.require_num_classes() - 1
     cm = torch.zeros((n_classes, n_classes), dtype=torch.int32).to(cfg.env.device)
     abstained = 0.0
 

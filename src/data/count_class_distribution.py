@@ -18,7 +18,7 @@ def get_class_weights(data: TorchDataset, cfg: DataConfig, log: Log) -> torch.Te
     else:
         ds = Dataset(cfg, data)
         dl = DataLoader(ds, cfg)
-        class_counts = _count_class_distribution(dl, cfg.num_classes, cache_path)
+        class_counts = _count_class_distribution(dl, cfg.require_num_classes(), cache_path)
         log.info("Calculated class counts.")
     class_weights = 1 / class_counts
     class_weights = torch.tensor(class_weights, dtype=torch.float32)
