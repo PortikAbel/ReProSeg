@@ -12,7 +12,7 @@ from utils.log import Log
 
 def get_class_weights(data: TorchDataset, cfg: DataConfig, log: Log) -> torch.Tensor:
     cache_path = cfg.class_distribution_cache_path
-    if cache_path.is_file():
+    if cache_path is not None and cache_path.is_file():
         class_counts = np.load(cache_path)
         log.info(f"Loaded class counts from {cache_path}")
     else:
@@ -25,7 +25,7 @@ def get_class_weights(data: TorchDataset, cfg: DataConfig, log: Log) -> torch.Te
     return class_weights
 
 
-def _count_class_distribution(dl: DataLoader, num_classes: int, save_path: Path) -> np.ndarray:
+def _count_class_distribution(dl: DataLoader, num_classes: int, save_path: Path | None) -> np.ndarray:
     class_counts = np.zeros(num_classes, dtype=np.int64)
     for _, label in dl:
         for c in range(num_classes):
