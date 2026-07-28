@@ -1,8 +1,8 @@
 from typing import Optional
 
-from torch.utils.data import Dataset as TorchDataset
 from torch.utils.data.dataset import Subset
 from torchvision.datasets.vision import StandardTransform
+from torchvision.datasets.vision import VisionDataset as TorchDataset
 from torchvision.transforms.v2 import Compose, Transform
 
 from config.schema.data import DataConfig, DatasetType
