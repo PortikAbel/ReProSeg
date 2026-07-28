@@ -46,12 +46,11 @@ class DataConfig(BaseConfig):
 
     def set_num_classes(self, num_classes: int):
         """Set the number of classes in the dataset."""
-        if self.num_classes is not None:
-            assert self.num_classes == num_classes, (
-                "Number of classes already set and does not match the provided value"
+        if self.num_classes is not None and self.num_classes != num_classes:
+            raise ValueError(
+                f"num_classes already set to {self.num_classes} and does not match provided value {num_classes}"
             )
-        else:
-            self.num_classes = num_classes
+        self.num_classes = num_classes
 
     def require_num_classes(self) -> int:
         """Return the configured number of classes or fail if it has not been set yet."""
