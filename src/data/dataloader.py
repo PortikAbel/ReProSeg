@@ -36,4 +36,3 @@ class DataLoader(TorchDataLoader):
             worker_init_fn=seed_worker,
             drop_last=self.to_drop_last,
         )
-    

@@ -33,7 +33,7 @@ def main(cfg_dict: DictConfig):
 
     log.debug(f"Config: {OmegaConf.to_yaml(cfg_dict)}")
     log.debug(f"Device used: {cfg.env.device}")
-    if str.lower(cfg.env.device.type) != 'cpu':
+    if str.lower(cfg.env.device.type) != "cpu":
         log.debug(f"Device name: {torch.cuda.get_device_name(cfg.env.device)}")
     log.debug(f"Pytorch version: {torch.__version__}")
     log.debug(f"Hostname: {socket.gethostname()}")

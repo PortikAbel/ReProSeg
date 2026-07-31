@@ -117,9 +117,7 @@ class ModelVisualizer:
         """
         im = image_pil.convert("L")
         # Laplacian kernel:
-        im = im.filter(ImageFilter.Kernel((3, 3), 
-                                          (0, 1, 0, 1, -4, 1, 0, 1, 0), 
-                                          1, 0))
+        im = im.filter(ImageFilter.Kernel((3, 3), (0, 1, 0, 1, -4, 1, 0, 1, 0), 1, 0))
         im = PIL.ImageOps.invert(im)
         # Can be put in hydra as parameters (cutoff):
         im = PIL.ImageOps.autocontrast(im, cutoff=(0.3, 0.5))
@@ -172,14 +170,14 @@ class ModelVisualizer:
                 contour_images.append(self.create_contour(crop_image(image_pil)))
             xs = xs[local_image_idxs].to(self.device)
             concept_activations = self.net.interpolate_concept_activations(xs)
-            alpha = activations_to_alpha(concept_activations).cpu() # <- !!!!!!!!!
+            alpha = activations_to_alpha(concept_activations).cpu()  # <- !!!!!!!!!
             for i, image in enumerate(images):
                 for concept in self.image_to_concepts[base_idx + local_image_idxs[i]]:
-                    image[:, alpha[i, concept] == 0] = pil_to_tensor(
-                        contour_images[i]
-                    ).squeeze(0)[alpha[i, concept] == 0]
+                    image[:, alpha[i, concept] == 0] = pil_to_tensor(contour_images[i]).squeeze(0)[
+                        alpha[i, concept] == 0
+                    ]
                     alpha2 = alpha[i, concept]
-                    alpha2[alpha[i, concept] == 0] = 1.
+                    alpha2[alpha[i, concept] == 0] = 1.0
                     # prototype_img = torch.cat((image, alpha[i, concept].unsqueeze(0)), 0)
                     prototype_img = torch.cat((image, alpha2.unsqueeze(0)), 0)
                     prototype_img = draw_activation_minmax_text_on_image(
