@@ -1,14 +1,12 @@
 import os
+import socket
 from typing import Any, Dict
 
 import hydra
 import nni  # type: ignore[import-untyped]
+import torch
 from dotenv import load_dotenv
 from omegaconf import DictConfig, OmegaConf
-
-from pathlib import Path
-import torch
-import socket
 
 from config import ReProSegConfig
 from data import DataLoader, Dataset, PanopticPartsDataset, get_train_val_split

@@ -1,15 +1,13 @@
 import heapq
-import os
 import pickle
 from collections import defaultdict
 
 import numpy as np
+import PIL.ImageOps
 import torch
 import torchvision
 import torchvision.transforms as transforms
-from PIL import Image
-from PIL import ImageFilter, ImageEnhance
-import PIL.ImageOps
+from PIL import Image, ImageFilter
 from torch.utils.data.dataset import Subset
 from tqdm import tqdm
 
@@ -177,7 +175,9 @@ class ModelVisualizer:
             alpha = activations_to_alpha(concept_activations).cpu() # <- !!!!!!!!!
             for i, image in enumerate(images):
                 for concept in self.image_to_concepts[base_idx + local_image_idxs[i]]:
-                    image[:, alpha[i, concept] == 0] = pil_to_tensor(contour_images[i]).squeeze(0)[alpha[i, concept] == 0]
+                    image[:, alpha[i, concept] == 0] = pil_to_tensor(
+                        contour_images[i]
+                    ).squeeze(0)[alpha[i, concept] == 0]
                     alpha2 = alpha[i, concept]
                     alpha2[alpha[i, concept] == 0] = 1.
                     # prototype_img = torch.cat((image, alpha[i, concept].unsqueeze(0)), 0)
@@ -214,7 +214,9 @@ class ModelVisualizer:
         if len(all_tensors) > 0:
             if self.concatenate_all:
                 grid = torchvision.utils.make_grid(all_tensors, nrow=self.k + 1, padding=1)
-                torchvision.utils.save_image(grid, self.log.prototypes_dir / "all" / f"grid_top_{self.k}_prototype_activations.png")
+                torchvision.utils.save_image(
+                    grid, self.log.prototypes_dir / "all" / f"grid_top_{self.k}_prototype_activations.png"
+                )
         else:
             self.log.warning("No concepts to visualize with prototypes.")
 
