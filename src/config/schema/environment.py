@@ -1,6 +1,9 @@
+import os
+import random
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 import torch
 from pydantic import Field, field_validator
 import random
@@ -42,13 +45,15 @@ class EnvironmentConfig(BaseConfig):
         if self.gpu_id is not None:
             self.device = torch.device(f"cuda:{self.gpu_id}")
 
-        os.environ['PYTHONHASHSEED'] = str(self.seed)
-        os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
+        os.environ.setdefault("PYTHONHASHSEED", str(self.seed))
         random.seed(self.seed)
         np.random.seed(self.seed)
         torch.manual_seed(self.seed)
-        torch.cuda.manual_seed(self.seed)
-        torch.cuda.manual_seed_all(self.seed)
-        torch.use_deterministic_algorithms(True)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
+
+        if torch.cuda.is_available():
+            os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+            torch.cuda.manual_seed(self.seed)
+            torch.cuda.manual_seed_all(self.seed)
+            torch.use_deterministic_algorithms(True)
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False

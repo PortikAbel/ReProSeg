@@ -215,6 +215,10 @@ class ModelVisualizer:
             if self.concatenate_all:
                 grid = torchvision.utils.make_grid(all_tensors, nrow=self.k + 1, padding=1)
                 torchvision.utils.save_image(grid, self.log.prototypes_dir / "all" / f"grid_top_{self.k}_prototype_activations.png")
+            grid = torchvision.utils.make_grid(all_tensors, nrow=self.k + 1, padding=1)
+            torchvision.utils.save_image(
+                grid, self.log.prototypes_dir / "all" / f"grid_top_{self.k}_prototype_activations.png"
+            )
         else:
             self.log.warning("No concepts to visualize with prototypes.")
 

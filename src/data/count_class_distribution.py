@@ -14,7 +14,7 @@ def get_class_weights(
     data: TorchDataset, num_classes: int, cache_path: Path, cfg: ReProSegConfig, log: Log
 ) -> torch.Tensor:
     ds = Dataset(cfg.data, data)
-    dl = DataLoader(ds, cfg)
+    dl = DataLoader(ds, cfg.data)
 
     if cache_path.is_file():
         class_counts = np.load(cache_path)
