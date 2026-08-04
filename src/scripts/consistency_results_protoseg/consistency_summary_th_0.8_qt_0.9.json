@@ -1,0 +1,309 @@
+{
+  "score": 0.18,
+  "activation_quantile": 0.9,
+  "consistency_threshold": 0.8,
+  "num_consistent_prototypes": 9,
+  "num_evaluated_prototypes": 50,
+  "prototype_consistency": [
+    {
+      "class_id": 12,
+      "prototype_id": 110,
+      "consistent": false,
+      "max_part_consistency": 0.5409836065573771
+    },
+    {
+      "class_id": 12,
+      "prototype_id": 111,
+      "consistent": false,
+      "max_part_consistency": 0.6096938775510204
+    },
+    {
+      "class_id": 12,
+      "prototype_id": 112,
+      "consistent": true,
+      "max_part_consistency": 0.8277634961439588
+    },
+    {
+      "class_id": 12,
+      "prototype_id": 113,
+      "consistent": false,
+      "max_part_consistency": 0.4696132596685083
+    },
+    {
+      "class_id": 12,
+      "prototype_id": 114,
+      "consistent": false,
+      "max_part_consistency": 0.6071428571428571
+    },
+    {
+      "class_id": 12,
+      "prototype_id": 115,
+      "consistent": false,
+      "max_part_consistency": 0.6326530612244898
+    },
+    {
+      "class_id": 12,
+      "prototype_id": 116,
+      "consistent": false,
+      "max_part_consistency": 0.5355191256830601
+    },
+    {
+      "class_id": 12,
+      "prototype_id": 117,
+      "consistent": false,
+      "max_part_consistency": 0.596401028277635
+    },
+    {
+      "class_id": 12,
+      "prototype_id": 118,
+      "consistent": false,
+      "max_part_consistency": 0.42091836734693877
+    },
+    {
+      "class_id": 12,
+      "prototype_id": 119,
+      "consistent": false,
+      "max_part_consistency": 0.7686375321336761
+    },
+    {
+      "class_id": 13,
+      "prototype_id": 120,
+      "consistent": true,
+      "max_part_consistency": 1.0
+    },
+    {
+      "class_id": 13,
+      "prototype_id": 121,
+      "consistent": false,
+      "max_part_consistency": 0.319672131147541
+    },
+    {
+      "class_id": 13,
+      "prototype_id": 122,
+      "consistent": true,
+      "max_part_consistency": 1.0
+    },
+    {
+      "class_id": 13,
+      "prototype_id": 123,
+      "consistent": false,
+      "max_part_consistency": 0.3920704845814978
+    },
+    {
+      "class_id": 13,
+      "prototype_id": 124,
+      "consistent": false,
+      "max_part_consistency": 0.3568281938325991
+    },
+    {
+      "class_id": 13,
+      "prototype_id": 125,
+      "consistent": false,
+      "max_part_consistency": 0.38934426229508196
+    },
+    {
+      "class_id": 13,
+      "prototype_id": 126,
+      "consistent": false,
+      "max_part_consistency": 0.36885245901639346
+    },
+    {
+      "class_id": 13,
+      "prototype_id": 127,
+      "consistent": true,
+      "max_part_consistency": 1.0
+    },
+    {
+      "class_id": 13,
+      "prototype_id": 128,
+      "consistent": false,
+      "max_part_consistency": 0.42290748898678415
+    },
+    {
+      "class_id": 13,
+      "prototype_id": 129,
+      "consistent": true,
+      "max_part_consistency": 1.0
+    },
+    {
+      "class_id": 14,
+      "prototype_id": 130,
+      "consistent": false,
+      "max_part_consistency": 0.5523012552301255
+    },
+    {
+      "class_id": 14,
+      "prototype_id": 131,
+      "consistent": false,
+      "max_part_consistency": 0.7408207343412527
+    },
+    {
+      "class_id": 14,
+      "prototype_id": 132,
+      "consistent": true,
+      "max_part_consistency": 0.8927038626609443
+    },
+    {
+      "class_id": 14,
+      "prototype_id": 133,
+      "consistent": true,
+      "max_part_consistency": 0.8127659574468085
+    },
+    {
+      "class_id": 14,
+      "prototype_id": 134,
+      "consistent": false,
+      "max_part_consistency": 0.6191489361702127
+    },
+    {
+      "class_id": 14,
+      "prototype_id": 135,
+      "consistent": false,
+      "max_part_consistency": 0.5429184549356223
+    },
+    {
+      "class_id": 14,
+      "prototype_id": 136,
+      "consistent": false,
+      "max_part_consistency": 0.6888412017167382
+    },
+    {
+      "class_id": 14,
+      "prototype_id": 137,
+      "consistent": true,
+      "max_part_consistency": 0.8369098712446352
+    },
+    {
+      "class_id": 14,
+      "prototype_id": 138,
+      "consistent": false,
+      "max_part_consistency": 0.6393088552915767
+    },
+    {
+      "class_id": 14,
+      "prototype_id": 139,
+      "consistent": true,
+      "max_part_consistency": 0.8358531317494601
+    },
+    {
+      "class_id": 15,
+      "prototype_id": 140,
+      "consistent": false,
+      "max_part_consistency": 0.17391304347826086
+    },
+    {
+      "class_id": 15,
+      "prototype_id": 141,
+      "consistent": false,
+      "max_part_consistency": 0.2222222222222222
+    },
+    {
+      "class_id": 15,
+      "prototype_id": 142,
+      "consistent": false,
+      "max_part_consistency": 0.15217391304347827
+    },
+    {
+      "class_id": 15,
+      "prototype_id": 143,
+      "consistent": false,
+      "max_part_consistency": 0.5
+    },
+    {
+      "class_id": 15,
+      "prototype_id": 144,
+      "consistent": false,
+      "max_part_consistency": 0.3888888888888889
+    },
+    {
+      "class_id": 15,
+      "prototype_id": 145,
+      "consistent": false,
+      "max_part_consistency": 0.42592592592592593
+    },
+    {
+      "class_id": 15,
+      "prototype_id": 146,
+      "consistent": false,
+      "max_part_consistency": 0.09259259259259259
+    },
+    {
+      "class_id": 15,
+      "prototype_id": 147,
+      "consistent": false,
+      "max_part_consistency": 0.37037037037037035
+    },
+    {
+      "class_id": 15,
+      "prototype_id": 148,
+      "consistent": false,
+      "max_part_consistency": 0.13043478260869565
+    },
+    {
+      "class_id": 15,
+      "prototype_id": 149,
+      "consistent": false,
+      "max_part_consistency": 0.2777777777777778
+    },
+    {
+      "class_id": 16,
+      "prototype_id": 150,
+      "consistent": false,
+      "max_part_consistency": 0.29333333333333333
+    },
+    {
+      "class_id": 16,
+      "prototype_id": 151,
+      "consistent": false,
+      "max_part_consistency": 0.273972602739726
+    },
+    {
+      "class_id": 16,
+      "prototype_id": 152,
+      "consistent": false,
+      "max_part_consistency": 0.38181818181818183
+    },
+    {
+      "class_id": 16,
+      "prototype_id": 153,
+      "consistent": false,
+      "max_part_consistency": 0.36363636363636365
+    },
+    {
+      "class_id": 16,
+      "prototype_id": 154,
+      "consistent": false,
+      "max_part_consistency": 0.3148148148148148
+    },
+    {
+      "class_id": 16,
+      "prototype_id": 155,
+      "consistent": false,
+      "max_part_consistency": 0.38181818181818183
+    },
+    {
+      "class_id": 16,
+      "prototype_id": 156,
+      "consistent": false,
+      "max_part_consistency": 0.3013698630136986
+    },
+    {
+      "class_id": 16,
+      "prototype_id": 157,
+      "consistent": false,
+      "max_part_consistency": 0.2777777777777778
+    },
+    {
+      "class_id": 16,
+      "prototype_id": 158,
+      "consistent": false,
+      "max_part_consistency": 0.5454545454545454
+    },
+    {
+      "class_id": 16,
+      "prototype_id": 159,
+      "consistent": false,
+      "max_part_consistency": 0.3013698630136986
+    }
+  ]
+}
