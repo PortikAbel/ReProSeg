@@ -46,7 +46,6 @@ class ModelVisualizer:
         self.log = log
         self.image_shape = cfg.data.img_shape
         self.k = cfg.visualization.top_k
-        self.concatenate_all = cfg.visualization.concatenate_all
 
     def collect_topk_concept_activations(self, train_loader_visualization: DataLoader):
         topks_cache_path = self.log.prototypes_dir / f"topks_of_concept_k{self.k}.pkl"
@@ -190,7 +189,6 @@ class ModelVisualizer:
 
     def render_prototypes(self):
         self.log.info(f"Saving top {self.k} prototypes to images...")
-        all_tensors = []
         prototype_iter = tqdm(
             self.tensors_per_concept.items(),
             total=len(self.tensors_per_concept),
@@ -199,22 +197,13 @@ class ModelVisualizer:
             ncols=0,
             file=self.log.tqdm_file,
         )
-        all_dir = self.log.prototypes_dir / "all"
-        all_dir.mkdir(exist_ok=True)
         for p, prototype_tensors in prototype_iter:
             txt_tensor = prototype_text(p, self.image_shape[::-1])
             prototype_tensors.append(txt_tensor)
             grid = torchvision.utils.make_grid(prototype_tensors, nrow=self.k + 1, padding=1)
             torchvision.utils.save_image(
-                grid, self.log.prototypes_dir / "all" / f"grid_top_{self.k}_activations_of_prototype_{p}.png"
+                grid, self.log.prototypes_dir / f"grid_top_{self.k}_activations_of_prototype_{p}.png"
             )
-            all_tensors += prototype_tensors
-        if len(all_tensors) > 0:
-            if self.concatenate_all:
-                grid = torchvision.utils.make_grid(all_tensors, nrow=self.k + 1, padding=1)
-                torchvision.utils.save_image(
-                    grid, self.log.prototypes_dir / "all" / f"grid_top_{self.k}_prototype_activations.png"
-                )
         else:
             self.log.warning("No concepts to visualize with prototypes.")
 
