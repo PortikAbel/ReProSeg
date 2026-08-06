@@ -56,7 +56,9 @@ class ReProSegLayers(nn.Module):
         log.info(f"Number of concepts: {self.num_concepts}")
 
         self.max_pool = nn.AdaptiveMaxPool3d((1, None, None))
-        self.classification_layer = NonNegConv1x1(self.num_concepts, cfg.data.num_classes, bias=cfg.model.bias)
+        self.classification_layer = NonNegConv1x1(
+            self.num_concepts, cfg.data.require_num_classes(), bias=cfg.model.bias
+        )
 
 
 class ReProSeg(nn.Module):
@@ -66,7 +68,7 @@ class ReProSeg(nn.Module):
         log: Log,
     ):
         super().__init__()
-        assert cfg.data.num_classes > 0
+        assert cfg.data.require_num_classes() > 0
         self._cfg = cfg
         self._log = log
 
