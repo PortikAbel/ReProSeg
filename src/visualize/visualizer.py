@@ -158,23 +158,20 @@ class ModelVisualizer:
             local_image_idxs = [i for i in range(xs.shape[0]) if (base_idx + i) in self.image_to_concepts]
             if not local_image_idxs:
                 continue
-            images = []
-            contour_images = []
+            images_with_contours: list[tuple[torch.Tensor, torch.Tensor]] = []
             for idx in local_image_idxs:
                 image_path_idx = image_indices[base_idx + idx]
                 image_pil = Image.open(image_paths[image_path_idx]).convert("RGB")
                 image = pil_to_tensor(image_pil)
                 image = crop_image(image)
-                images.append(image)
-                contour_images.append(self.create_contour(crop_image(image_pil)))
+                contour_image = pil_to_tensor(self.create_contour(crop_image(image_pil))).squeeze(0)
+                images_with_contours.append((image, contour_image))
             xs = xs[local_image_idxs].to(self.device)
             concept_activations = self.net.interpolate_concept_activations(xs)
             alpha = activations_to_alpha(concept_activations).cpu()  # <- !!!!!!!!!
-            for i, image in enumerate(images):
+            for i, (image, contour_image) in enumerate(images_with_contours):
                 for concept in self.image_to_concepts[base_idx + local_image_idxs[i]]:
-                    image[:, alpha[i, concept] == 0] = pil_to_tensor(contour_images[i]).squeeze(0)[
-                        alpha[i, concept] == 0
-                    ]
+                    image[:, alpha[i, concept] == 0] = contour_image[alpha[i, concept] == 0]
                     alpha2 = alpha[i, concept]
                     alpha2[alpha[i, concept] == 0] = 1.0
                     # prototype_img = torch.cat((image, alpha[i, concept].unsqueeze(0)), 0)
