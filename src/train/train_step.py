@@ -41,8 +41,9 @@ def train(
 
     loss_epoch: Loss = Loss.on_device(cfg.env.device)
     total_acc = 0.0
-    total_intersections_by_class = torch.zeros(cfg.data.num_classes - 1).to(cfg.env.device)
-    total_unions_by_class = torch.zeros(cfg.data.num_classes - 1).to(cfg.env.device)
+    n_classes: int = cfg.data.require_num_classes() - 1
+    total_intersections_by_class = torch.zeros(n_classes).to(cfg.env.device)
+    total_unions_by_class = torch.zeros(n_classes).to(cfg.env.device)
 
     iters = len(train_loader)
     # Show progress on progress bar.

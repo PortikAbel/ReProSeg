@@ -27,9 +27,7 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
         checkpoint = torch.load(cfg.model.checkpoint, map_location=cfg.env.device, weights_only=False)
         optimizer_scheduler_manager.load_state_dict(checkpoint)
 
-    class_weights = get_class_weights(
-        train_data, cfg.data.num_classes, cfg.env.class_distribution_cache_path, cfg, log
-    ).to(cfg.env.device)
+    class_weights = get_class_weights(train_data, cfg.data, log).to(cfg.env.device)
     criterion: nn.Module
     match cfg.model.criterion:
         case LossCriterion.NLL:
@@ -37,7 +35,7 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
         case LossCriterion.WEIGHTED_NLL:
             criterion = WeightedNLLLoss(device=cfg.env.device, class_weights=class_weights)
         case LossCriterion.DICE:
-            criterion = DiceLoss(torch.ones(cfg.data.num_classes, device=cfg.env.device))
+            criterion = DiceLoss(torch.ones(cfg.data.require_num_classes(), device=cfg.env.device))
         case LossCriterion.WEIGHTED_DICE:
             criterion = DiceLoss(class_weights)
         case _:

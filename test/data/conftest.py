@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 import torch
 from PIL import Image
-from torchvision.datasets import Cityscapes
+from torchvision.datasets import Cityscapes, VOCSegmentation
 
 
 @pytest.fixture
@@ -70,6 +70,23 @@ def mock_cityscapes_constructor(mock_cityscapes_dataset):
     """Mock the Cityscapes constructor to return our mock dataset."""
     with patch("data.dataset.factory.Cityscapes") as mock_constructor:
         mock_constructor.return_value = mock_cityscapes_dataset
+        yield mock_constructor
+
+
+@pytest.fixture
+def mock_voc_dataset(sample_image, sample_target):
+    """Mock a VOCSegmentation dataset with sample data."""
+    mock_dataset = MagicMock(spec=VOCSegmentation)
+    mock_dataset.__len__.return_value = 10
+    mock_dataset.__getitem__.return_value = (sample_image, sample_target)
+    return mock_dataset
+
+
+@pytest.fixture
+def mock_voc_constructor(mock_voc_dataset):
+    """Mock the VOCSegmentation constructor to return our mock dataset."""
+    with patch("data.dataset.factory.VOCSegmentation") as mock_constructor:
+        mock_constructor.return_value = mock_voc_dataset
         yield mock_constructor
 
 
