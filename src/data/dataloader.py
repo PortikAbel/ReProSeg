@@ -25,6 +25,7 @@ class DataLoader(TorchDataLoader):
 
     def __init__(self, dataset: TorchDataset, cfg: DataConfig):
         self.dataset = dataset
+        self.cfg = cfg
         super().__init__(
             self.dataset,
             batch_size=cfg.batch_size,

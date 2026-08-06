@@ -1,13 +1,13 @@
 import heapq
-import os
 import pickle
 from collections import defaultdict
 
 import numpy as np
+import PIL.ImageOps
 import torch
 import torchvision
 import torchvision.transforms as transforms
-from PIL import Image
+from PIL import Image, ImageFilter
 from torch.utils.data.dataset import Subset
 from tqdm import tqdm
 
@@ -49,7 +49,7 @@ class ModelVisualizer:
 
     def collect_topk_concept_activations(self, train_loader_visualization: DataLoader):
         topks_cache_path = self.log.prototypes_dir / f"topks_of_concept_k{self.k}.pkl"
-        if os.path.exists(topks_cache_path):
+        if topks_cache_path.exists():
             self.log.info(f"Loading top {self.k} concept activations from {topks_cache_path}")
             with open(topks_cache_path, "rb") as f:
                 self.topks_of_concept = pickle.load(f)
@@ -85,7 +85,7 @@ class ModelVisualizer:
 
     def map_images_to_prototypes(self):
         image_to_concepts_cache_path = self.log.prototypes_dir / "image_to_concepts.pkl"
-        if os.path.exists(image_to_concepts_cache_path):
+        if image_to_concepts_cache_path.exists():
             self.log.info(f"Loading image to concepts mapping from {image_to_concepts_cache_path}")
             with open(image_to_concepts_cache_path, "rb") as f:
                 self.image_to_concepts = pickle.load(f)
@@ -109,10 +109,23 @@ class ModelVisualizer:
         with open(image_to_concepts_cache_path, "wb") as f:
             pickle.dump(self.image_to_concepts, f)
 
+    def create_contour(self, image_pil: Image.Image) -> Image.Image:
+        """
+        Creates contour of a given image using the Laplacian kernel.
+        Returns a grayscale image.
+        """
+        im = image_pil.convert("L")
+        # Laplacian kernel:
+        im = im.filter(ImageFilter.Kernel((3, 3), (0, 1, 0, 1, -4, 1, 0, 1, 0), 1, 0))
+        im = PIL.ImageOps.invert(im)
+        # Can be put in hydra as parameters (cutoff):
+        im = PIL.ImageOps.autocontrast(im, cutoff=(0.3, 0.5))
+        return im
+
     def collect_prototype_tensors(self, train_loader_visualization: DataLoader):
         proto_dir = self.log.prototypes_dir
         tensors_cache_path = proto_dir / f"tensors_per_concept_k{self.k}.pkl"
-        if os.path.exists(tensors_cache_path):
+        if tensors_cache_path.exists():
             self.log.info(f"Loading prototype tensors from {tensors_cache_path}")
             with open(tensors_cache_path, "rb") as f:
                 self.tensors_per_concept = pickle.load(f)
@@ -145,18 +158,24 @@ class ModelVisualizer:
             local_image_idxs = [i for i in range(xs.shape[0]) if (base_idx + i) in self.image_to_concepts]
             if not local_image_idxs:
                 continue
-            images = []
+            images_with_contours: list[tuple[torch.Tensor, torch.Tensor]] = []
             for idx in local_image_idxs:
                 image_path_idx = image_indices[base_idx + idx]
-                image = pil_to_tensor(Image.open(image_paths[image_path_idx]).convert("RGB"))
+                image_pil = Image.open(image_paths[image_path_idx]).convert("RGB")
+                image = pil_to_tensor(image_pil)
                 image = crop_image(image)
-                images.append(image)
+                contour_image = pil_to_tensor(self.create_contour(crop_image(image_pil))).squeeze(0)
+                images_with_contours.append((image, contour_image))
             xs = xs[local_image_idxs].to(self.device)
             concept_activations = self.net.interpolate_concept_activations(xs)
-            alpha = activations_to_alpha(concept_activations).cpu()
-            for i, image in enumerate(images):
+            alpha = activations_to_alpha(concept_activations).cpu()  # <- !!!!!!!!!
+            for i, (image, contour_image) in enumerate(images_with_contours):
                 for concept in self.image_to_concepts[base_idx + local_image_idxs[i]]:
-                    prototype_img = torch.cat((image, alpha[i, concept].unsqueeze(0)), 0)
+                    image[:, alpha[i, concept] == 0] = contour_image[alpha[i, concept] == 0]
+                    alpha2 = alpha[i, concept]
+                    alpha2[alpha[i, concept] == 0] = 1.0
+                    # prototype_img = torch.cat((image, alpha[i, concept].unsqueeze(0)), 0)
+                    prototype_img = torch.cat((image, alpha2.unsqueeze(0)), 0)
                     prototype_img = draw_activation_minmax_text_on_image(
                         prototype_img,
                         concept_activations[i, concept],
@@ -167,7 +186,6 @@ class ModelVisualizer:
 
     def render_prototypes(self):
         self.log.info(f"Saving top {self.k} prototypes to images...")
-        all_tensors = []
         prototype_iter = tqdm(
             self.tensors_per_concept.items(),
             total=len(self.tensors_per_concept),
@@ -181,13 +199,7 @@ class ModelVisualizer:
             prototype_tensors.append(txt_tensor)
             grid = torchvision.utils.make_grid(prototype_tensors, nrow=self.k + 1, padding=1)
             torchvision.utils.save_image(
-                grid, self.log.prototypes_dir / "all" / f"grid_top_{self.k}_activations_of_prototype_{p}.png"
-            )
-            all_tensors += prototype_tensors
-        if len(all_tensors) > 0:
-            grid = torchvision.utils.make_grid(all_tensors, nrow=self.k + 1, padding=1)
-            torchvision.utils.save_image(
-                grid, self.log.prototypes_dir / "all" / f"grid_top_{self.k}_prototype_activations.png"
+                grid, self.log.prototypes_dir / f"grid_top_{self.k}_activations_of_prototype_{p}.png"
             )
         else:
             self.log.warning("No concepts to visualize with prototypes.")

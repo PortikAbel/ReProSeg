@@ -1,8 +1,10 @@
 import os
+import socket
 from typing import Any, Dict
 
 import hydra
 import nni  # type: ignore[import-untyped]
+import torch
 from dotenv import load_dotenv
 from omegaconf import DictConfig, OmegaConf
 
@@ -31,6 +33,10 @@ def main(cfg_dict: DictConfig):
 
     log.debug(f"Config: {OmegaConf.to_yaml(cfg_dict)}")
     log.debug(f"Device used: {cfg.env.device}")
+    if str.lower(cfg.env.device.type) != "cpu":
+        log.debug(f"Device name: {torch.cuda.get_device_name(cfg.env.device)}")
+    log.debug(f"Pytorch version: {torch.__version__}")
+    log.debug(f"Hostname: {socket.gethostname()}")
     if nni_trial_id:
         log.info(f"NNI trial ID: {nni_trial_id}")
 

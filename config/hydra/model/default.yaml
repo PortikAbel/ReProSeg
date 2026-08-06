@@ -1,7 +1,8 @@
 # ReProSeg with DeepLab v3 backbone configuration
 
 backbone_network: deeplab_v3
-checkpoint: "/home/pabel/nni-experiments/fz4v5qu8/environments/local-env/trials/mEiRF/checkpoints/net_trained_best_miou"
+# checkpoint: "/home/pabel/nni-experiments/fz4v5qu8/environments/local-env/trials/mEiRF/checkpoints/net_trained_best_miou"
+checkpoint: "/home/miafranc/git/ReProSeg/log/2026_06_22-18_52_26/checkpoints/net_trained_best_miou"
 # backbone_checkpoint: "/data/DeepLab_checkpoints/best-epoch=31-val_mIoU=0.713.ckpt"
 
 bias: false
