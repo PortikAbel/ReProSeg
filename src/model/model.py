@@ -142,6 +142,10 @@ class ReProSeg(nn.Module):
 
         self.param_groups["classifier_head"].append(self.layers.shared_weights)
 
+        for param in self.layers.aspp_convs.parameters():
+            if param is not self.layers.shared_weights:
+                self.param_groups["classifier_head"].append(param)
+
         for name, param in self.layers.classification_layer.named_parameters():
             if "weight" in name:
                 self.param_groups["classifier_head"].append(param)
