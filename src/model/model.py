@@ -46,8 +46,8 @@ class ReProSegLayers(nn.Module):
 
         self.shared_weights = self.aspp_convs[0][0].weight
         # set shared weights to all aspp convolutions
-        for conv in self.aspp_convs:
-            conv[0].weight.data = self.shared_weights
+        for conv in self.aspp_convs[1:]:
+            conv[0].weight = self.shared_weights
 
         # the sum of concept activations should be 1 for each patch in each scale
         self.concept_activations: nn.Module = nn.Softmax(dim=1)
