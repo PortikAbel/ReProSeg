@@ -10,7 +10,7 @@ from data.count_class_distribution import get_class_weights
 from model.model import ReProSeg
 from model.optimizers import OptimizerSchedulerManager
 from train.criterion.dice import DiceLoss
-from train.criterion.weighted_nll import WeightedNLLLoss
+from train.criterion.weighted_nll import WeightedCrossEntropyLoss
 from train.test_step import eval
 from train.train_step import train
 from utils.log import Log
@@ -31,9 +31,9 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
     criterion: nn.Module
     match cfg.model.criterion:
         case LossCriterion.NLL:
-            criterion = WeightedNLLLoss(device=cfg.env.device)
+            criterion = WeightedCrossEntropyLoss(device=cfg.env.device)
         case LossCriterion.WEIGHTED_NLL:
-            criterion = WeightedNLLLoss(device=cfg.env.device, class_weights=class_weights)
+            criterion = WeightedCrossEntropyLoss(device=cfg.env.device, class_weights=class_weights)
         case LossCriterion.DICE:
             criterion = DiceLoss(torch.ones(cfg.data.require_num_classes(), device=cfg.env.device))
         case LossCriterion.WEIGHTED_DICE:
