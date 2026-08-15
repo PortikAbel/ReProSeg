@@ -220,4 +220,5 @@ class NonNegConv1x1(nn.Module):
 
     @property
     def used_concepts(self) -> torch.Tensor:
-        return (self.weight >= self.MIN_CLASSIFICATION_WEIGHT).any(dim=0).squeeze().nonzero().squeeze()
+        concept_mask = (self.weight >= self.MIN_CLASSIFICATION_WEIGHT).any(dim=0).flatten()
+        return concept_mask.nonzero(as_tuple=False).flatten()
