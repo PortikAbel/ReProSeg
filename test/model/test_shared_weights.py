@@ -14,9 +14,7 @@ class _FakeLog:
 
 
 def _create_layers(monkeypatch):
-    aspp_convs = nn.ModuleList(
-        [nn.Sequential(nn.Conv2d(1, 1, kernel_size=1, bias=False)) for _ in range(3)]
-    )
+    aspp_convs = nn.ModuleList([nn.Sequential(nn.Conv2d(1, 1, kernel_size=1, bias=False)) for _ in range(3)])
 
     monkeypatch.setitem(
         model_module.base_architecture_to_features,
