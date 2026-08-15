@@ -208,6 +208,7 @@ class TestNonNegConv1x1:
         used_concepts = layer.used_concepts
         expected_index = torch.tensor([1])
 
+        assert used_concepts.shape == expected_index.shape
         assert torch.allclose(used_concepts, expected_index)
 
     def test_weight_parameter_shape_consistency(self):
