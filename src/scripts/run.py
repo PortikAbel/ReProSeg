@@ -1,8 +1,10 @@
 import os
+import socket
 from typing import Any, Dict
 
 import hydra
 import nni  # type: ignore[import-untyped]
+import torch
 from dotenv import load_dotenv
 from omegaconf import DictConfig, OmegaConf
 
@@ -31,13 +33,15 @@ def main(cfg_dict: DictConfig):
 
     log.debug(f"Config: {OmegaConf.to_yaml(cfg_dict)}")
     log.debug(f"Device used: {cfg.env.device}")
+    if str.lower(cfg.env.device.type) != "cpu":
+        log.debug(f"Device name: {torch.cuda.get_device_name(cfg.env.device)}")
+    log.debug(f"Pytorch version: {torch.__version__}")
+    log.debug(f"Hostname: {socket.gethostname()}")
     if nni_trial_id:
         log.info(f"NNI trial ID: {nni_trial_id}")
 
     # Create the dataloaders
     train_subset, valid_subset = get_train_val_split(cfg)
-
-    cfg.data.num_classes = len(train_subset.dataset.classes)  # type: ignore[attr-defined]
 
     # Model
     net = ReProSeg(cfg=cfg, log=log).to(device=cfg.env.device)
@@ -54,7 +58,7 @@ def main(cfg_dict: DictConfig):
         from visualize.visualizer import ModelVisualizer
 
         visualize_set = Dataset(cfg.data, train_subset)
-        visualize_loader = DataLoader(visualize_set, cfg)
+        visualize_loader = DataLoader(visualize_set, cfg.data)
 
         visualizer = ModelVisualizer(net, cfg, log)
         visualizer.visualize_prototypes(visualize_loader)
@@ -63,7 +67,7 @@ def main(cfg_dict: DictConfig):
         from visualize.interpretability import ModelInterpretability
 
         panoptic_parts_subset = PanopticPartsDataset(cfg.data, train_subset)
-        panoptic_parts_loader = DataLoader(panoptic_parts_subset, cfg)
+        panoptic_parts_loader = DataLoader(panoptic_parts_subset, cfg.data)
 
         interpretability = ModelInterpretability(net, cfg, log)
         interpretability.compute_concept_consistency_score(panoptic_parts_loader)

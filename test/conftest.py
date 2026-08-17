@@ -30,3 +30,9 @@ def mock_config() -> ReProSegConfig:
     cfg = ReProSegConfig()
     cfg.data.filter_classes = True
     return cfg
+
+
+@pytest.fixture
+def data_config(mock_config):
+    """Expose only the DataConfig portion of mock_config."""
+    return mock_config.data

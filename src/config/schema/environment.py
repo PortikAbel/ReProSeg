@@ -1,6 +1,9 @@
+import os
+import random
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 import torch
 from pydantic import Field, field_validator
 
@@ -20,12 +23,8 @@ class EnvironmentConfig(BaseConfig):
     pretrained_backbones_dir: Path = Field(
         default=Path("pretrained"), description="Directory to store pretrained backbone checkpoints"
     )
-    class_distribution_cache_path: Path = Field(
-        default=Path("data/class_counts.npy"),
-        description="Path to cache class distribution counts",
-    )
 
-    seed: int = Field(default=1, description="Random seed. Note: nondeterminism may still occur")
+    seed: int = Field(default=1, description="Random seed")
 
     @field_validator("gpu_id")
     def validate_gpu_id(cls, v):
@@ -39,12 +38,15 @@ class EnvironmentConfig(BaseConfig):
         if self.gpu_id is not None:
             self.device = torch.device(f"cuda:{self.gpu_id}")
 
-        import random
-
-        import numpy as np
-
+        os.environ.setdefault("PYTHONHASHSEED", str(self.seed))
         random.seed(self.seed)
         np.random.seed(self.seed)
         torch.manual_seed(self.seed)
+
         if torch.cuda.is_available():
+            os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+            torch.cuda.manual_seed(self.seed)
             torch.cuda.manual_seed_all(self.seed)
+            torch.use_deterministic_algorithms(True)
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False

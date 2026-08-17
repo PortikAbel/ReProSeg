@@ -46,8 +46,8 @@ class ReProSegLayers(nn.Module):
 
         self.shared_weights = self.aspp_convs[0][0].weight
         # set shared weights to all aspp convolutions
-        for conv in self.aspp_convs:
-            conv[0].weight.data = self.shared_weights
+        for conv in self.aspp_convs[1:]:
+            conv[0].weight = self.shared_weights
 
         # the sum of concept activations should be 1 for each patch in each scale
         self.concept_activations: nn.Module = nn.Softmax(dim=1)
@@ -56,7 +56,9 @@ class ReProSegLayers(nn.Module):
         log.info(f"Number of concepts: {self.num_concepts}")
 
         self.max_pool = nn.AdaptiveMaxPool3d((1, None, None))
-        self.classification_layer = NonNegConv1x1(self.num_concepts, cfg.data.num_classes, bias=cfg.model.bias)
+        self.classification_layer = NonNegConv1x1(
+            self.num_concepts, cfg.data.require_num_classes(), bias=cfg.model.bias
+        )
 
 
 class ReProSeg(nn.Module):
@@ -66,7 +68,7 @@ class ReProSeg(nn.Module):
         log: Log,
     ):
         super().__init__()
-        assert cfg.data.num_classes > 0
+        assert cfg.data.require_num_classes() > 0
         self._cfg = cfg
         self._log = log
 
@@ -139,6 +141,10 @@ class ReProSeg(nn.Module):
             self.param_groups["backbone"].append(param)
 
         self.param_groups["classifier_head"].append(self.layers.shared_weights)
+
+        for param in self.layers.aspp_convs.parameters():
+            if param is not self.layers.shared_weights:
+                self.param_groups["classifier_head"].append(param)
 
         for name, param in self.layers.classification_layer.named_parameters():
             if "weight" in name:
@@ -218,4 +224,5 @@ class NonNegConv1x1(nn.Module):
 
     @property
     def used_concepts(self) -> torch.Tensor:
-        return (self.weight >= self.MIN_CLASSIFICATION_WEIGHT).any(dim=0).squeeze().nonzero().squeeze()
+        concept_mask = (self.weight >= self.MIN_CLASSIFICATION_WEIGHT).any(dim=0).flatten()
+        return concept_mask.nonzero(as_tuple=False).flatten()

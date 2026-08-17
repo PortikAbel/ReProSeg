@@ -10,7 +10,7 @@ from data.count_class_distribution import get_class_weights
 from model.model import ReProSeg
 from model.optimizers import OptimizerSchedulerManager
 from train.criterion.dice import DiceLoss
-from train.criterion.weighted_nll import WeightedNLLLoss
+from train.criterion.weighted_nll import WeightedCrossEntropyLoss
 from train.test_step import eval
 from train.train_step import train
 from utils.log import Log
@@ -19,25 +19,23 @@ from utils.log import Log
 def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDataset, log: Log, cfg: ReProSegConfig):
     double_augment_set = DoubleAugmentDataset(cfg.data, train_data)
     valid_set = Dataset(cfg.data, valid_data)
-    train_loader = DataLoader(double_augment_set, cfg)
-    valid_loader = DataLoader(valid_set, cfg)
+    train_loader = DataLoader(double_augment_set, cfg.data)
+    valid_loader = DataLoader(valid_set, cfg.data)
 
     optimizer_scheduler_manager = OptimizerSchedulerManager(net, len(train_loader) * cfg.training.epochs.pretrain)
     if cfg.model.checkpoint is not None:
         checkpoint = torch.load(cfg.model.checkpoint, map_location=cfg.env.device, weights_only=False)
         optimizer_scheduler_manager.load_state_dict(checkpoint)
 
-    class_weights = get_class_weights(
-        train_data, cfg.data.num_classes, cfg.env.class_distribution_cache_path, cfg, log
-    ).to(cfg.env.device)
+    class_weights = get_class_weights(train_data, cfg.data, log).to(cfg.env.device)
     criterion: nn.Module
     match cfg.model.criterion:
         case LossCriterion.NLL:
-            criterion = WeightedNLLLoss(device=cfg.env.device)
+            criterion = WeightedCrossEntropyLoss(device=cfg.env.device)
         case LossCriterion.WEIGHTED_NLL:
-            criterion = WeightedNLLLoss(device=cfg.env.device, class_weights=class_weights)
+            criterion = WeightedCrossEntropyLoss(device=cfg.env.device, class_weights=class_weights)
         case LossCriterion.DICE:
-            criterion = DiceLoss(torch.ones(cfg.data.num_classes, device=cfg.env.device))
+            criterion = DiceLoss(torch.ones(cfg.data.require_num_classes(), device=cfg.env.device))
         case LossCriterion.WEIGHTED_DICE:
             criterion = DiceLoss(class_weights)
         case _:

@@ -166,4 +166,4 @@ runs/
 pretrained/
 logs/
 
-class_counts.npy
+class_distribution/
