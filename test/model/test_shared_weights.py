@@ -8,11 +8,6 @@ import torch.nn as nn
 import model.model as model_module
 
 
-class _FakeLog:
-    def info(self, _message: str) -> None:
-        pass
-
-
 def _create_layers(monkeypatch):
     aspp_convs = nn.ModuleList(
         [
@@ -39,7 +34,7 @@ def _create_layers(monkeypatch):
         data=SimpleNamespace(require_num_classes=lambda: 2),
     )
 
-    return model_module.ReProSegLayers(config, _FakeLog())
+    return model_module.ReProSegLayers(config)
 
 
 def test_aspp_convolutions_share_parameter(monkeypatch):

@@ -8,6 +8,7 @@ defaults:
   - training: default
   - logging: default
   - visualization: default
+  - override hydra/job_logging: experiment
   - _self_
 
 # Hydra configuration to use custom output directory

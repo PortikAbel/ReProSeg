@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import numpy as np
@@ -7,19 +8,20 @@ from torch.utils.data import Dataset as TorchDataset
 from config import DataConfig
 from data import DataLoader
 from data.dataset.base import Dataset
-from utils.log import Log
+
+logger = logging.getLogger(__name__)
 
 
-def get_class_weights(data: TorchDataset, cfg: DataConfig, log: Log) -> torch.Tensor:
+def get_class_weights(data: TorchDataset, cfg: DataConfig) -> torch.Tensor:
     cache_path = cfg.class_distribution_cache_path
     if cache_path is not None and cache_path.is_file():
         class_counts = np.load(cache_path)
-        log.info(f"Loaded class counts from {cache_path}")
+        logger.info(f"Loaded class counts from {cache_path}")
     else:
         ds = Dataset(cfg, data)
         dl = DataLoader(ds, cfg)
         class_counts = _count_class_distribution(dl, cfg.require_num_classes(), cache_path)
-        log.info("Calculated class counts.")
+        logger.info("Calculated class counts.")
     class_counts = np.maximum(class_counts, 1)
     class_weights = 1.0 / class_counts
     class_weights = torch.tensor(class_weights, dtype=torch.float32)

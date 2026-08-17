@@ -1,3 +1,4 @@
+import logging
 import os
 import socket
 from typing import Any, Dict
@@ -11,9 +12,11 @@ from omegaconf import DictConfig, OmegaConf
 from config import ReProSegConfig
 from data import DataLoader, Dataset, PanopticPartsDataset, get_train_val_split
 from model.model import ReProSeg
-from utils.log import Log
+from utils.run_context import get_run_context, init_run_context
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 @hydra.main(version_base=None, config_path="../../config/hydra", config_name="config")
@@ -28,31 +31,31 @@ def main(cfg_dict: DictConfig):
     cfg_object: Dict[str, Any] = OmegaConf.to_container(cfg_dict, resolve=True)  # type: ignore[assignment]
     cfg = ReProSegConfig(**cfg_object)
 
-    # Setup logger
-    log = Log(cfg.logging.path, __name__)
+    # Setup run artifacts (checkpoints, tensorboard, tqdm output)
+    init_run_context(cfg.logging)
 
-    log.debug(f"Config: {OmegaConf.to_yaml(cfg_dict)}")
-    log.debug(f"Device used: {cfg.env.device}")
+    logger.debug(f"Config: {OmegaConf.to_yaml(cfg_dict)}")
+    logger.debug(f"Device used: {cfg.env.device}")
     if str.lower(cfg.env.device.type) != "cpu":
-        log.debug(f"Device name: {torch.cuda.get_device_name(cfg.env.device)}")
-    log.debug(f"Pytorch version: {torch.__version__}")
-    log.debug(f"Hostname: {socket.gethostname()}")
+        logger.debug(f"Device name: {torch.cuda.get_device_name(cfg.env.device)}")
+    logger.debug(f"Pytorch version: {torch.__version__}")
+    logger.debug(f"Hostname: {socket.gethostname()}")
     if nni_trial_id:
-        log.info(f"NNI trial ID: {nni_trial_id}")
+        logger.info(f"NNI trial ID: {nni_trial_id}")
 
     # Create the dataloaders
     train_subset, valid_subset = get_train_val_split(cfg)
 
     # Model
-    net = ReProSeg(cfg=cfg, log=log).to(device=cfg.env.device)
+    net = ReProSeg(cfg=cfg).to(device=cfg.env.device)
 
     if not cfg.training.skip_training:
         from train.trainer import train_model
 
         try:
-            train_model(net, train_subset, valid_subset, log, cfg)
+            train_model(net, train_subset, valid_subset, cfg)
         except Exception as e:
-            log.exception(e)
+            logger.exception(e)
 
     if cfg.visualization.generate_explanations:
         from visualize.visualizer import ModelVisualizer
@@ -60,7 +63,7 @@ def main(cfg_dict: DictConfig):
         visualize_set = Dataset(cfg.data, train_subset)
         visualize_loader = DataLoader(visualize_set, cfg.data)
 
-        visualizer = ModelVisualizer(net, cfg, log)
+        visualizer = ModelVisualizer(net, cfg)
         visualizer.visualize_prototypes(visualize_loader)
 
     if cfg.evaluation.consistency_score.calculate:
@@ -69,10 +72,10 @@ def main(cfg_dict: DictConfig):
         panoptic_parts_subset = PanopticPartsDataset(cfg.data, train_subset)
         panoptic_parts_loader = DataLoader(panoptic_parts_subset, cfg.data)
 
-        interpretability = ModelInterpretability(net, cfg, log)
+        interpretability = ModelInterpretability(net, cfg)
         interpretability.compute_concept_consistency_score(panoptic_parts_loader)
 
-    log.close()
+    get_run_context().close()
 
 
 if __name__ == "__main__":

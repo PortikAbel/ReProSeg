@@ -1,5 +1,6 @@
 # Debug logging configuration - saves all models
 
 # Logging
-path: ${oc.env:LOG_ROOT}/debug/
+path: ${hydra:runtime.output_dir}
 save_all_models: true
+disable_console: false

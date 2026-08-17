@@ -7,6 +7,7 @@ defaults:
   - /training: fast
   - /logging: debug
   - /visualization: default
+  - override hydra/job_logging: debug
   - _self_
 
 # Hydra configuration to use custom output directory

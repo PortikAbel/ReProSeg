@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 
 import numpy as np
@@ -8,9 +9,11 @@ from tqdm import tqdm
 
 from config import ReProSegConfig
 from model.model import ReProSeg
-from utils.log import Log
+from utils.run_context import get_run_context
 
 from .eval import acc_from_cm, compute_absained, compute_cm, miou_from_cm
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -25,7 +28,6 @@ class EvalInfo:
 @torch.no_grad()
 def eval(
     cfg: ReProSegConfig,
-    log: Log,
     net: ReProSeg,
     valid_loader: DataLoader,
     epoch,
@@ -44,7 +46,7 @@ def eval(
         desc=progress_prefix + " %s" % epoch,
         mininterval=5.0,
         ncols=0,
-        file=log.tqdm_file,
+        file=get_run_context().tqdm_file,
     )
     (xs, ys) = next(iter(valid_loader))
 
@@ -67,11 +69,11 @@ def eval(
         del pooled
 
     abstained /= len(test_iter)
-    log.info(f"model abstained from a decision for {abstained * 100}% of images")
+    logger.info(f"model abstained from a decision for {abstained * 100}% of images")
 
     num_nonzero_concepts = int(torch.count_nonzero(F.relu(net.layers.classification_layer.weight - 1e-3)).item())
     num_concepts = torch.numel(net.layers.classification_layer.weight)
-    log.info(f"sparsity ratio: {(num_concepts - num_nonzero_concepts) / num_concepts}")
+    logger.info(f"sparsity ratio: {(num_concepts - num_nonzero_concepts) / num_concepts}")
 
     return EvalInfo(
         abstained=abstained,

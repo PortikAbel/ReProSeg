@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 from typing import Iterator
 
@@ -8,9 +9,11 @@ from tqdm import tqdm
 from config import ReProSegConfig
 from data import DataLoader
 from model.model import ReProSeg
-from utils.log import Log
+from utils.run_context import get_run_context
 
 from .utils import activations_to_alpha
+
+logger = logging.getLogger(__name__)
 
 
 class ModelInterpretability:
@@ -26,16 +29,15 @@ class ModelInterpretability:
     to lists of average activation scores in relevant images.
     """
 
-    def __init__(self, net: ReProSeg, cfg: ReProSegConfig, log: Log):
+    def __init__(self, net: ReProSeg, cfg: ReProSegConfig):
         self.net = net
         self.device = cfg.env.device
         self.consistency_score = cfg.evaluation.consistency_score.threshold
-        self.log = log
         self._part_activations = [defaultdict(list) for _ in range(self.net.num_concepts)]
 
     @torch.no_grad()
     def compute_concept_consistency_score(self, panoptic_parts_loader: DataLoader):
-        self.log.info("Computing concept consistency score...")
+        logger.info("Computing concept consistency score...")
         self._collect_concept_activations_by_object_parts(panoptic_parts_loader)
         is_consistent = self._compute_if_concept_consistent()
 
@@ -43,7 +45,7 @@ class ModelInterpretability:
         num_used_concepts = len(used_concepts)
         num_consistent_concepts = sum(is_consistent[concept] for concept in used_concepts)
 
-        self.log.info(
+        logger.info(
             f"Found {num_consistent_concepts} consistent concepts "
             f"with per object part activation > {self.consistency_score} "
             f"out of {num_used_concepts} used concepts."
@@ -54,7 +56,7 @@ class ModelInterpretability:
         return num_consistent_concepts / num_used_concepts
 
     def _collect_concept_activations_by_object_parts(self, panoptic_parts_loader: DataLoader):
-        self.log.info("Collecting average object part activations of concepts from images...")
+        logger.info("Collecting average object part activations of concepts from images...")
         self.net.eval()
         img_iter = tqdm(
             enumerate(panoptic_parts_loader),
@@ -62,7 +64,7 @@ class ModelInterpretability:
             mininterval=100.0,
             desc="Collecting average object part activations of concepts from images",
             ncols=0,
-            file=self.log.tqdm_file,
+            file=get_run_context().tqdm_file,
         )
 
         for _, (xs, ys, pps) in img_iter:
@@ -82,7 +84,7 @@ class ModelInterpretability:
                 alpha = concept_alphas[:, p]
                 for label, avg_value in self._compute_part_activation_averages(alpha, pps):
                     self._part_activations[p][label].append(avg_value)
-        self.log.info("Collected average object part activations of concepts from images.")
+        logger.info("Collected average object part activations of concepts from images.")
 
     def _compute_part_activation_averages(self, alpha: torch.Tensor, pps: torch.Tensor) -> Iterator[tuple[int, float]]:
         """

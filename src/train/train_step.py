@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 
 import numpy as np
@@ -10,7 +11,9 @@ from model.model import ReProSeg, TrainPhase
 from model.optimizers import OptimizerSchedulerManager
 from train.eval import acc_from_cm, compute_cm, intersection_and_union_from_cm
 from train.loss import Loss, calculate_loss
-from utils.log import Log
+from utils.run_context import get_run_context
+
+logger = logging.getLogger(__name__)
 
 CONFUSION_MATRIX_COMPUTE_INTERVAL = 10
 
@@ -25,7 +28,6 @@ class TrainInfo:
 
 def train(
     cfg: ReProSegConfig,
-    log: Log,
     net: ReProSeg,
     train_loader,
     optimizer_scheduler_manager: OptimizerSchedulerManager,
@@ -53,14 +55,14 @@ def train(
         desc=progress_prefix + "%s" % epoch,
         mininterval=2.0,
         ncols=0,
-        file=log.tqdm_file,
+        file=get_run_context().tqdm_file,
     )
 
     trainable_params = sum(p.numel() for p in net.parameters() if p.requires_grad)
     trainable_tensors = sum(1 for p in net.parameters() if p.requires_grad)
-    log.debug(f"Trainable parameters: {trainable_params:,} ({trainable_tensors} tensors)")
+    logger.debug(f"Trainable parameters: {trainable_params:,} ({trainable_tensors} tensors)")
 
-    log.debug(f"Training phase: {net.train_phase.name}")
+    logger.debug(f"Training phase: {net.train_phase.name}")
 
     accumulated_out = []
     accumulated_ys = []
