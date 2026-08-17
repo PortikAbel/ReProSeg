@@ -1,3 +1,5 @@
+import logging
+
 import nni  # type: ignore[import-untyped]
 import torch
 import torch.nn as nn
@@ -13,10 +15,13 @@ from train.criterion.dice import DiceLoss
 from train.criterion.weighted_nll import WeightedCrossEntropyLoss
 from train.test_step import eval
 from train.train_step import train
-from utils.log import Log
+from utils.run_context import get_run_context
+
+logger = logging.getLogger(__name__)
 
 
-def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDataset, log: Log, cfg: ReProSegConfig):
+def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDataset, cfg: ReProSegConfig):
+    run = get_run_context()
     double_augment_set = DoubleAugmentDataset(cfg.data, train_data)
     valid_set = Dataset(cfg.data, valid_data)
     train_loader = DataLoader(double_augment_set, cfg.data)
@@ -27,7 +32,7 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
         checkpoint = torch.load(cfg.model.checkpoint, map_location=cfg.env.device, weights_only=False)
         optimizer_scheduler_manager.load_state_dict(checkpoint)
 
-    class_weights = get_class_weights(train_data, cfg.data, log).to(cfg.env.device)
+    class_weights = get_class_weights(train_data, cfg.data).to(cfg.env.device)
     criterion: nn.Module
     match cfg.model.criterion:
         case LossCriterion.NLL:
@@ -46,18 +51,17 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
         xs1, _, _ = next(iter(train_loader))
         xs1 = xs1.to(cfg.env.device)
         _aspp_features, pooled, _out = net(xs1)
-        log.debug(f"ASPP features output shape: {_aspp_features.shape}")
-        log.debug(f"pooled ASPP output shape: {pooled.shape}")
+        logger.debug(f"ASPP features output shape: {_aspp_features.shape}")
+        logger.debug(f"pooled ASPP output shape: {pooled.shape}")
 
     # PRETRAINING CONCEPTS PHASE
     for epoch in range(1, cfg.training.epochs.pretrain + 1):
-        log.info(f"Pretrain Epoch {epoch} with batch size {train_loader.batch_size}")
+        logger.info(f"Pretrain Epoch {epoch} with batch size {train_loader.batch_size}")
 
         # Pretrain concepts
         net.pretrain()
         train_info = train(
             cfg,
-            log,
             net,
             train_loader,
             optimizer_scheduler_manager,
@@ -72,7 +76,7 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
 
     if cfg.model.checkpoint is None:
         net.eval()
-        log.model_checkpoint(get_checkpoint(), "net_pretrained")
+        run.model_checkpoint(get_checkpoint(), "net_pretrained")
         net.train()
 
     # SECOND TRAINING PHASE re-initialize optimizers and schedulers
@@ -97,7 +101,6 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
 
         train_info = train(
             cfg,
-            log,
             net,
             train_loader,
             optimizer_scheduler_manager,
@@ -105,34 +108,34 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
             epoch,
         )
 
-        log.tb_scalar("Acc/train-epochs", train_info.accuracy, epoch)
-        log.tb_scalar("mIoU/train-epochs", train_info.miou, epoch)
-        log.tb_scalar("loss-train/L", train_info.loss.total.item(), epoch)
-        log.tb_scalar("loss-train/LA", train_info.loss.alignment.item(), epoch)
-        log.tb_scalar("loss-train/L_JSD", train_info.loss.jsd.item(), epoch)
-        log.tb_scalar("loss-train/LT", train_info.loss.tanh.item(), epoch)
-        log.tb_scalar("loss-train/LC", train_info.loss.classification.item(), epoch)
+        run.tb_scalar("Acc/train-epochs", train_info.accuracy, epoch)
+        run.tb_scalar("mIoU/train-epochs", train_info.miou, epoch)
+        run.tb_scalar("loss-train/L", train_info.loss.total.item(), epoch)
+        run.tb_scalar("loss-train/LA", train_info.loss.alignment.item(), epoch)
+        run.tb_scalar("loss-train/L_JSD", train_info.loss.jsd.item(), epoch)
+        run.tb_scalar("loss-train/LT", train_info.loss.tanh.item(), epoch)
+        run.tb_scalar("loss-train/LC", train_info.loss.classification.item(), epoch)
 
-        eval_info = eval(cfg, log, net, valid_loader, epoch)
+        eval_info = eval(cfg, net, valid_loader, epoch)
 
-        log.tb_scalar("Acc/eval-epochs", eval_info.accuracy, epoch)
-        log.tb_scalar("mIoU/eval-epochs", eval_info.miou, epoch)
+        run.tb_scalar("Acc/eval-epochs", eval_info.accuracy, epoch)
+        run.tb_scalar("mIoU/eval-epochs", eval_info.miou, epoch)
 
         nni.report_intermediate_result(eval_info.miou)
 
         with torch.no_grad():
             net.eval()
-            log.model_checkpoint(get_checkpoint(), "net_trained_last")
+            run.model_checkpoint(get_checkpoint(), "net_trained_last")
 
             if eval_info.accuracy > best_acc:
                 best_acc = eval_info.accuracy
-                log.info(f"Best accuracy so far: {best_acc}")
-                log.model_checkpoint(get_checkpoint(), "net_trained_best_acc")
+                logger.info(f"Best accuracy so far: {best_acc}")
+                run.model_checkpoint(get_checkpoint(), "net_trained_best_acc")
 
             if eval_info.miou > best_miou:
                 best_miou = eval_info.miou
-                log.info(f"Best mIoU so far: {best_miou}")
-                log.model_checkpoint(get_checkpoint(), "net_trained_best_miou")
+                logger.info(f"Best mIoU so far: {best_miou}")
+                run.model_checkpoint(get_checkpoint(), "net_trained_best_miou")
 
     nni.report_final_result(best_miou)
-    log.info("Done!")
+    logger.info("Done!")

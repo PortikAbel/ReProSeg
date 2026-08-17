@@ -1,3 +1,4 @@
+import logging
 from enum import Enum
 
 import torch
@@ -9,7 +10,8 @@ from config.schema.main import ReProSegConfig
 from config.schema.training import OptimizerType
 from model.segmentation_features import base_architecture_to_features
 from utils.func import init_weights_xavier
-from utils.log import Log
+
+logger = logging.getLogger(__name__)
 
 
 class TrainPhase(Enum):
@@ -34,7 +36,7 @@ class TrainPhase(Enum):
 
 
 class ReProSegLayers(nn.Module):
-    def __init__(self, cfg: ReProSegConfig, log: Log):
+    def __init__(self, cfg: ReProSegConfig):
         super().__init__()
 
         features, aspp_convs = base_architecture_to_features[cfg.model.backbone_network](
@@ -53,7 +55,7 @@ class ReProSegLayers(nn.Module):
         self.concept_activations: nn.Module = nn.Softmax(dim=1)
 
         self.num_concepts = [m for m in aspp_convs.modules() if isinstance(m, nn.Conv2d)][-1].out_channels
-        log.info(f"Number of concepts: {self.num_concepts}")
+        logger.info(f"Number of concepts: {self.num_concepts}")
 
         self.max_pool = nn.AdaptiveMaxPool3d((1, None, None))
         self.classification_layer = NonNegConv1x1(
@@ -65,20 +67,18 @@ class ReProSeg(nn.Module):
     def __init__(
         self,
         cfg: ReProSegConfig,
-        log: Log,
     ):
         super().__init__()
         assert cfg.data.require_num_classes() > 0
         self._cfg = cfg
-        self._log = log
 
-        self.layers = ReProSegLayers(cfg, log)
+        self.layers = ReProSegLayers(cfg)
         self.num_concepts = self.layers.num_concepts
 
         if cfg.model.checkpoint is not None:
             checkpoint = torch.load(cfg.model.checkpoint, map_location=cfg.env.device, weights_only=False)
             self.load_state_dict(checkpoint["model_state_dict"], strict=True)
-            self._log.info("Pretrained network loaded")
+            logger.info("Pretrained network loaded")
         else:
             self._init_add_on_weights()
             self._init_classifier_weights()
@@ -126,7 +126,7 @@ class ReProSeg(nn.Module):
 
     def _init_classifier_weights(self):
         torch.nn.init.normal_(self.layers.classification_layer.weight, mean=1.0, std=0.1)
-        self._log.info(
+        logger.info(
             f"Classification layer initialized with mean {torch.mean(self.layers.classification_layer.weight).item()}"
         )
         if self._cfg.model.bias:

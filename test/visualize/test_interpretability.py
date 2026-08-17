@@ -17,7 +17,6 @@ class TestModelInterpretabilityMethods:
         # Create mock objects
         self.mock_net = MagicMock()
         self.mock_net.num_concepts = 5
-        self.mock_log = MagicMock()
 
     def _create_interpretability_instance(self, consistency_threshold=0.7):
         """Helper to create ModelInterpretability instance with custom threshold."""
@@ -30,7 +29,7 @@ class TestModelInterpretabilityMethods:
             )
         )
 
-        return ModelInterpretability(net=self.mock_net, cfg=mock_config, log=self.mock_log)
+        return ModelInterpretability(net=self.mock_net, cfg=mock_config)
 
     def sort_function(self, x):
         return x[0]

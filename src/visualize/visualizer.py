@@ -1,4 +1,5 @@
 import heapq
+import logging
 import pickle
 from collections import defaultdict
 
@@ -14,9 +15,11 @@ from tqdm import tqdm
 from config import ReProSegConfig
 from data.dataloader import DataLoader
 from model.model import ReProSeg
-from utils.log import Log
+from utils.run_context import get_run_context
 
 from .utils import activations_to_alpha, draw_activation_minmax_text_on_image, prototype_text
+
+logger = logging.getLogger(__name__)
 
 
 class ModelVisualizer:
@@ -40,22 +43,21 @@ class ModelVisualizer:
 
     MIN_ACTIVATION_SCORE = 0.1
 
-    def __init__(self, net: ReProSeg, cfg: ReProSegConfig, log: Log):
+    def __init__(self, net: ReProSeg, cfg: ReProSegConfig):
         self.net = net
         self.device = cfg.env.device
-        self.log = log
         self.image_shape = cfg.data.img_shape
         self.k = cfg.visualization.top_k
 
     def collect_topk_concept_activations(self, train_loader_visualization: DataLoader):
-        topks_cache_path = self.log.prototypes_dir / f"topks_of_concept_k{self.k}.pkl"
+        topks_cache_path = get_run_context().prototypes_dir / f"topks_of_concept_k{self.k}.pkl"
         if topks_cache_path.exists():
-            self.log.info(f"Loading top {self.k} concept activations from {topks_cache_path}")
+            logger.info(f"Loading top {self.k} concept activations from {topks_cache_path}")
             with open(topks_cache_path, "rb") as f:
                 self.topks_of_concept = pickle.load(f)
             return
 
-        self.log.info(f"Collecting top {self.k} activations for each concept...")
+        logger.info(f"Collecting top {self.k} activations for each concept...")
         self.topks_of_concept = defaultdict(list)
 
         used_concepts = self.net.layers.classification_layer.used_concepts.cpu().tolist()
@@ -66,7 +68,7 @@ class ModelVisualizer:
             mininterval=100.0,
             desc=f"Searching for top {self.k} concept activations",
             ncols=0,
-            file=self.log.tqdm_file,
+            file=get_run_context().tqdm_file,
         )
         for batch_idx, (xs, _ys) in img_iter:
             xs = xs.to(self.device)
@@ -84,14 +86,14 @@ class ModelVisualizer:
             pickle.dump(self.topks_of_concept, f)
 
     def map_images_to_prototypes(self):
-        image_to_concepts_cache_path = self.log.prototypes_dir / "image_to_concepts.pkl"
+        image_to_concepts_cache_path = get_run_context().prototypes_dir / "image_to_concepts.pkl"
         if image_to_concepts_cache_path.exists():
-            self.log.info(f"Loading image to concepts mapping from {image_to_concepts_cache_path}")
+            logger.info(f"Loading image to concepts mapping from {image_to_concepts_cache_path}")
             with open(image_to_concepts_cache_path, "rb") as f:
                 self.image_to_concepts = pickle.load(f)
             return
 
-        self.log.info("Mapping images to concepts based on topk activations...")
+        logger.info("Mapping images to concepts based on topk activations...")
         concepts_not_activated = []
         self.image_to_concepts = defaultdict(list)
         for concept_idx in self.topks_of_concept.keys():
@@ -101,7 +103,7 @@ class ModelVisualizer:
                     self.image_to_concepts[i].append(concept_idx)
             else:
                 concepts_not_activated.append(concept_idx)
-        self.log.info(
+        logger.info(
             f"{len(concepts_not_activated)} concepts do not have"
             f" any similarity score > {self.MIN_ACTIVATION_SCORE}. "
             "Will be ignored in visualisation."
@@ -123,15 +125,15 @@ class ModelVisualizer:
         return im
 
     def collect_prototype_tensors(self, train_loader_visualization: DataLoader):
-        proto_dir = self.log.prototypes_dir
+        proto_dir = get_run_context().prototypes_dir
         tensors_cache_path = proto_dir / f"tensors_per_concept_k{self.k}.pkl"
         if tensors_cache_path.exists():
-            self.log.info(f"Loading prototype tensors from {tensors_cache_path}")
+            logger.info(f"Loading prototype tensors from {tensors_cache_path}")
             with open(tensors_cache_path, "rb") as f:
                 self.tensors_per_concept = pickle.load(f)
             return
 
-        self.log.info(f"Collecting prototype tensors for top {self.k} activations...")
+        logger.info(f"Collecting prototype tensors for top {self.k} activations...")
 
         self.tensors_per_concept = defaultdict(list)
         batch_size = train_loader_visualization.batch_size
@@ -151,7 +153,7 @@ class ModelVisualizer:
             mininterval=100.0,
             desc=f"Collecting top {self.k} activations for each concept",
             ncols=0,
-            file=self.log.tqdm_file,
+            file=get_run_context().tqdm_file,
         )
         for batch_idx, (xs, _ys) in img_iter:
             base_idx = batch_idx * batch_size
@@ -185,29 +187,29 @@ class ModelVisualizer:
             pickle.dump(self.tensors_per_concept, f)
 
     def render_prototypes(self):
-        self.log.info(f"Saving top {self.k} prototypes to images...")
+        logger.info(f"Saving top {self.k} prototypes to images...")
         prototype_iter = tqdm(
             self.tensors_per_concept.items(),
             total=len(self.tensors_per_concept),
             mininterval=100.0,
             desc=f"Visualizing top {self.k} activations of concepts",
             ncols=0,
-            file=self.log.tqdm_file,
+            file=get_run_context().tqdm_file,
         )
         for p, prototype_tensors in prototype_iter:
             txt_tensor = prototype_text(p, self.image_shape[::-1])
             prototype_tensors.append(txt_tensor)
             grid = torchvision.utils.make_grid(prototype_tensors, nrow=self.k + 1, padding=1)
             torchvision.utils.save_image(
-                grid, self.log.prototypes_dir / f"grid_top_{self.k}_activations_of_prototype_{p}.png"
+                grid, get_run_context().prototypes_dir / f"grid_top_{self.k}_activations_of_prototype_{p}.png"
             )
         else:
-            self.log.warning("No concepts to visualize with prototypes.")
+            logger.warning("No concepts to visualize with prototypes.")
 
     @torch.no_grad()
     def visualize_prototypes(self, train_loader_visualization: DataLoader):
-        self.log.info(f"Visualizing top {self.k} prototypes for each concept...")
-        self.log.prototypes_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Visualizing top {self.k} prototypes for each concept...")
+        get_run_context().prototypes_dir.mkdir(parents=True, exist_ok=True)
         self.net.eval()
         self.collect_topk_concept_activations(train_loader_visualization)
         self.map_images_to_prototypes()

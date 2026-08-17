@@ -1,0 +1,6 @@
+# @package hydra.job_logging
+defaults:
+  - experiment
+
+root:
+  level: DEBUG

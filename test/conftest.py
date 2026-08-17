@@ -1,6 +1,7 @@
 import tempfile
 from pathlib import Path
 from typing import Generator
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -22,6 +23,20 @@ def mock_env_variables(temp_dir: Path, monkeypatch):
     monkeypatch.setenv("LOG_ROOT", str(temp_dir))
     monkeypatch.setenv("PROJECT_ROOT", str(temp_dir))
     yield
+
+
+@pytest.fixture(autouse=True)
+def mock_run_context(temp_dir: Path, monkeypatch):
+    """Provide a stubbed run context so tests never touch real run artifacts."""
+    import utils.run_context as run_context
+
+    stub = MagicMock(spec=run_context.RunContext)
+    stub.log_dir = temp_dir
+    stub.checkpoint_dir = temp_dir / "checkpoints"
+    stub.tensorboard_dir = temp_dir / "tensorboard"
+    stub.prototypes_dir = temp_dir / "prototypes"
+    monkeypatch.setattr(run_context, "_run_context", stub)
+    yield stub
 
 
 @pytest.fixture

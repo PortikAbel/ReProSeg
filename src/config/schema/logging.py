@@ -12,6 +12,7 @@ class LoggingConfig(BaseConfig):
 
     path: Path = Field(default=Path("logs"), description="Directory to save logs and outputs")
     save_all_models: bool = Field(default=False, description="Save the model at every epoch (default: only best model)")
+    disable_console: bool = Field(default=False, description="Do not emit log records to the console")
 
     def _post_init_setup(self):
         try:
