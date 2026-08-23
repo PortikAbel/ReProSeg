@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Any, Dict
 
@@ -10,10 +11,12 @@ from omegaconf import DictConfig, OmegaConf
 from config import ReProSegConfig
 from data import DataLoader, PanopticPartsDataset, get_train_val_split
 from proto_segmentation.model import PPNet
-from utils.log import Log
+from utils.run_context import get_run_context, init_run_context
 from visualize.interpretability_protopnet import ModelInterpretability
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 @hydra.main(version_base=None, config_path="../../config/hydra", config_name="config")
@@ -28,12 +31,12 @@ def main(cfg_dict: DictConfig):
     cfg_object: Dict[str, Any] = OmegaConf.to_container(cfg_dict, resolve=True)  # type: ignore[assignment]
     cfg = ReProSegConfig(**cfg_object)
 
-    log = Log(cfg.logging.path, __name__)
+    init_run_context(cfg.logging)
 
-    log.debug(f"Config: {OmegaConf.to_yaml(cfg_dict)}")
-    log.debug(f"Device used: {cfg.env.device}")
+    logger.debug(f"Config: {OmegaConf.to_yaml(cfg_dict)}")
+    logger.debug(f"Device used: {cfg.env.device}")
     if nni_trial_id:
-        log.info(f"NNI trial ID: {nni_trial_id}")
+        logger.info(f"NNI trial ID: {nni_trial_id}")
 
     train_subset, _valid_subset = get_train_val_split(cfg)
     cfg.data.num_classes = len(train_subset.dataset.classes)  # type: ignore[attr-defined]
@@ -53,10 +56,10 @@ def main(cfg_dict: DictConfig):
         )
     net = net.to(device=cfg.env.device)
 
-    interpretability = ModelInterpretability(net, cfg, log)
+    interpretability = ModelInterpretability(net, cfg)
     interpretability.compute_prototype_consistency_score(panoptic_parts_loader)
 
-    log.close()
+    get_run_context().close()
 
 
 if __name__ == "__main__":

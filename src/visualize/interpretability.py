@@ -51,7 +51,7 @@ class ModelInterpretability:
             f"out of {num_used_concepts} used concepts."
         )
         if num_used_concepts == 0:
-            self.log.warning("No used concepts found; returning a consistency score of 0.")
+            logger.warning("No used concepts found; returning a consistency score of 0.")
             return 0.0
         return num_consistent_concepts / num_used_concepts
 

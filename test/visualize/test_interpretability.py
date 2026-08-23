@@ -1,5 +1,6 @@
 """Unit tests for the ModelInterpretability class methods."""
 
+import logging
 from collections import defaultdict
 from unittest.mock import MagicMock
 
@@ -44,16 +45,17 @@ class TestModelInterpretabilityMethods:
 
         assert result == 0.5
 
-    def test_compute_concept_consistency_score_without_used_concepts(self):
+    def test_compute_concept_consistency_score_without_used_concepts(self, caplog):
         interpretability = self._create_interpretability_instance()
         interpretability._collect_concept_activations_by_object_parts = MagicMock()
         interpretability._compute_if_concept_consistent = MagicMock(return_value=[False, False, False, False, False])
         self.mock_net.layers.classification_layer.used_concepts = torch.empty(0, dtype=torch.long)
 
-        result = interpretability.compute_concept_consistency_score(MagicMock())
+        with caplog.at_level(logging.WARNING):
+            result = interpretability.compute_concept_consistency_score(MagicMock())
 
         assert result == 0.0
-        self.mock_log.warning.assert_called_once()
+        assert len(caplog.records) == 1
 
     @pytest.mark.parametrize(
         "alpha_values, part_labels, expected_results",

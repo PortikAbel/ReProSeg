@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 from typing import Iterator
 
@@ -9,9 +10,11 @@ from tqdm import tqdm
 from config import ReProSegConfig
 from data import DataLoader
 from proto_segmentation.model import PPNet
-from utils.log import Log
+from utils.run_context import get_run_context
 
 from .utils import activations_to_alpha
+
+logger = logging.getLogger(__name__)
 
 
 class ModelInterpretability:
@@ -27,16 +30,15 @@ class ModelInterpretability:
     to lists of average activation scores in relevant images.
     """
 
-    def __init__(self, net: PPNet, cfg: ReProSegConfig, log: Log):
+    def __init__(self, net: PPNet, cfg: ReProSegConfig):
         self.net = net
         self.device = cfg.env.device
         self.consistency_score = cfg.evaluation.consistency_score.threshold
-        self.log = log
         self._part_activations = [defaultdict(list) for _ in range(self.net.num_prototypes)]
 
     @torch.no_grad()
     def compute_prototype_consistency_score(self, panoptic_parts_loader: DataLoader):
-        self.log.info("Computing prototype consistency score...")
+        logger.info("Computing prototype consistency score...")
         self._part_activations = [defaultdict(list) for _ in range(self.net.num_prototypes)]
         self._collect_prototype_activations_by_object_parts(panoptic_parts_loader)
         is_consistent = self._compute_if_prototype_consistent()
@@ -45,18 +47,18 @@ class ModelInterpretability:
         num_used_prototypes = len(used_prototypes)
         num_consistent_prototypes = sum(is_consistent[prototype] for prototype in used_prototypes)
 
-        self.log.info(
+        logger.info(
             f"Found {num_consistent_prototypes} consistent prototypes "
             f"with per object part activation > {self.consistency_score} "
             f"out of {num_used_prototypes} used prototypes."
         )
         if num_used_prototypes == 0:
-            self.log.warning("No used prototypes found; returning a consistency score of 0.")
+            logger.warning("No used prototypes found; returning a consistency score of 0.")
             return 0.0
         return num_consistent_prototypes / num_used_prototypes
 
     def _collect_prototype_activations_by_object_parts(self, panoptic_parts_loader: DataLoader):
-        self.log.info("Collecting average object part activations of prototypes from images...")
+        logger.info("Collecting average object part activations of prototypes from images...")
         self.net.eval()
         used_prototypes = self._get_used_prototypes()
         img_iter = tqdm(
@@ -65,7 +67,7 @@ class ModelInterpretability:
             mininterval=100.0,
             desc="Collecting average object part activations of prototypes from images",
             ncols=0,
-            file=self.log.tqdm_file,
+            file=get_run_context().tqdm_file,
         )
 
         for _, (xs, ys, pps) in img_iter:
@@ -88,7 +90,7 @@ class ModelInterpretability:
                 alpha = prototype_alphas[:, p]
                 for label, avg_value in self._compute_part_activation_averages(alpha, pps):
                     self._part_activations[p][label].append(avg_value)
-        self.log.info("Collected average object part activations of prototypes from images.")
+        logger.info("Collected average object part activations of prototypes from images.")
 
     def _get_used_prototypes(self) -> list[int]:
         """

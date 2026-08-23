@@ -1,5 +1,5 @@
+import logging
 from collections import defaultdict
-from io import StringIO
 from unittest.mock import MagicMock
 
 import pytest
@@ -15,12 +15,10 @@ class TestProtoPNetInterpretability:
         self.net = MagicMock()
         self.net.num_prototypes = 5
         self.net.last_layer.weight = torch.nn.Parameter(torch.ones(2, 5))
-        self.log = MagicMock()
-        self.log.tqdm_file = StringIO()
         cfg = ReProSegConfig(
             evaluation=EvaluationConfig(consistency_score=ConsistencyScoreConfig(calculate=True, threshold=0.7))
         )
-        self.interpretability = ModelInterpretability(self.net, cfg, self.log)
+        self.interpretability = ModelInterpretability(self.net, cfg)
 
     def test_get_used_prototypes_requires_positive_class_connection(self):
         self.net.last_layer.weight = torch.nn.Parameter(
@@ -48,15 +46,16 @@ class TestProtoPNetInterpretability:
 
         assert result == 0.5
 
-    def test_compute_score_without_used_prototypes_returns_zero(self):
+    def test_compute_score_without_used_prototypes_returns_zero(self, caplog):
         self.net.last_layer.weight = torch.nn.Parameter(torch.zeros(2, 5))
         self.interpretability._collect_prototype_activations_by_object_parts = MagicMock()
         self.interpretability._compute_if_prototype_consistent = MagicMock(return_value=[False] * 5)
 
-        result = self.interpretability.compute_prototype_consistency_score(MagicMock())
+        with caplog.at_level(logging.WARNING):
+            result = self.interpretability.compute_prototype_consistency_score(MagicMock())
 
         assert result == 0.0
-        self.log.warning.assert_called_once()
+        assert len(caplog.records) == 1
 
     def test_interpolate_prototype_activations_uses_spatial_distances(self):
         distances = torch.rand(2, 5, 2, 3)

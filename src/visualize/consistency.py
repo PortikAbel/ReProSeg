@@ -27,13 +27,12 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import logging
 import os
 from collections import defaultdict, deque
 from collections.abc import Iterable, Mapping, Sequence, Sized
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import TypeAlias, cast
+from typing import TypeAlias
 
 import numpy as np
 import torch
@@ -48,7 +47,6 @@ from data import DataSplit, PanopticPartsDataset
 from data.dataset.factory import DatasetFactory
 from model.model import ReProSeg
 from proto_segmentation.model import PPNet
-from utils.log import Log
 
 Batch: TypeAlias = tuple[Tensor, Tensor, Tensor]
 AccumulatorKey: TypeAlias = tuple[int, int, int]
@@ -416,9 +414,7 @@ class ConsistencyEvaluator:
                 f"(B, K, S, H, W), received {tuple(aspp_features.shape)}."
             )
         if aspp_features.shape[1] != self.num_components:
-            raise ValueError(
-                f"Expected {self.num_components} ReProSeg concepts, received {aspp_features.shape[1]}."
-            )
+            raise ValueError(f"Expected {self.num_components} ReProSeg concepts, received {aspp_features.shape[1]}.")
 
         scale_activations = aspp_features.permute(2, 0, 1, 3, 4)
         max_scale = torch.argmax(scale_activations, dim=0)
@@ -647,10 +643,7 @@ def _load_supported_model(checkpoint_path: Path) -> SupportedModel:
     config.model.disable_pretrained = True
     config.model.bias = "layers.classification_layer.bias" in state_dict
 
-    model = ReProSeg(
-        cfg=config,
-        log=cast(Log, logging.getLogger(f"{__name__}.checkpoint")),
-    )
+    model = ReProSeg(cfg=config)
     model.load_state_dict(state_dict, strict=True)
     return model
 
