@@ -19,7 +19,9 @@ echo "Exported variables: ${EXPORT_VARS}"
 jobid=""
 submit_attempt=1
 while (( submit_attempt <= SBATCH_RETRIES )); do
-  submit_output="$(sbatch --parsable --job-name="ReProSeg_NNI_${NNI_TRIAL_JOB_ID}" --export="${EXPORT_VARS}" --output="${NNI_OUTPUT_DIR}/slurm-%j.log" src/scripts/start_slurm_job.sh 2>&1)"
+  sbatch_args=(--parsable --job-name="ReProSeg_NNI_${NNI_TRIAL_JOB_ID}" --export="${EXPORT_VARS}" --output="${NNI_OUTPUT_DIR}/slurm-%j.log")
+
+  submit_output="$(src/scripts/start_slurm_job.sh "${sbatch_args[@]}" 2>&1)"
   submit_rc=$?
 
   if [[ ${submit_rc} -eq 0 ]]; then

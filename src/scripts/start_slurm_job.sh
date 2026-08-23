@@ -1,12 +1,14 @@
 #!/bin/bash
-#SBATCH --job-name=ReProSeg_NNI_HPO
-#SBATCH --partition=main
-#SBATCH --gres=gpu:1
-#SBATCH --mem=32G
-#SBATCH --cpus-per-task=8
-#SBATCH --output=/home/%u/logs/slurm-%j.out
 
-echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-none}"
+script_path="$(readlink -f "${BASH_SOURCE[0]}")"
+script_dir="$(dirname "${script_path}")"
+repo_root="$(cd "${script_dir}/../.." && pwd)"
+job_script="${script_dir}/run_slurm_job.sh"
 
-cd "${SLURM_SUBMIT_DIR}"
-uv run python src/scripts/run.py "$@"
+sbatch_args=(--chdir="${repo_root}")
+
+if [[ -n "${SLURM_NODE_LIST:-}" ]]; then
+	sbatch_args+=(--nodelist="${SLURM_NODE_LIST}")
+fi
+
+exec sbatch "${sbatch_args[@]}" "$@" "${job_script}"
