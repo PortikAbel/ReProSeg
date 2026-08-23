@@ -31,6 +31,8 @@ class PanopticPartsDataset(Dataset):
 
         panoptic_mask = Image.open(panoptic_mask_path)
         panoptic_mask = self.transform_set.base_target(panoptic_mask)
+        panoptic_mask = self.transform_set.random_crop(panoptic_mask)
+
         panoptic_mask[panoptic_mask < 100_000] = 0
         panoptic_mask = panoptic_mask // 100_000 * 100 + panoptic_mask % 100
 

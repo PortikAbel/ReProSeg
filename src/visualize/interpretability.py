@@ -41,14 +41,19 @@ class ModelInterpretability:
         self._collect_concept_activations_by_object_parts(panoptic_parts_loader)
         is_consistent = self._compute_if_concept_consistent()
 
-        num_consistent_concepts = sum(is_consistent)
+        used_concepts = self.net.layers.classification_layer.used_concepts.detach().cpu().reshape(-1).tolist()
+        num_used_concepts = len(used_concepts)
+        num_consistent_concepts = sum(is_consistent[concept] for concept in used_concepts)
 
         logger.info(
             f"Found {num_consistent_concepts} consistent concepts "
             f"with per object part activation > {self.consistency_score} "
-            f"out of {len(is_consistent)}."
+            f"out of {num_used_concepts} used concepts."
         )
-        return num_consistent_concepts / len(is_consistent)
+        if num_used_concepts == 0:
+            logger.warning("No used concepts found; returning a consistency score of 0.")
+            return 0.0
+        return num_consistent_concepts / num_used_concepts
 
     def _collect_concept_activations_by_object_parts(self, panoptic_parts_loader: DataLoader):
         logger.info("Collecting average object part activations of concepts from images...")
@@ -68,9 +73,15 @@ class ModelInterpretability:
                 continue
 
             xs, ys, pps = xs.to(self.device), ys.to(self.device), pps.to(self.device)
+            pps = pps.squeeze(1)
+
             concept_activations = self.net.interpolate_concept_activations(xs)
-            for p in self.net.layers.classification_layer.used_concepts:
-                alpha = activations_to_alpha(concept_activations[:, p])
+            concept_alphas = activations_to_alpha(concept_activations)
+
+            used_concepts = self.net.layers.classification_layer.used_concepts.detach().cpu().reshape(-1).tolist()
+
+            for p in used_concepts:
+                alpha = concept_alphas[:, p]
                 for label, avg_value in self._compute_part_activation_averages(alpha, pps):
                     self._part_activations[p][label].append(avg_value)
         logger.info("Collected average object part activations of concepts from images.")
@@ -88,8 +99,14 @@ class ModelInterpretability:
                 - part_label (int): Unique panoptic part label
                 - average_activation (float): Mean activation score for that part
         """
-        alpha_flat = alpha.view(-1)
-        part_labels_flat = pps.view(-1)
+        if alpha.shape != pps.shape:
+            raise ValueError(
+                "Concept activations and panoptic-part masks must have matching shapes, "
+                f"but received alpha={tuple(alpha.shape)} and pps={tuple(pps.shape)}."
+            )
+
+        alpha_flat = alpha.reshape(-1)
+        part_labels_flat = pps.reshape(-1)
 
         mask = part_labels_flat != 0  # ignore unlabeled parts
 
