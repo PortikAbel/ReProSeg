@@ -22,17 +22,27 @@ classes having part annotations enter the denominator.  For output-schema
 compatibility, ReProSeg concept indices are stored in ``prototype_id`` fields.
 """
 
+# ruff: noqa: E402
+
 from __future__ import annotations
 
 import argparse
 import csv
+import importlib
 import json
 import os
+import sys
 from collections import defaultdict, deque
 from collections.abc import Iterable, Mapping, Sequence, Sized
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import TypeAlias
+
+# When this file is executed directly, its directory would otherwise take
+# precedence over ``src`` and make ``import utils`` resolve to
+# ``visualize/utils.py`` instead of the project's ``utils`` package.
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import numpy as np
 import torch
@@ -636,6 +646,7 @@ def run_consistency(
 def _load_supported_model(checkpoint_path: Path) -> SupportedModel:
     """Load a serialized PPNet or construct ReProSeg from its training checkpoint."""
 
+    _register_legacy_deeplab_modules()
     checkpoint = torch.load(
         checkpoint_path,
         map_location="cpu",
@@ -672,6 +683,36 @@ def _load_supported_model(checkpoint_path: Path) -> SupportedModel:
     model = ReProSeg(cfg=config)
     model.load_state_dict(state_dict, strict=True)
     return model
+
+
+def _register_legacy_deeplab_modules() -> None:
+    """Keep serialized ProtoSeg models loadable after the DeepLab move.
+
+    Full-model ProtoSeg checkpoints contain pickle references to the original
+    ``proto_segmentation.deeplab_pytorch`` package. Registering aliases before
+    ``torch.load`` lets those trusted checkpoints resolve the same classes at
+    their new canonical location.
+    """
+
+    current_package = "model.segmentation_features.deeplab_pytorch"
+    legacy_package = "proto_segmentation.deeplab_pytorch"
+    module_suffixes = (
+        "",
+        ".libs",
+        ".libs.models",
+        ".libs.models.deeplabv1",
+        ".libs.models.deeplabv2",
+        ".libs.models.deeplabv3",
+        ".libs.models.deeplabv3plus",
+        ".libs.models.msc",
+        ".libs.models.resnet",
+    )
+
+    for suffix in module_suffixes:
+        sys.modules.setdefault(
+            legacy_package + suffix,
+            importlib.import_module(current_package + suffix),
+        )
 
 
 def _default_data_path() -> Path | None:

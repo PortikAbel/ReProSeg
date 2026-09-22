@@ -1,7 +1,7 @@
 from typing import Optional
 
+from model.segmentation_features.deeplab_pytorch.libs.models.deeplabv2 import DeepLabV2
 from model.utils import MSC
-from proto_segmentation.deeplab_pytorch.libs.models.deeplabv2 import DeepLabV2
 
 
 def torchvision_resnet_weight_key_to_deeplab2(key: str) -> Optional[str]:
@@ -27,8 +27,8 @@ def torchvision_resnet_weight_key_to_deeplab2(key: str) -> Optional[str]:
             return f"layer{dl_layer_num}.{dl_block_str}.shortcut.{module_name}.{segments[-1]}"
 
         else:
-            layer_type, conv_num = segments[2][:-1], segments[2][-1]
-            conv_num = int(conv_num)
+            layer_type = segments[2][:-1]
+            conv_num = int(segments[2][-1])
 
             if conv_num == 1:
                 dl_conv_name = "reduce"
@@ -51,9 +51,12 @@ def torchvision_resnet_weight_key_to_deeplab2(key: str) -> Optional[str]:
 def deeplabv2_resnet101_features(
     pretrained=False,
     deeplab_n_features: int = 64,
-    scales=[1.0],
+    scales=None,
     **kwargs,
 ):
+    if scales is None:
+        scales = [1.0]
+
     return MSC(
         base=DeepLabV2(
             n_classes=deeplab_n_features,
