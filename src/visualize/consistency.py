@@ -445,6 +445,35 @@ class ConsistencyEvaluator:
         presence_count: defaultdict[AccumulatorKey, int],
         evaluated_prototypes: set[ComponentClassKey],
     ) -> None:
+        (image_observations,) = self._image_part_presence(
+            activation_maps=(activations,),
+            semantic_mask=semantic_mask,
+            part_mask=part_mask,
+            image_index=image_index,
+        )
+        for observation in image_observations:
+            key = (observation.class_id, observation.prototype_id, observation.part_id)
+            presence_sum[key] += int(observation.present)
+            presence_count[key] += 1
+            evaluated_prototypes.add((observation.class_id, observation.prototype_id))
+        observations.extend(image_observations)
+
+    def _image_part_presence(
+        self,
+        *,
+        activation_maps: Sequence[Tensor],
+        semantic_mask: Tensor,
+        part_mask: Tensor,
+        image_index: int,
+    ) -> tuple[list[PartPresence], ...]:
+        """Observe one or more versions of an image using the same part centroids.
+
+        Consistency supplies one activation tensor; stability supplies clean
+        and noisy tensors. Each version is thresholded independently, while
+        class assignments and annotation geometry are computed only once.
+        """
+
+        observations: tuple[list[PartPresence], ...] = tuple([] for _ in activation_maps)
         semantic_mask = semantic_mask.detach().to(device="cpu", dtype=torch.long)
         part_mask = part_mask.detach().to(device="cpu", dtype=torch.long)
         output_size = tuple(part_mask.shape)
@@ -468,39 +497,36 @@ class ConsistencyEvaluator:
             if not prototype_ids:
                 continue
 
-            resized_activations = F.interpolate(
-                activations[prototype_ids].unsqueeze(0),
-                size=output_size,
-                mode="nearest-exact",
-            ).squeeze(0)
-            active_regions = quantile_activation_mask(
-                resized_activations,
-                class_mask.to(self.device),
-                self.activation_quantile,
-            ).to(device="cpu")
+            for activations, version_observations in zip(activation_maps, observations, strict=True):
+                resized_activations = F.interpolate(
+                    activations[prototype_ids].unsqueeze(0),
+                    size=output_size,
+                    # Match cv2.INTER_NEAREST used by ScaleProtoSeg's metrics.
+                    mode="nearest",
+                ).squeeze(0)
+                active_regions = quantile_activation_mask(
+                    resized_activations,
+                    class_mask.to(self.device),
+                    self.activation_quantile,
+                ).to(device="cpu")
 
-            for prototype_id in prototype_ids:
-                evaluated_prototypes.add((class_id, prototype_id))
+                for part_id, centroids in part_centroids.items():
+                    rows = torch.tensor([centroid[0] for centroid in centroids], dtype=torch.long)
+                    columns = torch.tensor([centroid[1] for centroid in centroids], dtype=torch.long)
+                    part_present = active_regions[:, rows, columns].any(dim=1)
 
-            for part_id, centroids in part_centroids.items():
-                rows = torch.tensor([centroid[0] for centroid in centroids], dtype=torch.long)
-                columns = torch.tensor([centroid[1] for centroid in centroids], dtype=torch.long)
-                part_present = active_regions[:, rows, columns].any(dim=1)
-
-                for local_index, prototype_id in enumerate(prototype_ids):
-                    present = bool(part_present[local_index].item())
-                    key = (class_id, prototype_id, part_id)
-                    presence_sum[key] += int(present)
-                    presence_count[key] += 1
-                    observations.append(
-                        PartPresence(
-                            image_index=image_index,
-                            class_id=class_id,
-                            prototype_id=prototype_id,
-                            part_id=part_id,
-                            present=present,
+                    for local_index, prototype_id in enumerate(prototype_ids):
+                        version_observations.append(
+                            PartPresence(
+                                image_index=image_index,
+                                class_id=class_id,
+                                prototype_id=prototype_id,
+                                part_id=part_id,
+                                present=bool(part_present[local_index].item()),
+                            )
                         )
-                    )
+
+        return observations
 
     def _build_result(
         self,
@@ -736,7 +762,7 @@ def main() -> None:
     )
     validation_data = DatasetFactory.create(data_config, split=DataSplit.VAL)
     parts_data = PanopticPartsDataset(data_config, validation_data)
-    data_loader = DataLoader(
+    data_loader: DataLoader[Batch] = DataLoader(
         parts_data,
         batch_size=args.batch_size,
         shuffle=False,
