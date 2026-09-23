@@ -11,6 +11,7 @@ from visualize.consistency import (
     CITYSCAPES_NATIVE_IMAGE_SHAPE,
     ConsistencyEvaluator,
     _parse_args,
+    _register_legacy_checkpoint_modules,
     connected_component_centroids,
     quantile_activation_mask,
 )
@@ -105,6 +106,22 @@ def test_cli_defaults_to_native_cityscapes_resolution(monkeypatch):
 
     assert tuple(args.image_shape) == CITYSCAPES_NATIVE_IMAGE_SHAPE
     assert args.batch_size == 1
+
+
+def test_legacy_checkpoint_modules_resolve_to_new_locations(monkeypatch):
+    aliases = {
+        "proto_segmentation.segmentation.utils": "model.utils",
+        "proto_segmentation.deeplab_pytorch.libs.models.deeplabv2": (
+            "model.segmentation_features.deeplab_pytorch.libs.models.deeplabv2"
+        ),
+    }
+    for legacy_module in aliases:
+        monkeypatch.delitem(sys.modules, legacy_module, raising=False)
+
+    _register_legacy_checkpoint_modules()
+
+    for legacy_module, current_module in aliases.items():
+        assert sys.modules[legacy_module] is sys.modules[current_module]
 
 
 def test_reproseg_uses_active_class_concept_assignments():

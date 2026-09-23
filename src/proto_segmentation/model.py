@@ -4,8 +4,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from model.receptive_field import compute_proto_layer_rf_info_v2
 from model.segmentation_features import base_architecture_to_features
+from model.utils.receptive_field import compute_proto_layer_rf_info_v2
 
 
 class PPNet(nn.Module):
@@ -77,9 +77,11 @@ class PPNet(nn.Module):
         else:
             raise Exception(f"{features_name[:10]} base_architecture NOT implemented")
 
-        add_on_layers = []
+        add_on_layers: list[nn.Module] = []
 
         if add_on_layers_type == "bottleneck_pool":
+            if self.bottleneck_stride is None:
+                raise ValueError("bottleneck_stride is required when add_on_layers_type is 'bottleneck_pool'.")
             # Add conv net with stride to get the target number of patches (16x8)
             add_on_layers.append(
                 nn.Conv2d(
@@ -249,7 +251,7 @@ class PPNet(nn.Module):
         # MCS
         if isinstance(conv_features, list):
             results = [self.forward_from_conv_features(c, **kwargs) for c in conv_features]
-            return [(r[0], r[1], c) for r, c in zip(results, conv_features)]
+            return [(r[0], r[1], c) for r, c in zip(results, conv_features, strict=True)]
 
         logits, distances = self.forward_from_conv_features(conv_features, **kwargs)
         return logits, distances, conv_features

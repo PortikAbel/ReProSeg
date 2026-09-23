@@ -96,8 +96,10 @@ class MSC(nn.Module):
     def forward(self, x):
         # Original
         logits = self.base(x)
-        _, _, H, W = logits.shape
-        interp = lambda l: F.interpolate(l, size=(H, W), mode="bilinear", align_corners=False)
+        _, _, height, width = logits.shape
+
+        def interpolate(logit):
+            return F.interpolate(logit, size=(height, width), mode="bilinear", align_corners=False)
 
         if len(self.scales) == 0:
             return logits
@@ -109,7 +111,7 @@ class MSC(nn.Module):
             logits_pyramid.append(self.base(h))
 
         # Pixel-wise max
-        logits_all = [logits] + [interp(l) for l in logits_pyramid]
+        logits_all = [logits] + [interpolate(logit) for logit in logits_pyramid]
         logits_max = torch.max(torch.stack(logits_all), dim=0)[0]
 
         if self.training:

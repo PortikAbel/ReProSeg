@@ -646,7 +646,7 @@ def run_consistency(
 def _load_supported_model(checkpoint_path: Path) -> SupportedModel:
     """Load a serialized PPNet or construct ReProSeg from its training checkpoint."""
 
-    _register_legacy_deeplab_modules()
+    _register_legacy_checkpoint_modules()
     checkpoint = torch.load(
         checkpoint_path,
         map_location="cpu",
@@ -685,13 +685,13 @@ def _load_supported_model(checkpoint_path: Path) -> SupportedModel:
     return model
 
 
-def _register_legacy_deeplab_modules() -> None:
-    """Keep serialized ProtoSeg models loadable after the DeepLab move.
+def _register_legacy_checkpoint_modules() -> None:
+    """Keep serialized ProtoSeg models loadable after dependency moves.
 
     Full-model ProtoSeg checkpoints contain pickle references to the original
-    ``proto_segmentation.deeplab_pytorch`` package. Registering aliases before
-    ``torch.load`` lets those trusted checkpoints resolve the same classes at
-    their new canonical location.
+    DeepLab package and segmentation utility module. Registering aliases
+    before ``torch.load`` lets those trusted checkpoints resolve the same
+    classes at their new canonical locations.
     """
 
     current_package = "model.segmentation_features.deeplab_pytorch"
@@ -713,6 +713,11 @@ def _register_legacy_deeplab_modules() -> None:
             legacy_package + suffix,
             importlib.import_module(current_package + suffix),
         )
+
+    sys.modules.setdefault(
+        "proto_segmentation.segmentation.utils",
+        importlib.import_module("model.utils"),
+    )
 
 
 def _default_data_path() -> Path | None:
