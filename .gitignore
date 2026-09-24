@@ -167,3 +167,5 @@ pretrained/
 logs/
 
 class_distribution/
+
+consistency_results*
