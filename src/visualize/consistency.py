@@ -1,7 +1,7 @@
 """Part-consistency evaluation for ProtoSeg and ReProSeg models.
 
 This module adapts the consistency metric used by ScaleProtoSeg to the
-``proto_segmentation.model.PPNet`` and ``model.model.ReProSeg``
+``model.proto_segmentation.PPNet`` and ``model.model.ReProSeg``
 implementations in this repository.  ReProSeg concepts are associated with
 classes through active concept-to-class classifier connections.  For every
 class-specific prototype or class-concept assignment, the evaluator:
@@ -56,7 +56,7 @@ from config.schema.data import DataConfig
 from data import DataSplit, PanopticPartsDataset
 from data.dataset.factory import DatasetFactory
 from model.model import ReProSeg
-from proto_segmentation.model import PPNet
+from model.proto_segmentation import PPNet
 
 Batch: TypeAlias = tuple[Tensor, Tensor, Tensor]
 AccumulatorKey: TypeAlias = tuple[int, int, int]
@@ -689,10 +689,15 @@ def _register_legacy_checkpoint_modules() -> None:
     """Keep serialized ProtoSeg models loadable after dependency moves.
 
     Full-model ProtoSeg checkpoints contain pickle references to the original
-    DeepLab package and segmentation utility module. Registering aliases
+    model module, DeepLab package, and segmentation utility module. Registering aliases
     before ``torch.load`` lets those trusted checkpoints resolve the same
     classes at their new canonical locations.
     """
+
+    sys.modules.setdefault(
+        "proto_segmentation.model",
+        importlib.import_module("model.proto_segmentation"),
+    )
 
     current_package = "model.segmentation_features.deeplab_pytorch"
     legacy_package = "proto_segmentation.deeplab_pytorch"

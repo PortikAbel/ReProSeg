@@ -6,7 +6,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from model.model import NonNegConv1x1, ReProSeg
-from proto_segmentation.model import PPNet
+from model.proto_segmentation import PPNet
 from visualize.consistency import (
     CITYSCAPES_NATIVE_IMAGE_SHAPE,
     ConsistencyEvaluator,
@@ -110,6 +110,7 @@ def test_cli_defaults_to_native_cityscapes_resolution(monkeypatch):
 
 def test_legacy_checkpoint_modules_resolve_to_new_locations(monkeypatch):
     aliases = {
+        "proto_segmentation.model": "model.proto_segmentation",
         "proto_segmentation.segmentation.utils": "model.utils",
         "proto_segmentation.deeplab_pytorch.libs.models.deeplabv2": (
             "model.segmentation_features.deeplab_pytorch.libs.models.deeplabv2"
