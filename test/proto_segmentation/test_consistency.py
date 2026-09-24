@@ -1,3 +1,4 @@
+import importlib
 import sys
 from pathlib import Path
 
@@ -116,13 +117,14 @@ def test_legacy_checkpoint_modules_resolve_to_new_locations(monkeypatch):
             "model.segmentation_features.deeplab_pytorch.libs.models.deeplabv2"
         ),
     }
-    for legacy_module in aliases:
+    for legacy_module in (*aliases, "proto_segmentation", "proto_segmentation.segmentation"):
         monkeypatch.delitem(sys.modules, legacy_module, raising=False)
 
     _register_legacy_checkpoint_modules()
 
     for legacy_module, current_module in aliases.items():
         assert sys.modules[legacy_module] is sys.modules[current_module]
+        assert importlib.import_module(legacy_module) is sys.modules[current_module]
 
 
 def test_reproseg_uses_active_class_concept_assignments():

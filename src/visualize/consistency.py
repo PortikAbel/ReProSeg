@@ -36,6 +36,7 @@ from collections import defaultdict, deque
 from collections.abc import Iterable, Mapping, Sequence, Sized
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from types import ModuleType
 from typing import TypeAlias
 
 # When this file is executed directly, its directory would otherwise take
@@ -694,10 +695,13 @@ def _register_legacy_checkpoint_modules() -> None:
     classes at their new canonical locations.
     """
 
-    sys.modules.setdefault(
-        "proto_segmentation.model",
-        importlib.import_module("model.proto_segmentation"),
+    legacy_root = sys.modules.setdefault("proto_segmentation", ModuleType("proto_segmentation"))
+    legacy_root.__path__ = []
+
+    model_module = sys.modules.setdefault(
+        "proto_segmentation.model", importlib.import_module("model.proto_segmentation")
     )
+    legacy_root.__dict__["model"] = model_module
 
     current_package = "model.segmentation_features.deeplab_pytorch"
     legacy_package = "proto_segmentation.deeplab_pytorch"
@@ -714,15 +718,20 @@ def _register_legacy_checkpoint_modules() -> None:
     )
 
     for suffix in module_suffixes:
-        sys.modules.setdefault(
-            legacy_package + suffix,
-            importlib.import_module(current_package + suffix),
-        )
+        alias = legacy_package + suffix
+        module = sys.modules.setdefault(alias, importlib.import_module(current_package + suffix))
+        parent_name, _, child_name = alias.rpartition(".")
+        setattr(sys.modules[parent_name], child_name, module)
 
-    sys.modules.setdefault(
-        "proto_segmentation.segmentation.utils",
-        importlib.import_module("model.utils"),
+    legacy_segmentation = sys.modules.setdefault(
+        "proto_segmentation.segmentation", ModuleType("proto_segmentation.segmentation")
     )
+    legacy_segmentation.__path__ = []
+    legacy_root.__dict__["segmentation"] = legacy_segmentation
+    legacy_utils = sys.modules.setdefault(
+        "proto_segmentation.segmentation.utils", importlib.import_module("model.utils")
+    )
+    legacy_segmentation.__dict__["utils"] = legacy_utils
 
 
 def _default_data_path() -> Path | None:
