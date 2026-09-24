@@ -7,28 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from model.utils.image import add_margins_to_image as add_margins_to_image
-
-
-def get_params(model, key):
-    # For Dilated FCN
-    if key == "1x":
-        for m in model.named_modules():
-            if "layer" in m[0]:
-                if isinstance(m[1], nn.Conv2d):
-                    for p in m[1].parameters():
-                        yield p
-    # For conv weight in the ASPP module
-    if key == "10x":
-        for m in model.named_modules():
-            if "aspp" in m[0]:
-                if isinstance(m[1], nn.Conv2d):
-                    yield m[1].weight
-    # For conv bias in the ASPP module
-    if key == "20x":
-        for m in model.named_modules():
-            if "aspp" in m[0]:
-                if isinstance(m[1], nn.Conv2d):
-                    yield m[1].bias
+from model.utils.model import get_params as get_params
 
 
 class MSC(nn.Module):
