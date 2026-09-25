@@ -1,7 +1,9 @@
 import importlib
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock
 
+import pytest
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -107,6 +109,7 @@ def test_cli_defaults_to_native_cityscapes_resolution(monkeypatch):
 
     assert tuple(args.image_shape) == CITYSCAPES_NATIVE_IMAGE_SHAPE
     assert args.batch_size == 1
+    assert args.official_parts_only is False
 
 
 def test_legacy_checkpoint_modules_resolve_to_new_locations(monkeypatch):
@@ -213,3 +216,33 @@ def test_evaluator_computes_per_image_part_consistency(tmp_path: Path):
     assert (tmp_path / f"part_presence_{suffix}.csv").is_file()
     assert (tmp_path / f"part_presence_mean_{suffix}.csv").is_file()
     assert (tmp_path / f"consistency_summary_{suffix}.json").is_file()
+
+
+@pytest.mark.parametrize("official_parts_only", [False, True])
+def test_cli_passes_part_selection_to_loader_and_separates_results(monkeypatch, tmp_path, official_parts_only):
+    from visualize import consistency
+
+    output = tmp_path / "results"
+    argv = ["visualize.consistency", "checkpoint.pth", "--device", "cpu", "--output-dir", str(output)]
+    if official_parts_only:
+        argv.append("--official-parts-only")
+    monkeypatch.setattr(sys, "argv", argv)
+    monkeypatch.setattr(consistency, "_load_supported_model", lambda _: DummyPPNet())
+    validation_data = object()
+    monkeypatch.setattr(consistency.DatasetFactory, "create", lambda *args, **kwargs: validation_data)
+    dataset = MagicMock()
+    monkeypatch.setattr(consistency, "PanopticPartsDataset", dataset)
+    loader = MagicMock()
+    monkeypatch.setattr(consistency, "DataLoader", loader)
+    evaluate = MagicMock()
+    evaluate.return_value.score = 0.5
+    monkeypatch.setattr(consistency, "run_consistency", evaluate)
+
+    consistency.main()
+
+    assert dataset.call_args.args[1] is validation_data
+    assert dataset.call_args.kwargs["official_parts_only"] is official_parts_only
+    assert loader.call_args.args[0] is dataset.return_value
+    assert evaluate.call_args.args[1] is loader.return_value
+    expected_output = output / "official_parts" if official_parts_only else output
+    evaluate.return_value.save.assert_called_once_with(expected_output)

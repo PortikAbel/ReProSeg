@@ -763,6 +763,14 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--quantile", type=float, default=0.8)
     parser.add_argument("--threshold", type=float, default=0.8)
     parser.add_argument(
+        "--official-parts-only",
+        action="store_true",
+        help=(
+            "Keep only documented Cityscapes semantic/part pairs. By default, all decoded "
+            "positive part IDs are used. Filtered results go in an official_parts subdirectory."
+        ),
+    )
+    parser.add_argument(
         "--batch-size",
         type=int,
         default=1,
@@ -821,7 +829,10 @@ def main() -> None:
         std=IMAGENET_STD,
     )
     validation_data = DatasetFactory.create(data_config, split=DataSplit.VAL)
-    parts_data = PanopticPartsDataset(data_config, validation_data)
+    parts_data = PanopticPartsDataset(
+        data_config, validation_data, official_parts_only=args.official_parts_only
+    )
+    print(f"Part labels: {'official Cityscapes parts only' if args.official_parts_only else 'all decoded part IDs'}")
     data_loader: DataLoader[Batch] = DataLoader(
         parts_data,
         batch_size=args.batch_size,
@@ -838,14 +849,15 @@ def main() -> None:
         device=device,
         used_prototypes_only=args.used_prototypes_only,
     )
-    result.save(args.output_dir)
+    output_dir = args.output_dir / "official_parts" if args.official_parts_only else args.output_dir
+    result.save(output_dir)
 
     component_label = "concept assignments" if isinstance(model, ReProSeg) else "prototypes"
     print(
         f"Consistency score: {result.score:.6f} "
         f"({result.num_consistent_prototypes}/{result.num_evaluated_prototypes} {component_label})"
     )
-    print(f"Results written to {args.output_dir.resolve()}")
+    print(f"Results written to {output_dir.resolve()}")
 
 
 if __name__ == "__main__":
