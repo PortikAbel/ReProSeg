@@ -136,6 +136,8 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
                 best_miou = eval_info.miou
                 logger.info(f"Best mIoU so far: {best_miou}")
                 run.model_checkpoint(get_checkpoint(), "net_trained_best_miou")
+                # Logged on every improvement so the HParams tab reflects progress while training is still running.
+                run.log_hparams(cfg.model_dump(exclude={"logging": {"path"}}), {"best_miou": best_miou})
 
     nni.report_final_result(best_miou)
     logger.info("Done!")
