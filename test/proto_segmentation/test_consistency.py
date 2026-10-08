@@ -14,6 +14,7 @@ from visualize.consistency import (
     CITYSCAPES_NATIVE_IMAGE_SHAPE,
     ConsistencyEvaluator,
     _parse_args,
+    _pascal_class_offset,
     _register_legacy_checkpoint_modules,
     connected_component_centroids,
     quantile_activation_mask,
@@ -112,6 +113,49 @@ def test_cli_defaults_to_native_cityscapes_resolution(monkeypatch):
     assert args.official_parts_only is False
 
 
+def test_pascal_cli_defaults_and_variable_batch_guard(monkeypatch):
+    argv = ["consistency", "checkpoint.pth", "--dataset", "pascal_voc"]
+    monkeypatch.setattr(sys, "argv", argv)
+    args = _parse_args()
+    assert args.image_shape is None
+    assert args.batch_size == 1
+    monkeypatch.setattr(sys, "argv", [*argv, "--batch-size", "2"])
+    with pytest.raises(SystemExit):
+        _parse_args()
+
+
+@pytest.mark.parametrize("num_classes", [20, 21])
+@pytest.mark.parametrize("model_type", [DummyPPNet, DummyReProSeg])
+def test_pascal_class_mapping_including_last_class(num_classes, model_type):
+    if model_type is DummyPPNet:
+        model = DummyPPNet()
+        model.prototype_class_identity = torch.zeros(2, num_classes)
+        model.prototype_class_identity[0, -1] = 1
+    else:
+        model = DummyReProSeg(num_classes=num_classes)
+        model.layers.classification_layer.weight.data[-1, 0] = 1
+    images = torch.zeros(1, 3, 5, 5)
+    images[0, 0, 2, 2] = 1
+    semantic = torch.full((1, 1, 5, 5), 20, dtype=torch.long)
+    parts = torch.zeros_like(semantic)
+    parts[0, 0, 2, 2] = 2001
+    evaluator = ConsistencyEvaluator(
+        model,
+        device="cpu",
+        activation_quantile=0.5,
+        semantic_class_offset=_pascal_class_offset(model),
+    )
+    result = evaluator.evaluate([(images, semantic, parts)], show_progress=False)
+    assert result.score == 1
+    assert result.num_evaluated_prototypes == 1
+    assert result.observations[0].class_id == 20
+
+
+def test_pascal_rejects_checkpoint_for_another_dataset():
+    with pytest.raises(ValueError, match="20- or 21-class checkpoint"):
+        _pascal_class_offset(DummyPPNet())
+
+
 def test_legacy_checkpoint_modules_resolve_to_new_locations(monkeypatch):
     aliases = {
         "proto_segmentation.model": "model.proto_segmentation",
@@ -156,9 +200,10 @@ def test_reproseg_uses_active_class_concept_assignments():
 
     assert result.score == 1
     assert result.num_evaluated_prototypes == 2
-    assert {
-        (component.class_id, component.prototype_id) for component in result.prototype_consistency
-    } == {(1, 0), (2, 0)}
+    assert {(component.class_id, component.prototype_id) for component in result.prototype_consistency} == {
+        (1, 0),
+        (2, 0),
+    }
 
 
 def test_reproseg_concept_aggregation_matches_scale_aware_pooling():

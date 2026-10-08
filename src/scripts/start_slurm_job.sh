@@ -22,11 +22,22 @@ cd "${SLURM_SUBMIT_DIR:?SLURM_SUBMIT_DIR is not set}"
 #     --output-dir consistency_results_protoseg
 # done
 
+# for q in 0.7 0.8 0.9; do
+#   uv run python -m visualize.consistency \
+#     /home/annamari/ReProSeg-checkpoints/net_trained_best_miou \
+#     --data-path /data/datasets/Cityscapes \
+#     --quantile "$q" \
+#     --threshold 0.8 \
+#     --output-dir consistency_results_reproseg_all_parts_3
+# done
+
+
 for q in 0.7 0.8 0.9; do
   uv run python -m visualize.consistency \
-    /home/annamari/ReProSeg-checkpoints/net_trained_best_miou \
-    --data-path /data/datasets/Cityscapes \
+    /home/annamari/ReProSeg-checkpoints/354g1icw/environments/local-env/trials/YOAuo/checkpoints/net_trained_best_miou \
+    --dataset pascal_voc \
+    --data-path /data/datasets \
     --quantile "$q" \
     --threshold 0.8 \
-    --output-dir consistency_results_reproseg
+    --output-dir  /home/annamari/ReProSeg-checkpoints/354g1icw/environments/local-env/trials/YOAuo/checkpoints/
 done

@@ -56,6 +56,7 @@ from tqdm import tqdm
 from config.schema.data import DataConfig
 from data import DataSplit, PanopticPartsDataset
 from data.dataset.factory import DatasetFactory
+from data.dataset.pascal_parts import PascalPartsDataset
 from model.model import ReProSeg
 from model.proto_segmentation import PPNet
 
@@ -264,6 +265,7 @@ class ConsistencyEvaluator:
         consistency_threshold: float = 0.8,
         device: torch.device | str | None = None,
         used_prototypes_only: bool = False,
+        semantic_class_offset: int | None = None,
     ):
         if not isinstance(model, (PPNet, ReProSeg)):
             raise TypeError(f"Expected a PPNet or ReProSeg model, received {type(model).__name__}.")
@@ -321,6 +323,10 @@ class ConsistencyEvaluator:
 
         self.component_class_identity = identity
         self.used_component_mask = used_component_mask
+        if semantic_class_offset is not None:
+            if semantic_class_offset not in (0, 1):
+                raise ValueError("Semantic class offset must be 0 (with background) or 1 (foreground only).")
+            self.semantic_class_offset = semantic_class_offset
 
     @torch.no_grad()
     def evaluate(
@@ -605,7 +611,7 @@ def _part_centroids(
     part_mask: Tensor,
     semantic_class_mask: Tensor,
 ) -> dict[int, list[tuple[int, int]]]:
-    """Extract component centroids keyed by the decoded Cityscapes part ID."""
+    """Extract component centroids keyed by the decoded dataset part ID."""
 
     centroids_by_part: defaultdict[int, list[tuple[int, int]]] = defaultdict(list)
     encoded_parts = torch.unique(part_mask[semantic_class_mask])
@@ -631,6 +637,7 @@ def run_consistency(
     device: torch.device | str | None = None,
     used_prototypes_only: bool = False,
     show_progress: bool = True,
+    semantic_class_offset: int | None = None,
 ) -> ConsistencyResult:
     """Convenience wrapper matching the original evaluator's entry point."""
 
@@ -640,6 +647,7 @@ def run_consistency(
         consistency_threshold=consistency_threshold,
         device=device,
         used_prototypes_only=used_prototypes_only,
+        semantic_class_offset=semantic_class_offset,
     )
     return evaluator.evaluate(data_loader, show_progress=show_progress)
 
@@ -734,14 +742,28 @@ def _register_legacy_checkpoint_modules() -> None:
     legacy_segmentation.__dict__["utils"] = legacy_utils
 
 
-def _default_data_path() -> Path | None:
+def _default_data_path(dataset: str = "cityscapes") -> Path | None:
     data_root = os.environ.get("DATA_ROOT")
-    return Path(data_root) / "Cityscapes" if data_root else None
+    if not data_root:
+        return None
+    return Path(data_root) / "Cityscapes" if dataset == "cityscapes" else Path(data_root)
+
+
+def _pascal_class_offset(model: SupportedModel) -> int:
+    """VOC models may have 20 foreground classes or 21 including background."""
+    num_classes = (
+        model.prototype_class_identity.shape[1]
+        if isinstance(model, PPNet)
+        else model.layers.classification_layer.weight.shape[0]
+    )
+    if num_classes not in (20, 21):
+        raise ValueError(f"Pascal VOC requires a 20- or 21-class checkpoint; received {num_classes} classes.")
+    return 21 - num_classes
 
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Evaluate ScaleProtoSeg-style prototype/concept consistency on Cityscapes."
+        description="Evaluate prototype/concept part consistency on Cityscapes or Pascal VOC."
     )
     parser.add_argument(
         "checkpoint",
@@ -749,11 +771,20 @@ def _parse_args() -> argparse.Namespace:
         help="Trusted serialized PPNet or ReProSeg training checkpoint containing model_state_dict.",
     )
     parser.add_argument(
+        "--dataset",
+        choices=("cityscapes", "pascal_voc"),
+        default="cityscapes",
+        help="Dataset to evaluate (default: cityscapes).",
+    )
+    parser.add_argument(
         "--data-path",
         type=Path,
-        default=_default_data_path(),
-        help="Cityscapes root containing leftImg8bit, gtFine, and gtFinePanopticParts.",
+        help="Cityscapes root, or Pascal data root/VOCdevkit/VOC2012. Defaults to DATA_ROOT for Pascal.",
     )
+    parser.add_argument(
+        "--parts-path", type=Path, help="Pascal validation TIFF directory; default: VOC2012/labels/val."
+    )
+    parser.add_argument("--parts-spec", type=Path, help="Pascal PPP v2 specification; default: VOC2012/parts.yaml.")
     parser.add_argument(
         "--output-dir",
         type=Path,
@@ -766,7 +797,7 @@ def _parse_args() -> argparse.Namespace:
         "--official-parts-only",
         action="store_true",
         help=(
-            "Keep only documented Cityscapes semantic/part pairs. By default, all decoded "
+            "Keep only documented dataset semantic/part pairs. By default, all decoded "
             "positive part IDs are used. Filtered results go in an official_parts subdirectory."
         ),
     )
@@ -782,10 +813,9 @@ def _parse_args() -> argparse.Namespace:
         type=int,
         nargs=2,
         metavar=("HEIGHT", "WIDTH"),
-        default=CITYSCAPES_NATIVE_IMAGE_SHAPE,
         help=(
-            "Evaluation image shape. Defaults to Cityscapes' native 1024x2048 "
-            "resolution; passing another shape applies a center crop."
+            "Center crop HEIGHT WIDTH, padding smaller images. Defaults to native resolution: "
+            "1024x2048 for Cityscapes and variable sizes for Pascal (batch size 1)."
         ),
     )
     parser.add_argument(
@@ -801,16 +831,27 @@ def _parse_args() -> argparse.Namespace:
             "ReProSeg concepts are always selected through active concept-to-class connections."
         ),
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.data_path is None:
+        args.data_path = _default_data_path(args.dataset)
+    if args.image_shape is None and args.dataset == "cityscapes":
+        args.image_shape = CITYSCAPES_NATIVE_IMAGE_SHAPE
+    if args.image_shape is not None and min(args.image_shape) < 1:
+        parser.error("--image-shape dimensions must be positive.")
+    if args.dataset == "cityscapes" and (args.parts_path is not None or args.parts_spec is not None):
+        parser.error("--parts-path and --parts-spec apply only to --dataset pascal_voc.")
+    if args.dataset == "pascal_voc" and args.image_shape is None and args.batch_size != 1:
+        parser.error("Native Pascal images have variable sizes; use --batch-size 1 or provide --image-shape.")
+    return args
 
 
 def main() -> None:
-    """CLI entry point using ReProSeg's official Cityscapes validation loader."""
+    """CLI entry point using validation images with matching part annotations."""
 
     load_dotenv()
     args = _parse_args()
     if args.data_path is None:
-        raise ValueError("Set DATA_ROOT or pass --data-path with the Cityscapes dataset root.")
+        raise ValueError("Set DATA_ROOT or pass --data-path with the selected dataset root.")
     if args.batch_size < 1:
         raise ValueError(f"Batch size must be positive, received {args.batch_size}.")
     if args.num_workers < 0:
@@ -819,20 +860,33 @@ def main() -> None:
     device = torch.device(args.device)
     model = _load_supported_model(args.checkpoint)
 
-    data_config = DataConfig(
-        path=args.data_path,
-        batch_size=max(2, args.batch_size),
-        num_workers=args.num_workers,
-        img_shape=tuple(args.image_shape),
-        filter_classes=True,
-        mean=IMAGENET_MEAN,
-        std=IMAGENET_STD,
-    )
-    validation_data = DatasetFactory.create(data_config, split=DataSplit.VAL)
-    parts_data = PanopticPartsDataset(
-        data_config, validation_data, official_parts_only=args.official_parts_only
-    )
-    print(f"Part labels: {'official Cityscapes parts only' if args.official_parts_only else 'all decoded part IDs'}")
+    semantic_class_offset = None
+    if args.dataset == "pascal_voc":
+        semantic_class_offset = _pascal_class_offset(model)
+        parts_data = PascalPartsDataset(
+            args.data_path,
+            parts_path=args.parts_path,
+            parts_spec=args.parts_spec,
+            image_shape=tuple(args.image_shape) if args.image_shape else None,
+            official_parts_only=args.official_parts_only,
+            mean=IMAGENET_MEAN,
+            std=IMAGENET_STD,
+        )
+        print(f"Pascal validation: {len(parts_data)} images with parts; {parts_data.num_missing_parts} without TIFFs.")
+        print("Pascal countable part IDs are folded using the dataset specification.")
+    else:
+        data_config = DataConfig(
+            path=args.data_path,
+            batch_size=max(2, args.batch_size),
+            num_workers=args.num_workers,
+            img_shape=tuple(args.image_shape),
+            filter_classes=True,
+            mean=IMAGENET_MEAN,
+            std=IMAGENET_STD,
+        )
+        validation_data = DatasetFactory.create(data_config, split=DataSplit.VAL)
+        parts_data = PanopticPartsDataset(data_config, validation_data, official_parts_only=args.official_parts_only)
+    print(f"Part labels: {'official parts only' if args.official_parts_only else 'all decoded positive part IDs'}")
     data_loader: DataLoader[Batch] = DataLoader(
         parts_data,
         batch_size=args.batch_size,
@@ -848,9 +902,32 @@ def main() -> None:
         consistency_threshold=args.threshold,
         device=device,
         used_prototypes_only=args.used_prototypes_only,
+        semantic_class_offset=semantic_class_offset,
     )
     output_dir = args.output_dir / "official_parts" if args.official_parts_only else args.output_dir
     result.save(output_dir)
+    if args.dataset == "pascal_voc":
+        # CSV image_index refers to this order after intersecting the two datasets.
+        output_dir.mkdir(parents=True, exist_ok=True)
+        (output_dir / "image_ids.txt").write_text("\n".join(parts_data.image_ids) + "\n")
+        (output_dir / "pascal_evaluation.json").write_text(
+            json.dumps(
+                {
+                    "dataset": args.dataset,
+                    "voc_root": str(parts_data.voc_root.resolve()),
+                    "parts_path": str(parts_data.parts_path.resolve()),
+                    "parts_spec": str(parts_data.parts_spec.resolve()),
+                    "num_images": len(parts_data),
+                    "num_missing_parts": parts_data.num_missing_parts,
+                    "image_shape": args.image_shape,
+                    "semantic_class_offset": semantic_class_offset,
+                    "official_parts_only": args.official_parts_only,
+                    "part_names": {f"{sid}:{pid}": name for (sid, pid), name in parts_data.part_names.items()},
+                },
+                indent=2,
+            )
+            + "\n"
+        )
 
     component_label = "concept assignments" if isinstance(model, ReProSeg) else "prototypes"
     print(
