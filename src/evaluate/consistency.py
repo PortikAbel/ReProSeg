@@ -39,6 +39,7 @@ from typing import TypeAlias
 import numpy as np
 import torch
 import torch.nn.functional as F
+from omegaconf import OmegaConf
 from torch import Tensor
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -52,6 +53,7 @@ from data.dataset.pascal_parts import PascalPartsDataset
 from evaluate.registry import register
 from model.model import ReProSeg
 from model.proto_segmentation import PPNet
+from utils.run_context import get_run_context
 
 logger = logging.getLogger(__name__)
 
@@ -342,6 +344,8 @@ class ConsistencyEvaluator:
             total=total,
             disable=not show_progress,
             desc="Computing prototype/concept consistency",
+            ncols=0,
+            file=get_run_context().tqdm_file,
         )
 
         for images, semantic_masks, part_masks in batches:
@@ -645,19 +649,26 @@ def run_consistency(
     return evaluator.evaluate(data_loader, show_progress=show_progress)
 
 
-def _load_supported_model(checkpoint_path: Path, model_cfg: ModelConfig | None = None) -> SupportedModel:
-    """Load a serialized PPNet or construct ReProSeg from its training checkpoint.
+def _load_checkpoint(checkpoint_path: Path) -> SupportedModel | Mapping:
+    """Load a checkpoint file: a serialized PPNet/ReProSeg object, or a state-dict mapping."""
+
+    _register_legacy_checkpoint_modules()
+    return torch.load(
+        checkpoint_path,
+        map_location="cpu",
+        weights_only=False,
+    )
+
+
+def _build_supported_model(
+    checkpoint: SupportedModel | Mapping, checkpoint_path: Path, model_cfg: ModelConfig | None = None
+) -> SupportedModel:
+    """Construct a PPNet or ReProSeg from an already-loaded training checkpoint.
 
     ``model_cfg`` supplies the architecture (backbone, etc.) when reconstructing a ReProSeg
     from a state dict; omit it to fall back to the default architecture.
     """
 
-    _register_legacy_checkpoint_modules()
-    checkpoint = torch.load(
-        checkpoint_path,
-        map_location="cpu",
-        weights_only=False,
-    )
     if isinstance(checkpoint, (PPNet, ReProSeg)):
         return checkpoint
 
@@ -751,6 +762,22 @@ def _pascal_class_offset(model: SupportedModel) -> int:
     return 21 - num_classes
 
 
+def _training_hparams(log_dir: Path) -> dict:
+    """Best-effort read of the original training run's resolved config snapshot.
+
+    Schema changes since training don't matter here: this is read as a plain dict for display,
+    never validated against the current config schema.
+    """
+    snapshot = log_dir / ".hydra" / "config.yaml"
+    if not snapshot.is_file():
+        return {}
+    try:
+        return OmegaConf.to_container(OmegaConf.load(snapshot), resolve=True)  # type: ignore[return-value]
+    except Exception:
+        logger.warning(f"Could not read training config snapshot at {snapshot}; omitting it from hparams.")
+        return {}
+
+
 @register("consistency")
 def run_consistency_evaluation(cfg: EvaluateConfig) -> ConsistencyResult:
     """Hydra-driven consistency evaluation: load a checkpoint and compute its part-consistency score."""
@@ -771,7 +798,8 @@ def run_consistency_evaluation(cfg: EvaluateConfig) -> ConsistencyResult:
         )
 
     device = torch.device(cfg.env.device)
-    model = _load_supported_model(cfg.model.checkpoint, model_cfg=cfg.model)
+    checkpoint = _load_checkpoint(cfg.model.checkpoint)
+    model = _build_supported_model(checkpoint, cfg.model.checkpoint, model_cfg=cfg.model)
 
     semantic_class_offset = None
     if cfg.data.dataset == DatasetType.VOC_SEGMENTATION:
@@ -823,11 +851,7 @@ def run_consistency_evaluation(cfg: EvaluateConfig) -> ConsistencyResult:
         semantic_class_offset=semantic_class_offset,
     )
 
-    output_dir = (
-        consistency_cfg.output_dir / "official_parts"
-        if consistency_cfg.official_parts_only
-        else consistency_cfg.output_dir
-    )
+    output_dir = get_run_context().consistency_dir(official_parts_only=consistency_cfg.official_parts_only)
     result.save(output_dir)
     if cfg.data.dataset == DatasetType.VOC_SEGMENTATION:
         # CSV image_index refers to this order after intersecting the two datasets.
@@ -858,4 +882,15 @@ def run_consistency_evaluation(cfg: EvaluateConfig) -> ConsistencyResult:
         f"({result.num_consistent_prototypes}/{result.num_evaluated_prototypes} {component_label})"
     )
     logger.info(f"Results written to {output_dir.resolve()}")
+
+    run = get_run_context()
+    hparams = {**_training_hparams(run.log_dir), **cfg.model_dump(exclude={"logging": {"path"}})}
+    run_name = f"consistency_qt_{consistency_cfg.quantile:g}_th_{consistency_cfg.threshold:g}" + (
+        "_official_parts" if consistency_cfg.official_parts_only else ""
+    )
+    metrics = {"consistency_score": result.score}
+    if isinstance(checkpoint, Mapping) and isinstance(checkpoint.get("best_miou"), (int, float)):
+        metrics["best_miou"] = checkpoint["best_miou"]
+    run.log_hparams(hparams, metrics, run_name=run_name)
+
     return result

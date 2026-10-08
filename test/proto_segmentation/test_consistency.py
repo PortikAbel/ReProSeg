@@ -122,9 +122,8 @@ def test_cityscapes_defaults_to_native_image_shape_when_unset(monkeypatch, tmp_p
     cfg = EvaluateConfig()
     cfg.model.checkpoint = Path("checkpoint.pth")
     cfg.env.device = torch.device("cpu")
-    cfg.evaluate.consistency.output_dir = tmp_path / "results"
 
-    monkeypatch.setattr(consistency, "_load_supported_model", lambda *args, **kwargs: DummyPPNet())
+    monkeypatch.setattr(consistency, "_load_checkpoint", lambda *args, **kwargs: DummyPPNet())
     captured = {}
 
     def fake_create(data_config, split):
@@ -283,18 +282,23 @@ def test_evaluator_computes_per_image_part_consistency(tmp_path: Path):
 
 
 @pytest.mark.parametrize("official_parts_only", [False, True])
-def test_evaluation_passes_part_selection_to_loader_and_separates_results(monkeypatch, tmp_path, official_parts_only):
+def test_evaluation_passes_part_selection_to_loader_and_separates_results(
+    monkeypatch, tmp_path, official_parts_only, mock_run_context
+):
     from evaluate import consistency
 
     output = tmp_path / "results"
+    mock_run_context.consistency_dir.side_effect = (
+        lambda official_parts_only=False: output / "official_parts" if official_parts_only else output
+    )
+
     cfg = EvaluateConfig()
     cfg.env.device = torch.device("cpu")
     cfg.model.checkpoint = Path("checkpoint.pth")
-    cfg.evaluate.consistency.output_dir = output
     cfg.evaluate.consistency.official_parts_only = official_parts_only
     cfg.evaluate.consistency.image_shape = CITYSCAPES_NATIVE_IMAGE_SHAPE
 
-    monkeypatch.setattr(consistency, "_load_supported_model", lambda *args, **kwargs: DummyPPNet())
+    monkeypatch.setattr(consistency, "_load_checkpoint", lambda *args, **kwargs: DummyPPNet())
     validation_data = object()
     monkeypatch.setattr(consistency.DatasetFactory, "create", lambda *args, **kwargs: validation_data)
     dataset = MagicMock()

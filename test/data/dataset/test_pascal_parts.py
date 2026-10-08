@@ -78,22 +78,27 @@ def test_pascal_rejects_wrong_class_order(voc_root):
 
 
 @pytest.mark.parametrize("official_only", [False, True])
-def test_pascal_evaluation_writes_scores_and_image_manifest(voc_root, tmp_path, monkeypatch, official_only):
+def test_pascal_evaluation_writes_scores_and_image_manifest(
+    voc_root, tmp_path, monkeypatch, official_only, mock_run_context
+):
     from evaluate import consistency
     from test.proto_segmentation.test_consistency import DummyPPNet
 
     model = DummyPPNet()
     model.prototype_class_identity = torch.zeros(2, 21)
     model.prototype_class_identity[0, 7] = 1
-    monkeypatch.setattr(consistency, "_load_supported_model", lambda *args, **kwargs: model)
+    monkeypatch.setattr(consistency, "_load_checkpoint", lambda *args, **kwargs: model)
 
     output = tmp_path / "results"
+    mock_run_context.consistency_dir.side_effect = (
+        lambda official_parts_only=False: output / "official_parts" if official_parts_only else output
+    )
+
     cfg = EvaluateConfig()
     cfg.data.dataset = DatasetType.VOC_SEGMENTATION
     cfg.data.path = voc_root
     cfg.env.device = torch.device("cpu")
     cfg.model.checkpoint = Path("pascal.pth")
-    cfg.evaluate.consistency.output_dir = output
     cfg.evaluate.consistency.official_parts_only = official_only
 
     consistency.run_consistency_evaluation(cfg)

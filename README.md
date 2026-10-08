@@ -76,12 +76,16 @@ src/scripts/train.sh env.gpu_id=0 training.learning_rates.classifier=0.01
 
 #### 5. Visualize or evaluate a trained checkpoint
 ```bash
-# Visualize prototypes for a trained checkpoint; reuses its exact training config
+# Visualize prototypes for a trained checkpoint, logging into its own run dir
 src/scripts/visualize.sh <run_dir>
 
-# Compute the consistency score for a checkpoint (ReProSeg or PPNet)
-src/scripts/evaluate.sh <checkpoint> evaluate=consistency data=pascal_voc
+# Compute the consistency score for a checkpoint (ReProSeg or PPNet), logging
+# the score into the training run's own TensorBoard hparams
+src/scripts/evaluate.sh <run_dir> evaluate.consistency.quantile=0.7 data=pascal_voc
 ```
+Both default to the `net_trained_best_miou` checkpoint under `<run_dir>/checkpoints/`
+(override with `model.checkpoint=<path>`), and pass the same `data=<dataset>`/`model=<...>`
+overrides used for training if they weren't the defaults.
 
 ### Environment Variables
 

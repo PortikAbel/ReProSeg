@@ -28,9 +28,6 @@ class ConsistencyEvalConfig(BaseConfig):
     official_parts_only: bool = Field(
         default=False, description="Keep only documented dataset semantic/part pairs"
     )
-    output_dir: Path = Field(
-        default=Path("consistency_results"), description="Directory for the score and per-image observations"
-    )
     batch_size: int = Field(default=1, ge=1, description="Evaluation batch size")
     num_workers: int = Field(default=0, ge=0, description="Number of dataloader workers")
     image_shape: Optional[tuple[int, int]] = Field(

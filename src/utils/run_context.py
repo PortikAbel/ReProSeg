@@ -23,6 +23,14 @@ def _flatten_hparams(value: Any, parent_key: str = "") -> Dict[str, Any]:
     return flat
 
 
+# Metric names ever logged via log_hparams, across every scenario. TensorBoard's hparams plugin
+# does not merge the metric schema across sessions - it arbitrarily picks one session's Experiment
+# proto (see tensorboard.plugins.hparams.backend_context._find_experiment_tag) - so every call must
+# declare this same full set (missing ones filled with NaN, rendered blank) or some metrics will
+# silently never appear as a HParams column, even though the scalar itself is still logged fine.
+KNOWN_HPARAM_METRICS = ("best_miou", "consistency_score")
+
+
 class RunContext:
     """Owns the artifacts of a run: checkpoints, TensorBoard events, tqdm output and prototypes."""
 
@@ -34,7 +42,7 @@ class RunContext:
         self.tensorboard_dir.mkdir(parents=True, exist_ok=True)
         self.hparams_dir.mkdir(parents=True, exist_ok=True)
 
-        self._tqdm_file = (self._log_dir / "tqdm.log").open(mode="w")
+        self._tqdm_file = (self._log_dir / "tqdm.log").open(mode="a")
         self._tensorboard_writer = SummaryWriter(log_dir=self.tensorboard_dir)
         self._hparams_writer = SummaryWriter(log_dir=str(self.hparams_dir))
 
@@ -62,17 +70,28 @@ class RunContext:
     def prototypes_dir(self) -> Path:
         return self._log_dir / "prototypes"
 
+    def consistency_dir(self, official_parts_only: bool = False) -> Path:
+        return self._log_dir / f"consistency{'_official_parts' if official_parts_only else ''}"
+
     def tb_scalar(self, tag, value, step):
         self._tensorboard_writer.add_scalar(tag, value, step)
 
-    def log_hparams(self, config: Dict[str, Any], metrics: Dict[str, float]) -> None:
+    def log_hparams(self, config: Dict[str, Any], metrics: Dict[str, float], run_name: str = ".") -> None:
         """Write flattened config + metrics so TensorBoard's HParams tab can compare runs.
 
-        Safe to call repeatedly (e.g. once per improvement) to keep the logged metrics up to date
-        while training is still in progress.
+        `run_name="."` (the default) writes into this run's own row, safe to call repeatedly
+        (e.g. once per improvement) to keep metrics up to date. Pass a distinct `run_name` to add
+        a separate row nested under this same run (e.g. one per evaluation sweep parameter).
+
+        Declares the full KNOWN_HPARAM_METRICS schema every time (missing ones as NaN) - see its
+        comment for why a partial metric_dict would make that metric disappear as a column.
+        Callers are responsible for passing the real value of any metric they can source
+        authoritatively (e.g. reading best_miou back from a checkpoint) rather than relying on
+        this call to remember a value logged by an earlier process.
         """
-        # run_name="." writes into the writer's own log_dir instead of a nested timestamp subdirectory
-        self._hparams_writer.add_hparams(_flatten_hparams(config), metrics, run_name=".")
+        full_metrics = {key: float("nan") for key in KNOWN_HPARAM_METRICS}
+        full_metrics.update(metrics)
+        self._hparams_writer.add_hparams(_flatten_hparams(config), full_metrics, run_name=run_name)
 
     def model_checkpoint(self, state_dict, name):
         torch.save(state_dict, self.checkpoint_dir / name)
