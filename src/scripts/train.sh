@@ -4,4 +4,4 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 
-sbatch --job-name=ReProSeg_train --gres=gpu:1 src/scripts/submit.sh -m train "$@"
+sbatch --job-name=ReProSeg_train --gres=gpu:1 src/scripts/_submit.sh -m train "$@"

@@ -8,5 +8,5 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 checkpoint="${1:?Usage: evaluate.sh <checkpoint> [hydra overrides...]}"
 shift
 
-sbatch --job-name=ReProSeg_evaluate --gres=gpu:1 src/scripts/submit.sh \
+sbatch --job-name=ReProSeg_evaluate --gres=gpu:1 src/scripts/_submit.sh \
   -m evaluate "model.checkpoint=${checkpoint}" "$@"

@@ -8,9 +8,9 @@
 #
 # Generic Slurm job: forwards everything after the script name to `uv run python`.
 # Submit directly for one-off runs, e.g.:
-#   sbatch src/scripts/submit.sh -m evaluate model.checkpoint=<path> evaluate=consistency
+#   sbatch src/scripts/_submit.sh -m evaluate model.checkpoint=<path> evaluate=consistency
 # Override resources on the sbatch command line (later flags win), e.g.:
-#   sbatch --gres=gpu:0 --mem=8G src/scripts/submit.sh -m evaluate ...
+#   sbatch --gres=gpu:0 --mem=8G src/scripts/_submit.sh -m evaluate ...
 # Prefer the train.sh / visualize.sh / evaluate.sh wrappers for the common cases.
 
 echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-none}"

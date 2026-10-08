@@ -8,5 +8,5 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 run_dir="${1:?Usage: visualize.sh <run_dir> [hydra overrides...]}"
 shift
 
-sbatch --job-name=ReProSeg_visualize --gres=gpu:1 src/scripts/submit.sh \
+sbatch --job-name=ReProSeg_visualize --gres=gpu:1 src/scripts/_submit.sh \
   -m visualize --config-path="${run_dir}/.hydra" --config-name=config "$@"

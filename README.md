@@ -27,59 +27,60 @@ uv sync
 
 The project uses [Hydra](https://hydra.cc/) for configuration management. The main configuration files are located in `config/hydra/`.
 
-There are three entry points, one per scenario. Training is normally run on its own; a trained
+There are three entry points, one per scenario, each submitted as a Slurm job via a script under
+`src/scripts/` (see [Slurm](#slurm) below). Training is normally run on its own; a trained
 checkpoint is then visualized and/or evaluated separately.
 
-- **train** (`uv run python -m train`): trains ReProSeg, producing checkpoints under the run's log directory.
-- **visualize** (`uv run python -m visualize`): loads a trained checkpoint and renders prototype visualizations.
-- **evaluate** (`uv run python -m evaluate`): loads a trained checkpoint and computes an interpretability metric (e.g. consistency score); works for ReProSeg or PPNet checkpoints.
+- **train** (`src/scripts/train.sh`): trains ReProSeg, producing checkpoints under the run's log directory.
+- **visualize** (`src/scripts/visualize.sh <run_dir>`): loads a trained checkpoint and renders prototype visualizations.
+- **evaluate** (`src/scripts/evaluate.sh <checkpoint>`): loads a trained checkpoint and computes an interpretability metric (e.g. consistency score); works for ReProSeg or PPNet checkpoints.
 
 Each has its own top-level config (`config/hydra/train.yaml`, `visualize.yaml`, `evaluate.yaml`), composed from shared config groups:
 
-- **env**, **data**, **model**: shared across all three scenarios
+- **env**, **data**, **model**, **logging**: shared across all three scenarios
 - **training**: train-only (epochs, optimizer, learning rates, resume)
 - **visualization**: visualize-only (top-k prototypes per concept)
 - **evaluate**: evaluate-only, selects a metric (e.g. `evaluate/consistency.yaml`)
-- **logging**: shared across all three scenarios
 
 ### Running with Different Configurations
 
+Hydra overrides are passed straight through to each script.
+
 #### 1. Train with the default configuration
 ```bash
-uv run python -m train
+src/scripts/train.sh
 ```
 
 #### 2. Custom root config file
 ```bash
-uv run python -m train --config-name=debug
+src/scripts/train.sh --config-name=debug
 ```
 
 #### 3. Override sub-configurations
 ```bash
 # Use fast training configuration
-uv run python -m train training=fast
+src/scripts/train.sh training=fast
 
 # Use a different data configuration
-uv run python -m train data=cityscapes
+src/scripts/train.sh data=cityscapes
 ```
 
 #### 4. Override individual parameters
 ```bash
 # Change batch size and epochs
-uv run python -m train data.batch_size=8 training.epochs.total=500
+src/scripts/train.sh data.batch_size=8 training.epochs.total=500
 
 # Change GPU ID and learning rate
-uv run python -m train env.gpu_id=0 training.learning_rates.classifier=0.01
+src/scripts/train.sh env.gpu_id=0 training.learning_rates.classifier=0.01
 ```
 
 #### 5. Visualize or evaluate a trained checkpoint
 ```bash
-# Visualize prototypes for a trained checkpoint; reuse its exact training
-# config by pointing Hydra at the run's own snapshot
-uv run python -m visualize --config-path=<run_dir>/.hydra --config-name=config
+# Visualize prototypes for a trained checkpoint; reuses its exact training config
+src/scripts/visualize.sh <run_dir>
 
 # Compute the consistency score for a checkpoint (ReProSeg or PPNet)
-uv run python -m evaluate model.checkpoint=<path> evaluate=consistency data=pascal_voc
+src/scripts/evaluate.sh <checkpoint> evaluate=consistency data=pascal_voc
 ```
 
 ### Environment Variables
@@ -88,30 +89,15 @@ The configuration system also supports environment variables:
 - Set `LOG_ROOT` environment variable to customize the log output directory
 - Neural Network Intelligence integration is supported via `NNI_TRIAL_JOB_ID`
 
-### Configuration Help
-
-To see all available configuration options and their current values:
-```bash
-uv run python -m train --help
-```
-
-To print the complete configuration that would be used:
-```bash
-uv run python -m train --cfg job
-```
-
 ## Slurm
 
-Each entry point has a submission wrapper under `src/scripts/`, backed by the generic
-`src/scripts/submit.sh` (just `#SBATCH` resource directives + `uv run python "$@"`):
-
+Each script submits a Slurm job via the generic `src/scripts/_submit.sh` (just `#SBATCH` resource
+directives + `uv run python "$@"`). Override resources on the sbatch command line if needed, e.g.:
 ```bash
-src/scripts/train.sh training=fast data=cityscapes
-src/scripts/visualize.sh <run_dir>
-src/scripts/evaluate.sh <checkpoint> evaluate=consistency data=pascal_voc
+sbatch --gres=gpu:0 --mem=8G src/scripts/_submit.sh -m evaluate ...
 ```
 
-One-off sweeps (e.g. over `--quantile`) are plain shell loops over `sbatch src/scripts/submit.sh -m evaluate ...`.
+One-off sweeps (e.g. over `--quantile`) are plain shell loops over `sbatch src/scripts/_submit.sh -m evaluate ...`.
 
 ## HPO
 
