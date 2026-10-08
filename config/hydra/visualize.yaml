@@ -1,29 +1,20 @@
+# Visualization entry point: load a trained checkpoint and render prototype images.
+# Point model.checkpoint at a checkpoint (and reuse its training run's `.hydra/config.yaml`
+# via `--config-path=<run_dir>/.hydra --config-name=config` to match the exact architecture).
 
 defaults:
   - env: default
-  - data: cityscapes
+  - data: pascal_voc
   - model: default
-  - training: default
-  - logging: default
   - visualization: default
+  - logging: default
   - override hydra/job_logging: experiment
   - _self_
 
-# Hydra configuration to use custom output directory
 hydra:
   run:
-    dir: ${oc.env:LOG_ROOT}/debug
+    dir: ${oc.env:LOG_ROOT}/${now:%Y_%m_%d-%H_%M_%S}
 
 env:
   gpu_id: 0
   seed: 1
-
-training:
-  skip_training: true
-
-visualization:
-  generate_explanations: true
-
-data:
-  img_shape: [512, 1024]
-  batch_size: 4
