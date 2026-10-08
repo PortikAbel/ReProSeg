@@ -3,5 +3,6 @@
 #   src/scripts/train.sh training=fast data=cityscapes
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+source src/scripts/_lib.sh
 
-sbatch --job-name=ReProSeg_train --gres=gpu:1 src/scripts/_submit.sh -m train "$@"
+sbatch_submit --job-name=ReProSeg_train --gres=gpu:1 src/scripts/_submit.sh -m train "$@"

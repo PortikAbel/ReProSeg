@@ -4,9 +4,10 @@
 #   src/scripts/evaluate.sh <checkpoint> evaluate=consistency data=pascal_voc
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+source src/scripts/_lib.sh
 
 checkpoint="${1:?Usage: evaluate.sh <checkpoint> [hydra overrides...]}"
 shift
 
-sbatch --job-name=ReProSeg_evaluate --gres=gpu:1 src/scripts/_submit.sh \
+sbatch_submit --job-name=ReProSeg_evaluate --gres=gpu:1 src/scripts/_submit.sh \
   -m evaluate "model.checkpoint=${checkpoint}" "$@"

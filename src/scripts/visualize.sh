@@ -4,9 +4,10 @@
 # <run_dir> is a training run's log directory (contains .hydra/ and checkpoints/).
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+source src/scripts/_lib.sh
 
 run_dir="${1:?Usage: visualize.sh <run_dir> [hydra overrides...]}"
 shift
 
-sbatch --job-name=ReProSeg_visualize --gres=gpu:1 src/scripts/_submit.sh \
+sbatch_submit --job-name=ReProSeg_visualize --gres=gpu:1 src/scripts/_submit.sh \
   -m visualize --config-path="${run_dir}/.hydra" --config-name=config "$@"
