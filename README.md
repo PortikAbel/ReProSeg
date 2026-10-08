@@ -25,76 +25,61 @@ uv sync
 
 ## Configuration
 
-The project uses [Hydra](https://hydra.cc/) for configuration management. The main configuration files are located in `src/config/yaml/`.
+The project uses [Hydra](https://hydra.cc/) for configuration management. The main configuration files are located in `config/hydra/`.
 
-### Configuration Structure
+There are three entry points, one per scenario. Training is normally run on its own; a trained
+checkpoint is then visualized and/or evaluated separately.
 
-The base configuration is defined in `src/config/yaml/config.yaml`, which uses Hydra's composition feature to combine multiple sub-configurations:
+- **train** (`uv run python -m train`): trains ReProSeg, producing checkpoints under the run's log directory.
+- **visualize** (`uv run python -m visualize`): loads a trained checkpoint and renders prototype visualizations.
+- **evaluate** (`uv run python -m evaluate`): loads a trained checkpoint and computes an interpretability metric (e.g. consistency score); works for ReProSeg or PPNet checkpoints.
 
-- **data**: Dataset and dataloader settings (`src/config/yaml/data/`)
-- **model**: Model architecture and parameters (`src/config/yaml/model/`)  
-- **training**: Training parameters and epochs (`src/config/yaml/training/`)
-- **logging**: Logging configuration (`src/config/yaml/logging/`)
+Each has its own top-level config (`config/hydra/train.yaml`, `visualize.yaml`, `evaluate.yaml`), composed from shared config groups:
+
+- **env**, **data**, **model**: shared across all three scenarios
+- **training**: train-only (epochs, optimizer, learning rates, resume)
+- **visualization**: visualize-only (top-k prototypes per concept)
+- **evaluate**: evaluate-only, selects a metric (e.g. `evaluate/consistency.yaml`)
+- **logging**: shared across all three scenarios
 
 ### Running with Different Configurations
 
-#### 1. Default Configuration
-Run with the default configuration defined in `config.yaml`:
+#### 1. Train with the default configuration
 ```bash
-uv run python src/scripts/run.py
+uv run python -m train
 ```
 
-#### 2. Custom Root Config File
-Different root configuration file can be used, for example debug configurations:
+#### 2. Custom root config file
 ```bash
-uv run python src/scripts/run.py --config-name=debug
+uv run python -m train --config-name=debug
 ```
 
-#### 3. Override Sub-configurations
-Override specific configuration groups from the default root config:
+#### 3. Override sub-configurations
 ```bash
 # Use fast training configuration
-uv run python src/scripts/run.py training=fast
+uv run python -m train training=fast
 
 # Use a different data configuration
-uv run python src/scripts/run.py data=other_dataset
-
-# Override multiple configuration groups
-uv run python src/scripts/run.py training=fast model=custom
+uv run python -m train data=cityscapes
 ```
 
-#### 4. Override Individual Parameters
-Override specific configuration parameters:
+#### 4. Override individual parameters
 ```bash
 # Change batch size and epochs
-uv run python src/scripts/run.py data.batch_size=8 training.epochs.total=500
+uv run python -m train data.batch_size=8 training.epochs.total=500
 
 # Change GPU ID and learning rate
-uv run python src/scripts/run.py env.gpu_id=0 training.learning_rates.classifier=0.01
-
-# Skip training and only run visualization
-uv run python src/scripts/run.py training.skip_training=true visualization.generate_explanations=true
-
-# Enable consistency score calculation
-uv run python src/scripts/run.py evaluation.consistency_score.calculate=true
+uv run python -m train env.gpu_id=0 training.learning_rates.classifier=0.01
 ```
 
-#### 5. Complex Configuration Override Examples
+#### 5. Visualize or evaluate a trained checkpoint
 ```bash
-# Fast training with custom batch size and GPU
-uv run python src/scripts/run.py training=fast data.batch_size=4 env.gpu_id=0
+# Visualize prototypes for a trained checkpoint; reuse its exact training
+# config by pointing Hydra at the run's own snapshot
+uv run python -m visualize --config-path=<run_dir>/.hydra --config-name=config
 
-# Custom training configuration with model parameters
-uv run python src/scripts/run.py \
-  training.epochs.total=200 \
-  training.epochs.pretrain=50 \
-  model.loss_weights.classification=5.0
-
-# Run only evaluation without training
-uv run python src/scripts/run.py \
-  training.skip_training=true \
-  visualization.generate_explanations=false \
-  evaluation.consistency_score.calculate=true
+# Compute the consistency score for a checkpoint (ReProSeg or PPNet)
+uv run python -m evaluate model.checkpoint=<path> evaluate=consistency data=pascal_voc
 ```
 
 ### Environment Variables
@@ -107,13 +92,26 @@ The configuration system also supports environment variables:
 
 To see all available configuration options and their current values:
 ```bash
-uv run python src/scripts/run.py --help
+uv run python -m train --help
 ```
 
 To print the complete configuration that would be used:
 ```bash
-uv run python src/scripts/run.py --cfg job
+uv run python -m train --cfg job
 ```
+
+## Slurm
+
+Each entry point has a submission wrapper under `src/scripts/`, backed by the generic
+`src/scripts/submit.sh` (just `#SBATCH` resource directives + `uv run python "$@"`):
+
+```bash
+src/scripts/train.sh training=fast data=cityscapes
+src/scripts/visualize.sh <run_dir>
+src/scripts/evaluate.sh <checkpoint> evaluate=consistency data=pascal_voc
+```
+
+One-off sweeps (e.g. over `--quantile`) are plain shell loops over `sbatch src/scripts/submit.sh -m evaluate ...`.
 
 ## HPO
 
