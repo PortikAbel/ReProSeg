@@ -20,10 +20,6 @@ class EnvironmentConfig(BaseConfig):
     )
     device: torch.device = Field(default=torch.device("cpu"), description="Computed device string (set at runtime)")
 
-    pretrained_backbones_dir: Path = Field(
-        default=Path("pretrained"), description="Directory to store pretrained backbone checkpoints"
-    )
-
     seed: int = Field(default=1, description="Random seed")
 
     @field_validator("gpu_id")

@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset as TorchDataset
 
-from config import ReProSegConfig
+from config import TrainConfig
 from config.schema.model import LossCriterion
 from data import DataLoader, Dataset, DoubleAugmentDataset
 from data.count_class_distribution import get_class_weights
@@ -20,7 +20,7 @@ from utils.run_context import get_run_context
 logger = logging.getLogger(__name__)
 
 
-def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDataset, cfg: ReProSegConfig):
+def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDataset, cfg: TrainConfig):
     run = get_run_context()
     double_augment_set = DoubleAugmentDataset(cfg.data, train_data)
     valid_set = Dataset(cfg.data, valid_data)
@@ -28,7 +28,7 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
     valid_loader = DataLoader(valid_set, cfg.data)
 
     optimizer_scheduler_manager = OptimizerSchedulerManager(net, len(train_loader) * cfg.training.epochs.pretrain)
-    if cfg.model.checkpoint is not None:
+    if cfg.training.resume:
         checkpoint = torch.load(cfg.model.checkpoint, map_location=cfg.env.device, weights_only=False)
         optimizer_scheduler_manager.load_state_dict(checkpoint)
 
@@ -74,7 +74,7 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
         checkpoint["model_state_dict"] = net.state_dict()
         return checkpoint
 
-    if cfg.model.checkpoint is None:
+    if not cfg.training.resume:
         net.eval()
         run.model_checkpoint(get_checkpoint(), "net_pretrained")
         net.train()
@@ -91,9 +91,7 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
     best_miou = 0.0
 
     for epoch in range(cfg.training.epochs.start, cfg.training.epochs.total + 1):
-        if epoch <= cfg.training.epochs.finetune and (
-            cfg.training.epochs.pretrain > 0 or cfg.model.checkpoint is not None
-        ):
+        if epoch <= cfg.training.epochs.finetune and (cfg.training.epochs.pretrain > 0 or cfg.training.resume):
             net.finetune()
         else:
             # unfreeze backbone
@@ -135,7 +133,9 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
             if eval_info.miou > best_miou:
                 best_miou = eval_info.miou
                 logger.info(f"Best mIoU so far: {best_miou}")
-                run.model_checkpoint(get_checkpoint(), "net_trained_best_miou")
+                checkpoint = get_checkpoint()
+                checkpoint["best_miou"] = best_miou
+                run.model_checkpoint(checkpoint, "net_trained_best_miou")
                 # Logged on every improvement so the HParams tab reflects progress while training is still running.
                 run.log_hparams(cfg.model_dump(exclude={"logging": {"path"}}), {"best_miou": best_miou})
 

@@ -25,77 +25,67 @@ uv sync
 
 ## Configuration
 
-The project uses [Hydra](https://hydra.cc/) for configuration management. The main configuration files are located in `src/config/yaml/`.
+The project uses [Hydra](https://hydra.cc/) for configuration management. The main configuration files are located in `config/hydra/`.
 
-### Configuration Structure
+There are three entry points, one per scenario, each submitted as a Slurm job via a script under
+`src/scripts/` (see [Slurm](#slurm) below). Training is normally run on its own; a trained
+checkpoint is then visualized and/or evaluated separately.
 
-The base configuration is defined in `src/config/yaml/config.yaml`, which uses Hydra's composition feature to combine multiple sub-configurations:
+- **train** (`src/scripts/train.sh`): trains ReProSeg, producing checkpoints under the run's log directory.
+- **visualize** (`src/scripts/visualize.sh <run_dir>`): loads a trained checkpoint and renders prototype visualizations.
+- **evaluate** (`src/scripts/evaluate.sh <checkpoint>`): loads a trained checkpoint and computes an interpretability metric (e.g. consistency score); works for ReProSeg or PPNet checkpoints.
 
-- **data**: Dataset and dataloader settings (`src/config/yaml/data/`)
-- **model**: Model architecture and parameters (`src/config/yaml/model/`)  
-- **training**: Training parameters and epochs (`src/config/yaml/training/`)
-- **logging**: Logging configuration (`src/config/yaml/logging/`)
+Each has its own top-level config (`config/hydra/train.yaml`, `visualize.yaml`, `evaluate.yaml`), composed from shared config groups:
+
+- **env**, **data**, **model**, **logging**: shared across all three scenarios
+- **training**: train-only (epochs, optimizer, learning rates, resume)
+- **visualization**: visualize-only (top-k prototypes per concept)
+- **evaluate**: evaluate-only, selects a metric (e.g. `evaluate/consistency.yaml`)
 
 ### Running with Different Configurations
 
-#### 1. Default Configuration
-Run with the default configuration defined in `config.yaml`:
+Hydra overrides are passed straight through to each script.
+
+#### 1. Train with the default configuration
 ```bash
-uv run python src/scripts/run.py
+src/scripts/train.sh
 ```
 
-#### 2. Custom Root Config File
-Different root configuration file can be used, for example debug configurations:
+#### 2. Custom root config file
 ```bash
-uv run python src/scripts/run.py --config-name=debug
+src/scripts/train.sh --config-name=debug
 ```
 
-#### 3. Override Sub-configurations
-Override specific configuration groups from the default root config:
+#### 3. Override sub-configurations
 ```bash
 # Use fast training configuration
-uv run python src/scripts/run.py training=fast
+src/scripts/train.sh training=fast
 
 # Use a different data configuration
-uv run python src/scripts/run.py data=other_dataset
-
-# Override multiple configuration groups
-uv run python src/scripts/run.py training=fast model=custom
+src/scripts/train.sh data=cityscapes
 ```
 
-#### 4. Override Individual Parameters
-Override specific configuration parameters:
+#### 4. Override individual parameters
 ```bash
 # Change batch size and epochs
-uv run python src/scripts/run.py data.batch_size=8 training.epochs.total=500
+src/scripts/train.sh data.batch_size=8 training.epochs.total=500
 
 # Change GPU ID and learning rate
-uv run python src/scripts/run.py env.gpu_id=0 training.learning_rates.classifier=0.01
-
-# Skip training and only run visualization
-uv run python src/scripts/run.py training.skip_training=true visualization.generate_explanations=true
-
-# Enable consistency score calculation
-uv run python src/scripts/run.py evaluation.consistency_score.calculate=true
+src/scripts/train.sh env.gpu_id=0 training.learning_rates.classifier=0.01
 ```
 
-#### 5. Complex Configuration Override Examples
+#### 5. Visualize or evaluate a trained checkpoint
 ```bash
-# Fast training with custom batch size and GPU
-uv run python src/scripts/run.py training=fast data.batch_size=4 env.gpu_id=0
+# Visualize prototypes for a trained checkpoint, logging into its own run dir
+src/scripts/visualize.sh <run_dir>
 
-# Custom training configuration with model parameters
-uv run python src/scripts/run.py \
-  training.epochs.total=200 \
-  training.epochs.pretrain=50 \
-  model.loss_weights.classification=5.0
-
-# Run only evaluation without training
-uv run python src/scripts/run.py \
-  training.skip_training=true \
-  visualization.generate_explanations=false \
-  evaluation.consistency_score.calculate=true
+# Compute the consistency score for a checkpoint (ReProSeg or PPNet), logging
+# the score into the training run's own TensorBoard hparams
+src/scripts/evaluate.sh <run_dir> evaluate.consistency.quantile=0.7 data=pascal_voc
 ```
+Both default to the `net_trained_best_miou` checkpoint under `<run_dir>/checkpoints/`
+(override with `model.checkpoint=<path>`), and pass the same `data=<dataset>`/`model=<...>`
+overrides used for training if they weren't the defaults.
 
 ### Environment Variables
 
@@ -103,17 +93,15 @@ The configuration system also supports environment variables:
 - Set `LOG_ROOT` environment variable to customize the log output directory
 - Neural Network Intelligence integration is supported via `NNI_TRIAL_JOB_ID`
 
-### Configuration Help
+## Slurm
 
-To see all available configuration options and their current values:
+Each script submits a Slurm job via the generic `src/scripts/_submit.sh` (just `#SBATCH` resource
+directives + `uv run python "$@"`). Override resources on the sbatch command line if needed, e.g.:
 ```bash
-uv run python src/scripts/run.py --help
+sbatch --gres=gpu:0 --mem=8G src/scripts/_submit.sh -m evaluate ...
 ```
 
-To print the complete configuration that would be used:
-```bash
-uv run python src/scripts/run.py --cfg job
-```
+One-off sweeps (e.g. over `--quantile`) are plain shell loops over `sbatch src/scripts/_submit.sh -m evaluate ...`.
 
 ## HPO
 

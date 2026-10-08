@@ -1,0 +1,10 @@
+# Part-consistency score (ScaleProtoSeg-style) for ReProSeg or PPNet checkpoints
+
+metric_name: consistency
+consistency:
+  quantile: 0.8
+  threshold: 0.8
+  used_prototypes_only: false
+  official_parts_only: false
+  batch_size: 1
+  num_workers: 0

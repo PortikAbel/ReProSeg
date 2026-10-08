@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from config import ReProSegConfig
+from config import TrainConfig
 
 
 @pytest.fixture
@@ -34,15 +34,19 @@ def mock_run_context(temp_dir: Path, monkeypatch):
     stub.log_dir = temp_dir
     stub.checkpoint_dir = temp_dir / "checkpoints"
     stub.tensorboard_dir = temp_dir / "tensorboard"
+    stub.hparams_dir = temp_dir / "tensorboard" / "hparams"
     stub.prototypes_dir = temp_dir / "prototypes"
+    stub.consistency_dir.side_effect = (
+        lambda official_parts_only=False: temp_dir / f"consistency{'_official_parts' if official_parts_only else ''}"
+    )
     monkeypatch.setattr(run_context, "_run_context", stub)
     yield stub
 
 
 @pytest.fixture
-def mock_config() -> ReProSegConfig:
-    """Create a mock ReProSegConfig for testing with reasonable defaults."""
-    cfg = ReProSegConfig()
+def mock_config() -> TrainConfig:
+    """Create a mock TrainConfig for testing with reasonable defaults."""
+    cfg = TrainConfig()
     cfg.data.filter_classes = True
     return cfg
 
