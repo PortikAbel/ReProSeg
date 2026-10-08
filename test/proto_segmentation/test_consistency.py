@@ -8,17 +8,18 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from model.model import NonNegConv1x1, ReProSeg
-from model.proto_segmentation import PPNet
-from visualize.consistency import (
+from config import EvaluateConfig
+from config.schema.data import DatasetType
+from evaluate.consistency import (
     CITYSCAPES_NATIVE_IMAGE_SHAPE,
     ConsistencyEvaluator,
-    _parse_args,
     _pascal_class_offset,
     _register_legacy_checkpoint_modules,
     connected_component_centroids,
     quantile_activation_mask,
 )
+from model.model import NonNegConv1x1, ReProSeg
+from model.proto_segmentation import PPNet
 
 
 class DummyPPNet(PPNet):
@@ -103,25 +104,43 @@ def test_quantile_activation_mask_excludes_out_of_class_pixels_from_quantile():
     assert not active[:, ~semantic_mask].any()
 
 
-def test_cli_defaults_to_native_cityscapes_resolution(monkeypatch):
-    monkeypatch.setattr(sys, "argv", ["visualize.consistency", "checkpoint.pth"])
+def test_pascal_batch_guard_rejects_non_unit_batch_without_image_shape():
+    from evaluate import consistency
 
-    args = _parse_args()
+    cfg = EvaluateConfig()
+    cfg.data.dataset = DatasetType.VOC_SEGMENTATION
+    cfg.model.checkpoint = Path("checkpoint.pth")
+    cfg.evaluate.consistency.batch_size = 2
 
-    assert tuple(args.image_shape) == CITYSCAPES_NATIVE_IMAGE_SHAPE
-    assert args.batch_size == 1
-    assert args.official_parts_only is False
+    with pytest.raises(ValueError, match="variable sizes"):
+        consistency.run_consistency_evaluation(cfg)
 
 
-def test_pascal_cli_defaults_and_variable_batch_guard(monkeypatch):
-    argv = ["consistency", "checkpoint.pth", "--dataset", "pascal_voc"]
-    monkeypatch.setattr(sys, "argv", argv)
-    args = _parse_args()
-    assert args.image_shape is None
-    assert args.batch_size == 1
-    monkeypatch.setattr(sys, "argv", [*argv, "--batch-size", "2"])
-    with pytest.raises(SystemExit):
-        _parse_args()
+def test_cityscapes_defaults_to_native_image_shape_when_unset(monkeypatch, tmp_path):
+    from evaluate import consistency
+
+    cfg = EvaluateConfig()
+    cfg.model.checkpoint = Path("checkpoint.pth")
+    cfg.env.device = torch.device("cpu")
+    cfg.evaluate.consistency.output_dir = tmp_path / "results"
+
+    monkeypatch.setattr(consistency, "_load_supported_model", lambda *args, **kwargs: DummyPPNet())
+    captured = {}
+
+    def fake_create(data_config, split):
+        captured["img_shape"] = data_config.img_shape
+        return object()
+
+    monkeypatch.setattr(consistency.DatasetFactory, "create", fake_create)
+    monkeypatch.setattr(consistency, "PanopticPartsDataset", MagicMock())
+    monkeypatch.setattr(consistency, "DataLoader", MagicMock())
+    result = MagicMock()
+    result.score = 0.5
+    monkeypatch.setattr(consistency, "run_consistency", MagicMock(return_value=result))
+
+    consistency.run_consistency_evaluation(cfg)
+
+    assert captured["img_shape"] == CITYSCAPES_NATIVE_IMAGE_SHAPE
 
 
 @pytest.mark.parametrize("num_classes", [20, 21])
@@ -264,30 +283,33 @@ def test_evaluator_computes_per_image_part_consistency(tmp_path: Path):
 
 
 @pytest.mark.parametrize("official_parts_only", [False, True])
-def test_cli_passes_part_selection_to_loader_and_separates_results(monkeypatch, tmp_path, official_parts_only):
-    from visualize import consistency
+def test_evaluation_passes_part_selection_to_loader_and_separates_results(monkeypatch, tmp_path, official_parts_only):
+    from evaluate import consistency
 
     output = tmp_path / "results"
-    argv = ["visualize.consistency", "checkpoint.pth", "--device", "cpu", "--output-dir", str(output)]
-    if official_parts_only:
-        argv.append("--official-parts-only")
-    monkeypatch.setattr(sys, "argv", argv)
-    monkeypatch.setattr(consistency, "_load_supported_model", lambda _: DummyPPNet())
+    cfg = EvaluateConfig()
+    cfg.env.device = torch.device("cpu")
+    cfg.model.checkpoint = Path("checkpoint.pth")
+    cfg.evaluate.consistency.output_dir = output
+    cfg.evaluate.consistency.official_parts_only = official_parts_only
+    cfg.evaluate.consistency.image_shape = CITYSCAPES_NATIVE_IMAGE_SHAPE
+
+    monkeypatch.setattr(consistency, "_load_supported_model", lambda *args, **kwargs: DummyPPNet())
     validation_data = object()
     monkeypatch.setattr(consistency.DatasetFactory, "create", lambda *args, **kwargs: validation_data)
     dataset = MagicMock()
     monkeypatch.setattr(consistency, "PanopticPartsDataset", dataset)
     loader = MagicMock()
     monkeypatch.setattr(consistency, "DataLoader", loader)
-    evaluate = MagicMock()
-    evaluate.return_value.score = 0.5
-    monkeypatch.setattr(consistency, "run_consistency", evaluate)
+    evaluate_mock = MagicMock()
+    evaluate_mock.return_value.score = 0.5
+    monkeypatch.setattr(consistency, "run_consistency", evaluate_mock)
 
-    consistency.main()
+    consistency.run_consistency_evaluation(cfg)
 
     assert dataset.call_args.args[1] is validation_data
     assert dataset.call_args.kwargs["official_parts_only"] is official_parts_only
     assert loader.call_args.args[0] is dataset.return_value
-    assert evaluate.call_args.args[1] is loader.return_value
+    assert evaluate_mock.call_args.args[1] is loader.return_value
     expected_output = output / "official_parts" if official_parts_only else output
-    evaluate.return_value.save.assert_called_once_with(expected_output)
+    evaluate_mock.return_value.save.assert_called_once_with(expected_output)

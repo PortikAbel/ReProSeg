@@ -1,5 +1,4 @@
 import json
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -7,6 +6,8 @@ import pytest
 import torch
 from PIL import Image
 
+from config import EvaluateConfig
+from config.schema.data import DatasetType
 from data.dataset.pascal_parts import PascalPartsDataset
 
 
@@ -77,31 +78,25 @@ def test_pascal_rejects_wrong_class_order(voc_root):
 
 
 @pytest.mark.parametrize("official_only", [False, True])
-def test_pascal_cli_writes_scores_and_image_manifest(voc_root, tmp_path, monkeypatch, official_only):
+def test_pascal_evaluation_writes_scores_and_image_manifest(voc_root, tmp_path, monkeypatch, official_only):
+    from evaluate import consistency
     from test.proto_segmentation.test_consistency import DummyPPNet
-    from visualize import consistency
 
     model = DummyPPNet()
     model.prototype_class_identity = torch.zeros(2, 21)
     model.prototype_class_identity[0, 7] = 1
-    monkeypatch.setattr(consistency, "_load_supported_model", lambda _: model)
+    monkeypatch.setattr(consistency, "_load_supported_model", lambda *args, **kwargs: model)
+
     output = tmp_path / "results"
-    argv = [
-        "consistency",
-        "pascal.pth",
-        "--dataset",
-        "pascal_voc",
-        "--data-path",
-        str(voc_root),
-        "--output-dir",
-        str(output),
-        "--device",
-        "cpu",
-    ]
-    if official_only:
-        argv.append("--official-parts-only")
-    monkeypatch.setattr(sys, "argv", argv)
-    consistency.main()
+    cfg = EvaluateConfig()
+    cfg.data.dataset = DatasetType.VOC_SEGMENTATION
+    cfg.data.path = voc_root
+    cfg.env.device = torch.device("cpu")
+    cfg.model.checkpoint = Path("pascal.pth")
+    cfg.evaluate.consistency.output_dir = output
+    cfg.evaluate.consistency.official_parts_only = official_only
+
+    consistency.run_consistency_evaluation(cfg)
 
     if official_only:
         output = output / "official_parts"

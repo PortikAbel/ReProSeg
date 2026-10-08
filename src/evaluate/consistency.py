@@ -22,15 +22,12 @@ classes having part annotations enter the denominator.  For output-schema
 compatibility, ReProSeg concept indices are stored in ``prototype_id`` fields.
 """
 
-# ruff: noqa: E402
-
 from __future__ import annotations
 
-import argparse
 import csv
 import importlib
 import json
-import os
+import logging
 import sys
 from collections import defaultdict, deque
 from collections.abc import Iterable, Mapping, Sequence, Sized
@@ -39,34 +36,30 @@ from pathlib import Path
 from types import ModuleType
 from typing import TypeAlias
 
-# When this file is executed directly, its directory would otherwise take
-# precedence over ``src`` and make ``import utils`` resolve to
-# ``visualize/utils.py`` instead of the project's ``utils`` package.
-if __package__ in {None, ""}:
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
 import numpy as np
 import torch
 import torch.nn.functional as F
-from dotenv import load_dotenv
 from torch import Tensor
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from config.schema.data import DataConfig
+from config import EvaluateConfig
+from config.schema.data import DataConfig, DatasetType
+from config.schema.model import ModelConfig
 from data import DataSplit, PanopticPartsDataset
 from data.dataset.factory import DatasetFactory
 from data.dataset.pascal_parts import PascalPartsDataset
+from evaluate.registry import register
 from model.model import ReProSeg
 from model.proto_segmentation import PPNet
+
+logger = logging.getLogger(__name__)
 
 Batch: TypeAlias = tuple[Tensor, Tensor, Tensor]
 AccumulatorKey: TypeAlias = tuple[int, int, int]
 ComponentClassKey: TypeAlias = tuple[int, int]
 SupportedModel: TypeAlias = PPNet | ReProSeg
 CITYSCAPES_NATIVE_IMAGE_SHAPE = (1024, 2048)
-IMAGENET_MEAN = (0.485, 0.456, 0.406)
-IMAGENET_STD = (0.229, 0.224, 0.225)
 
 
 @dataclass(frozen=True)
@@ -652,8 +645,12 @@ def run_consistency(
     return evaluator.evaluate(data_loader, show_progress=show_progress)
 
 
-def _load_supported_model(checkpoint_path: Path) -> SupportedModel:
-    """Load a serialized PPNet or construct ReProSeg from its training checkpoint."""
+def _load_supported_model(checkpoint_path: Path, model_cfg: ModelConfig | None = None) -> SupportedModel:
+    """Load a serialized PPNet or construct ReProSeg from its training checkpoint.
+
+    ``model_cfg`` supplies the architecture (backbone, etc.) when reconstructing a ReProSeg
+    from a state dict; omit it to fall back to the default architecture.
+    """
 
     _register_legacy_checkpoint_modules()
     checkpoint = torch.load(
@@ -680,9 +677,9 @@ def _load_supported_model(checkpoint_path: Path) -> SupportedModel:
             f"Checkpoint {checkpoint_path} is neither a serialized PPNet nor a recognizable ReProSeg checkpoint."
         )
 
-    from config import ReProSegConfig
+    from config import BaseScenarioConfig
 
-    config = ReProSegConfig()
+    config = BaseScenarioConfig(model=model_cfg) if model_cfg is not None else BaseScenarioConfig()
     config.env.device = torch.device("cpu")
     config.data.num_classes = int(classifier_weight.shape[0])
     config.model.checkpoint = None
@@ -742,13 +739,6 @@ def _register_legacy_checkpoint_modules() -> None:
     legacy_segmentation.__dict__["utils"] = legacy_utils
 
 
-def _default_data_path(dataset: str = "cityscapes") -> Path | None:
-    data_root = os.environ.get("DATA_ROOT")
-    if not data_root:
-        return None
-    return Path(data_root) / "Cityscapes" if dataset == "cityscapes" else Path(data_root)
-
-
 def _pascal_class_offset(model: SupportedModel) -> int:
     """VOC models may have 20 foreground classes or 21 including background."""
     num_classes = (
@@ -761,167 +751,100 @@ def _pascal_class_offset(model: SupportedModel) -> int:
     return 21 - num_classes
 
 
-def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Evaluate prototype/concept part consistency on Cityscapes or Pascal VOC."
-    )
-    parser.add_argument(
-        "checkpoint",
-        type=Path,
-        help="Trusted serialized PPNet or ReProSeg training checkpoint containing model_state_dict.",
-    )
-    parser.add_argument(
-        "--dataset",
-        choices=("cityscapes", "pascal_voc"),
-        default="cityscapes",
-        help="Dataset to evaluate (default: cityscapes).",
-    )
-    parser.add_argument(
-        "--data-path",
-        type=Path,
-        help="Cityscapes root, or Pascal data root/VOCdevkit/VOC2012. Defaults to DATA_ROOT for Pascal.",
-    )
-    parser.add_argument(
-        "--parts-path", type=Path, help="Pascal validation TIFF directory; default: VOC2012/labels/val."
-    )
-    parser.add_argument("--parts-spec", type=Path, help="Pascal PPP v2 specification; default: VOC2012/parts.yaml.")
-    parser.add_argument(
-        "--output-dir",
-        type=Path,
-        default=Path("consistency_results"),
-        help="Directory for the score, per-image observations, and aggregate CSV.",
-    )
-    parser.add_argument("--quantile", type=float, default=0.8)
-    parser.add_argument("--threshold", type=float, default=0.8)
-    parser.add_argument(
-        "--official-parts-only",
-        action="store_true",
-        help=(
-            "Keep only documented dataset semantic/part pairs. By default, all decoded "
-            "positive part IDs are used. Filtered results go in an official_parts subdirectory."
-        ),
-    )
-    parser.add_argument(
-        "--batch-size",
-        type=int,
-        default=1,
-        help="Evaluation batch size. Native-resolution evaluation defaults to one image per batch.",
-    )
-    parser.add_argument("--num-workers", type=int, default=0)
-    parser.add_argument(
-        "--image-shape",
-        type=int,
-        nargs=2,
-        metavar=("HEIGHT", "WIDTH"),
-        help=(
-            "Center crop HEIGHT WIDTH, padding smaller images. Defaults to native resolution: "
-            "1024x2048 for Cityscapes and variable sizes for Pascal (batch size 1)."
-        ),
-    )
-    parser.add_argument(
-        "--device",
-        default="cuda" if torch.cuda.is_available() else "cpu",
-        help="Torch device, for example cpu, cuda, or cuda:1.",
-    )
-    parser.add_argument(
-        "--used-prototypes-only",
-        action="store_true",
-        help=(
-            "For PPNet, restrict the denominator to prototypes with a positive final-layer connection. "
-            "ReProSeg concepts are always selected through active concept-to-class connections."
-        ),
-    )
-    args = parser.parse_args()
-    if args.data_path is None:
-        args.data_path = _default_data_path(args.dataset)
-    if args.image_shape is None and args.dataset == "cityscapes":
-        args.image_shape = CITYSCAPES_NATIVE_IMAGE_SHAPE
-    if args.image_shape is not None and min(args.image_shape) < 1:
-        parser.error("--image-shape dimensions must be positive.")
-    if args.dataset == "cityscapes" and (args.parts_path is not None or args.parts_spec is not None):
-        parser.error("--parts-path and --parts-spec apply only to --dataset pascal_voc.")
-    if args.dataset == "pascal_voc" and args.image_shape is None and args.batch_size != 1:
-        parser.error("Native Pascal images have variable sizes; use --batch-size 1 or provide --image-shape.")
-    return args
+@register("consistency")
+def run_consistency_evaluation(cfg: EvaluateConfig) -> ConsistencyResult:
+    """Hydra-driven consistency evaluation: load a checkpoint and compute its part-consistency score."""
 
+    consistency_cfg = cfg.evaluate.consistency
+    if consistency_cfg.batch_size < 1:
+        raise ValueError(f"Batch size must be positive, received {consistency_cfg.batch_size}.")
+    if consistency_cfg.num_workers < 0:
+        raise ValueError(f"Number of workers cannot be negative, received {consistency_cfg.num_workers}.")
+    if (
+        cfg.data.dataset == DatasetType.VOC_SEGMENTATION
+        and consistency_cfg.image_shape is None
+        and consistency_cfg.batch_size != 1
+    ):
+        raise ValueError(
+            "Native Pascal images have variable sizes; use evaluate.consistency.batch_size=1 "
+            "or set evaluate.consistency.image_shape."
+        )
 
-def main() -> None:
-    """CLI entry point using validation images with matching part annotations."""
-
-    load_dotenv()
-    args = _parse_args()
-    if args.data_path is None:
-        raise ValueError("Set DATA_ROOT or pass --data-path with the selected dataset root.")
-    if args.batch_size < 1:
-        raise ValueError(f"Batch size must be positive, received {args.batch_size}.")
-    if args.num_workers < 0:
-        raise ValueError(f"Number of workers cannot be negative, received {args.num_workers}.")
-
-    device = torch.device(args.device)
-    model = _load_supported_model(args.checkpoint)
+    device = torch.device(cfg.env.device)
+    model = _load_supported_model(cfg.model.checkpoint, model_cfg=cfg.model)
 
     semantic_class_offset = None
-    if args.dataset == "pascal_voc":
+    if cfg.data.dataset == DatasetType.VOC_SEGMENTATION:
         semantic_class_offset = _pascal_class_offset(model)
         parts_data = PascalPartsDataset(
-            args.data_path,
-            parts_path=args.parts_path,
-            parts_spec=args.parts_spec,
-            image_shape=tuple(args.image_shape) if args.image_shape else None,
-            official_parts_only=args.official_parts_only,
-            mean=IMAGENET_MEAN,
-            std=IMAGENET_STD,
+            cfg.data.path,
+            parts_path=consistency_cfg.parts_path,
+            parts_spec=consistency_cfg.parts_spec,
+            image_shape=consistency_cfg.image_shape,
+            official_parts_only=consistency_cfg.official_parts_only,
+            mean=cfg.data.mean,
+            std=cfg.data.std,
         )
-        print(f"Pascal validation: {len(parts_data)} images with parts; {parts_data.num_missing_parts} without TIFFs.")
-        print("Pascal countable part IDs are folded using the dataset specification.")
+        logger.info(
+            f"Pascal validation: {len(parts_data)} images with parts; "
+            f"{parts_data.num_missing_parts} without TIFFs."
+        )
     else:
+        image_shape = consistency_cfg.image_shape or CITYSCAPES_NATIVE_IMAGE_SHAPE
         data_config = DataConfig(
-            path=args.data_path,
-            batch_size=max(2, args.batch_size),
-            num_workers=args.num_workers,
-            img_shape=tuple(args.image_shape),
+            path=cfg.data.path,
+            batch_size=max(2, consistency_cfg.batch_size),
+            num_workers=consistency_cfg.num_workers,
+            img_shape=image_shape,
             filter_classes=True,
-            mean=IMAGENET_MEAN,
-            std=IMAGENET_STD,
+            mean=cfg.data.mean,
+            std=cfg.data.std,
         )
         validation_data = DatasetFactory.create(data_config, split=DataSplit.VAL)
-        parts_data = PanopticPartsDataset(data_config, validation_data, official_parts_only=args.official_parts_only)
-    print(f"Part labels: {'official parts only' if args.official_parts_only else 'all decoded positive part IDs'}")
+        parts_data = PanopticPartsDataset(
+            data_config, validation_data, official_parts_only=consistency_cfg.official_parts_only
+        )
+
     data_loader: DataLoader[Batch] = DataLoader(
         parts_data,
-        batch_size=args.batch_size,
+        batch_size=consistency_cfg.batch_size,
         shuffle=False,
-        num_workers=args.num_workers,
+        num_workers=consistency_cfg.num_workers,
         pin_memory=device.type == "cuda",
     )
 
     result = run_consistency(
         model,
         data_loader,
-        activation_quantile=args.quantile,
-        consistency_threshold=args.threshold,
+        activation_quantile=consistency_cfg.quantile,
+        consistency_threshold=consistency_cfg.threshold,
         device=device,
-        used_prototypes_only=args.used_prototypes_only,
+        used_prototypes_only=consistency_cfg.used_prototypes_only,
         semantic_class_offset=semantic_class_offset,
     )
-    output_dir = args.output_dir / "official_parts" if args.official_parts_only else args.output_dir
+
+    output_dir = (
+        consistency_cfg.output_dir / "official_parts"
+        if consistency_cfg.official_parts_only
+        else consistency_cfg.output_dir
+    )
     result.save(output_dir)
-    if args.dataset == "pascal_voc":
+    if cfg.data.dataset == DatasetType.VOC_SEGMENTATION:
         # CSV image_index refers to this order after intersecting the two datasets.
         output_dir.mkdir(parents=True, exist_ok=True)
         (output_dir / "image_ids.txt").write_text("\n".join(parts_data.image_ids) + "\n")
         (output_dir / "pascal_evaluation.json").write_text(
             json.dumps(
                 {
-                    "dataset": args.dataset,
+                    "dataset": "pascal_voc",
                     "voc_root": str(parts_data.voc_root.resolve()),
                     "parts_path": str(parts_data.parts_path.resolve()),
                     "parts_spec": str(parts_data.parts_spec.resolve()),
                     "num_images": len(parts_data),
                     "num_missing_parts": parts_data.num_missing_parts,
-                    "image_shape": args.image_shape,
+                    "image_shape": consistency_cfg.image_shape,
                     "semantic_class_offset": semantic_class_offset,
-                    "official_parts_only": args.official_parts_only,
+                    "official_parts_only": consistency_cfg.official_parts_only,
                     "part_names": {f"{sid}:{pid}": name for (sid, pid), name in parts_data.part_names.items()},
                 },
                 indent=2,
@@ -930,12 +853,9 @@ def main() -> None:
         )
 
     component_label = "concept assignments" if isinstance(model, ReProSeg) else "prototypes"
-    print(
+    logger.info(
         f"Consistency score: {result.score:.6f} "
         f"({result.num_consistent_prototypes}/{result.num_evaluated_prototypes} {component_label})"
     )
-    print(f"Results written to {output_dir.resolve()}")
-
-
-if __name__ == "__main__":
-    main()
+    logger.info(f"Results written to {output_dir.resolve()}")
+    return result

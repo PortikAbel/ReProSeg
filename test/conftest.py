@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from config import ReProSegConfig
+from config import TrainConfig
 
 
 @pytest.fixture
@@ -40,9 +40,9 @@ def mock_run_context(temp_dir: Path, monkeypatch):
 
 
 @pytest.fixture
-def mock_config() -> ReProSegConfig:
-    """Create a mock ReProSegConfig for testing with reasonable defaults."""
-    cfg = ReProSegConfig()
+def mock_config() -> TrainConfig:
+    """Create a mock TrainConfig for testing with reasonable defaults."""
+    cfg = TrainConfig()
     cfg.data.filter_classes = True
     return cfg
 
