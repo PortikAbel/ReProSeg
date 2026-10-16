@@ -16,9 +16,11 @@ class-specific prototype or class-concept assignment, the evaluator:
    hit in more than the configured fraction of images in which that part is
    annotated.
 
-The score is the fraction of evaluated prototypes or class-concept
-assignments that are consistent.  Only components associated with semantic
-classes having part annotations enter the denominator.  For output-schema
+For ReProSeg, the score is the number of distinct concepts consistent for at
+least one evaluated class divided by the number of distinct concepts in the
+evaluated assignments. Detailed results retain separate class-concept pairs.
+PPNet uses the fraction of evaluated prototype/class assignments that are
+consistent. Only assignments with part observations are evaluated. For output-schema
 compatibility, ReProSeg concept indices are stored in ``prototype_id`` fields.
 """
 
@@ -580,8 +582,12 @@ class ConsistencyEvaluator:
                 )
             )
 
-        num_evaluated = len(prototype_results)
-        num_consistent = sum(prototype.consistent for prototype in prototype_results)
+        if isinstance(self.model, ReProSeg):
+            num_evaluated = len({prototype.prototype_id for prototype in prototype_results})
+            num_consistent = len({prototype.prototype_id for prototype in prototype_results if prototype.consistent})
+        else:
+            num_evaluated = len(prototype_results)
+            num_consistent = sum(prototype.consistent for prototype in prototype_results)
         score = num_consistent / num_evaluated if num_evaluated else 0.0
 
         return ConsistencyResult(
@@ -876,10 +882,10 @@ def run_consistency_evaluation(cfg: EvaluateConfig) -> ConsistencyResult:
             + "\n"
         )
 
-    component_label = "concept assignments" if isinstance(model, ReProSeg) else "prototypes"
+    component_label = "distinct concepts" if isinstance(model, ReProSeg) else "prototypes"
     logger.info(
         f"Consistency score: {result.score:.6f} "
-        f"({result.num_consistent_prototypes}/{result.num_evaluated_prototypes} {component_label})"
+        f"({result.num_consistent_prototypes}/{result.num_evaluated_prototypes} consistent {component_label})"
     )
     logger.info(f"Results written to {output_dir.resolve()}")
 
