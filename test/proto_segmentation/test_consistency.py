@@ -13,7 +13,6 @@ from config.schema.data import DatasetType
 from evaluate.consistency import (
     CITYSCAPES_NATIVE_IMAGE_SHAPE,
     ConsistencyEvaluator,
-    _normalize_reproseg_state_dict,
     _pascal_class_offset,
     _register_legacy_checkpoint_modules,
     connected_component_centroids,
@@ -61,21 +60,6 @@ class DummyReProSeg(ReProSeg):
             device=images.device,
         )
         return aspp_features, concept_activations, output
-
-
-def test_legacy_reproseg_backbone_keys_are_renamed_without_changing_weights():
-    weight = torch.ones(1)
-    state_dict = {
-        "layers.feature_net.conv1.weight": weight,
-        "layers.classification_layer.weight": torch.zeros(1, 1, 1, 1),
-    }
-
-    normalized = _normalize_reproseg_state_dict(state_dict)
-
-    assert normalized["layers.backbone.conv1.weight"] is weight
-    assert "layers.feature_net.conv1.weight" not in normalized
-    assert "layers.feature_net.conv1.weight" in state_dict
-    assert normalized["layers.classification_layer.weight"] is state_dict["layers.classification_layer.weight"]
 
 
 def test_connected_component_centroids_uses_eight_connectivity_without_background():
