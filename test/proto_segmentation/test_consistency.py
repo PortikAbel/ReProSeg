@@ -13,6 +13,7 @@ from config.schema.data import DatasetType
 from evaluate.consistency import (
     CITYSCAPES_NATIVE_IMAGE_SHAPE,
     ConsistencyEvaluator,
+    _normalize_reproseg_state_dict,
     _pascal_class_offset,
     _register_legacy_checkpoint_modules,
     connected_component_centroids,
@@ -60,6 +61,21 @@ class DummyReProSeg(ReProSeg):
             device=images.device,
         )
         return aspp_features, concept_activations, output
+
+
+def test_legacy_reproseg_backbone_keys_are_renamed_without_changing_weights():
+    weight = torch.ones(1)
+    state_dict = {
+        "layers.feature_net.conv1.weight": weight,
+        "layers.classification_layer.weight": torch.zeros(1, 1, 1, 1),
+    }
+
+    normalized = _normalize_reproseg_state_dict(state_dict)
+
+    assert normalized["layers.backbone.conv1.weight"] is weight
+    assert "layers.feature_net.conv1.weight" not in normalized
+    assert "layers.feature_net.conv1.weight" in state_dict
+    assert normalized["layers.classification_layer.weight"] is state_dict["layers.classification_layer.weight"]
 
 
 def test_connected_component_centroids_uses_eight_connectivity_without_background():
@@ -192,12 +208,17 @@ def test_legacy_checkpoint_modules_resolve_to_new_locations(monkeypatch):
         assert importlib.import_module(legacy_module) is sys.modules[current_module]
 
 
-def test_reproseg_uses_active_class_concept_assignments():
-    model = DummyReProSeg()
+@pytest.mark.parametrize("second_class_hit", [False, True])
+def test_reproseg_counts_distinct_evaluated_and_consistent_concepts(second_class_hit):
+    model = DummyReProSeg(num_concepts=3)
     model.layers.classification_layer.weight.data[1, 0] = 1
     model.layers.classification_layer.weight.data[2, 0] = 2
+    model.layers.classification_layer.weight.data[1, 2] = 0
+    # Used only for background: no part observations, so excluded from the denominator.
+    model.layers.classification_layer.weight.data[0, 1] = 0
     images = torch.zeros(2, 3, 5, 5)
-    images[:, 0, 2, 2] = 1
+    images[0, 0, 2, 2] = 1
+    images[1, 0, 2, 2] = int(second_class_hit)
     semantic_masks = torch.empty(2, 1, 5, 5, dtype=torch.long)
     semantic_masks[0] = 1
     semantic_masks[1] = 2
@@ -216,10 +237,15 @@ def test_reproseg_uses_active_class_concept_assignments():
         show_progress=False,
     )
 
-    assert result.score == 1
+    # Concept 0 passes for one or both classes and counts once either way.
+    # Concept 2 fails; background-only concept 1 has no observations and is excluded.
+    assert result.score == 0.5
+    assert result.num_consistent_prototypes == 1
     assert result.num_evaluated_prototypes == 2
+    assert sum(component.consistent for component in result.prototype_consistency) == 1 + int(second_class_hit)
     assert {(component.class_id, component.prototype_id) for component in result.prototype_consistency} == {
         (1, 0),
+        (1, 2),
         (2, 0),
     }
 

@@ -311,12 +311,10 @@ class ConsistencyEvaluator:
                     f"{tuple(self.model.layers.classification_layer.weight.shape)}."
                 )
 
-            # ReProSeg's NonNegConv1x1 uses the sign of the raw parameter to
-            # identify active concept-to-class connections.  A concept may be
-            # connected to more than one class, so consistency is tracked per
-            # class-concept pair.
             identity = classifier_weights.T >= self.model.layers.classification_layer.MIN_CLASSIFICATION_WEIGHT
-            used_component_mask = identity.any(dim=1)
+            used_concepts = self.model.layers.classification_layer.used_concepts.detach().to(device="cpu")
+            used_component_mask = torch.zeros(self.num_components, dtype=torch.bool)
+            used_component_mask[used_concepts] = True
 
         self.component_class_identity = identity
         self.used_component_mask = used_component_mask
