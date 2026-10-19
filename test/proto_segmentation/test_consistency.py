@@ -15,9 +15,8 @@ from evaluate.consistency import (
     ConsistencyEvaluator,
     _pascal_class_offset,
     _register_legacy_checkpoint_modules,
-    connected_component_centroids,
-    quantile_activation_mask,
 )
+from evaluate.utils import connected_component_centroids, quantile_activation_mask
 from model.model import NonNegConv1x1, ReProSeg
 from model.proto_segmentation import PPNet
 
