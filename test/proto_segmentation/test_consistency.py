@@ -10,11 +10,11 @@ from torch.nn import functional as F
 
 from config import EvaluateConfig
 from config.schema.data import DatasetType
+from evaluate.checkpoint import _register_legacy_checkpoint_modules
 from evaluate.consistency import (
     CITYSCAPES_NATIVE_IMAGE_SHAPE,
     ConsistencyEvaluator,
     _pascal_class_offset,
-    _register_legacy_checkpoint_modules,
 )
 from evaluate.utils import connected_component_centroids, quantile_activation_mask
 from model.model import NonNegConv1x1, ReProSeg
