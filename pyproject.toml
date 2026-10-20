@@ -35,6 +35,7 @@ dev = [
 
 [tool.ruff]
 line-length = 120
+extend-exclude = ["src/model/segmentation_features/deeplab_pytorch"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B"]
@@ -42,6 +43,7 @@ select = ["E", "F", "I", "B"]
 [tool.mypy]
 mypy_path = "src"
 explicit_package_bases = true
+exclude = ["^src/model/segmentation_features/deeplab_pytorch/"]
 
 [[tool.mypy.overrides]]
 module = ["torchvision.*", "tqdm.*"]
