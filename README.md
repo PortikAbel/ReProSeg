@@ -18,7 +18,15 @@ pip install uv
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
    
-#### 3. Install the dependencies using uv:
+#### 3. Initialize the Git submodules:
+The DeepLabV2 backbone is provided by a Git submodule. From the repository root, run:
+```bash
+git submodule update --init --recursive
+```
+
+For a fresh clone, use `git clone --recurse-submodules` to initialize submodules during checkout.
+
+#### 4. Install the dependencies using uv:
 ```bash
 uv sync
 ```
