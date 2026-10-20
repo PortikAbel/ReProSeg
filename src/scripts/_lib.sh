@@ -1,8 +1,8 @@
 #!/bin/bash
 # Shared helpers for the sbatch wrapper scripts.
 
-# `--nodelist` has no SBATCH_* environment variable equivalent, so it must be
-# passed explicitly on every sbatch invocation; wrap sbatch here to avoid repeating that.
+# Honors SLURM_NODE_LIST, then SBATCH_NODELIST, as --nodelist.
 sbatch_submit() {
-  sbatch ${SLURM_NODE_LIST:+--nodelist="${SLURM_NODE_LIST}"} "$@"
+  local nodelist="${SLURM_NODE_LIST:-${SBATCH_NODELIST:-}}"
+  sbatch ${nodelist:+--nodelist="${nodelist}"} "$@"
 }
