@@ -3,14 +3,16 @@
 Run: python create_visualizations.py [LOG_FOLDER]
 Outputs are written to LOG_FOLDER/visualizations. Requires numpy and matplotlib.
 """
+
 import argparse
-import shlex
 import csv
 import json
+import shlex
 from collections import Counter, defaultdict
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -28,9 +30,11 @@ OVERALL = {}
 # LabelMapping retains background at index 0; Cityscapes training IDs shift by 1.
 CLASSES = {12: "Person", 13: "Rider", 14: "Car", 15: "Truck", 16: "Bus"}
 # One-based order from src/data/dataset/panoptic_parts.py:CITYSCAPES_PARTS.
-PARTS = {12: ("Torso", "Head", "Arm", "Leg"),
-         13: ("Torso", "Head", "Arm", "Leg"),
-         **{c: ("Window", "Wheel", "Light", "License plate", "Chassis") for c in (14, 15, 16)}}
+PARTS = {
+    12: ("Torso", "Head", "Arm", "Leg"),
+    13: ("Torso", "Head", "Arm", "Leg"),
+    **{c: ("Window", "Wheel", "Light", "License plate", "Chassis") for c in (14, 15, 16)},
+}
 QCOLORS = ("#258579", "#326bb0", "#a85b27")
 CCOLORS = {12: "#326bb0", 13: "#8053a5", 14: "#258579", 15: "#a85b27", 16: "#aa4c70"}
 
@@ -49,15 +53,13 @@ def read_csv(path):
                 continue
             part = int(column.removeprefix("part_"))
             assert part > 0, f"Unexpected populated background part: {path}"
-            record = dict(class_id=class_ids[row["class"].lower()],
-                          prototype_id=int(row["proto_id"]), part_id=part)
+            record = dict(class_id=class_ids[row["class"].lower()], prototype_id=int(row["proto_id"]), part_id=part)
             if "img_id" in row:
                 assert float(value) in (0, 1)
                 record.update(image_index=row["img_id"], present=str(bool(float(value))))
             else:
                 assert float(row["is_consistent"]) in (0, 1)
-                record.update(mean_presence=value,
-                              is_consistent=str(bool(float(row["is_consistent"]))))
+                record.update(mean_presence=value, is_consistent=str(bool(float(row["is_consistent"]))))
             normalized.append(record)
     return normalized
 
@@ -147,18 +149,22 @@ def save(fig, name, pdf):
 
 def heatmaps(values, prototypes, pdf):
     total_prototypes = sum(map(len, prototypes.values()))
-    height = min(200, max(17, 2 * len(CLASSES) + .25 * total_prototypes))
+    height = min(200, max(17, 2 * len(CLASSES) + 0.25 * total_prototypes))
     cell_font = min(9, max(3, height * 30 / total_prototypes))
-    fig, axes = plt.subplots(len(CLASSES), 3, squeeze=False, figsize=(24, height),
-                             gridspec_kw={"height_ratios": [len(prototypes[c]) + 1 for c in CLASSES]})
+    fig, axes = plt.subplots(
+        len(CLASSES),
+        3,
+        squeeze=False,
+        figsize=(24, height),
+        gridspec_kw={"height_ratios": [len(prototypes[c]) + 1 for c in CLASSES]},
+    )
     cmap = plt.get_cmap("Blues").copy()
     cmap.set_bad("#d5d5d5")
     records = []
     for i, c in enumerate(CLASSES):
         for j, q in enumerate(QUANTILES):
             ax = axes[i, j]
-            data = np.array([[values[q].get((c, p, part), np.nan) for part in PARTS[c]]
-                             for p in prototypes[c]])
+            data = np.array([[values[q].get((c, p, part), np.nan) for part in PARTS[c]] for p in prototypes[c]])
             ax.imshow(np.ma.masked_invalid(data), cmap=cmap, vmin=0, vmax=1, aspect="auto", interpolation="none")
             ax.set_xticks(range(len(PARTS[c])), [s.replace(" ", "\n") for s in PARTS[c].values()], fontsize=9)
             if len(PARTS[c]) > 8:
@@ -169,22 +175,57 @@ def heatmaps(values, prototypes, pdf):
             for row, proto in enumerate(prototypes[c]):
                 for col, part in enumerate(PARTS[c]):
                     v = data[row, col]
-                    ax.text(col, row, f"{v:.0%}" if np.isfinite(v) else "—", ha="center", va="center",
-                            fontsize=cell_font, color="white" if v > .58 else "#16212d")
+                    ax.text(
+                        col,
+                        row,
+                        f"{v:.0%}" if np.isfinite(v) else "—",
+                        ha="center",
+                        va="center",
+                        fontsize=cell_font,
+                        color="white" if v > 0.58 else "#16212d",
+                    )
                     if v > THRESHOLD:
-                        ax.add_patch(Rectangle((col - .45, row - .45), .9, .9, fill=False, edgecolor="#f2a900", linewidth=2.4))
-                    records.append(dict(quantile=q, class_name=CLASSES[c], prototype_id=proto,
-                                        part_id=part, part_name=PARTS[c][part], mean_presence=v,
-                                        above_threshold=bool(v > THRESHOLD)))
+                        ax.add_patch(
+                            Rectangle(
+                                (col - 0.45, row - 0.45), 0.9, 0.9, fill=False, edgecolor="#f2a900", linewidth=2.4
+                            )
+                        )
+                    records.append(
+                        dict(
+                            quantile=q,
+                            class_name=CLASSES[c],
+                            prototype_id=proto,
+                            part_id=part,
+                            part_name=PARTS[c][part],
+                            mean_presence=v,
+                            above_threshold=bool(v > THRESHOLD),
+                        )
+                    )
             for spine in ax.spines.values():
                 spine.set_visible(False)
-    fig.suptitle("Which parts does each prototype repeatedly activate on?", fontsize=21, x=.07, ha="left", y=.983)
-    fig.text(.07, .955, f"{LABEL}  ·  Rows: prototypes  ·  Cells: activation frequency among images where the part is available", fontsize=11)
-    fig.subplots_adjust(left=.07, right=.93, top=.925, bottom=.115, hspace=.77, wspace=.26)
-    cax = fig.add_axes((.31, .065, .4, .012))
-    cb = fig.colorbar(plt.cm.ScalarMappable(norm=Normalize(0, 1), cmap=cmap), cax=cax, orientation="horizontal", format=PercentFormatter(1))
+    fig.suptitle("Which parts does each prototype repeatedly activate on?", fontsize=21, x=0.07, ha="left", y=0.983)
+    fig.text(
+        0.07,
+        0.955,
+        f"{LABEL}  ·  Rows: prototypes  ·  Cells: activation frequency among images where the part is available",
+        fontsize=11,
+    )
+    fig.subplots_adjust(left=0.07, right=0.93, top=0.925, bottom=0.115, hspace=0.77, wspace=0.26)
+    cax = fig.add_axes((0.31, 0.065, 0.4, 0.012))
+    cb = fig.colorbar(
+        plt.cm.ScalarMappable(norm=Normalize(0, 1), cmap=cmap),
+        cax=cax,
+        orientation="horizontal",
+        format=PercentFormatter(1),
+    )
     cb.set_label("Activation frequency", fontsize=10)
-    fig.text(.5, .015, "Gold outline: exact frequency > 80%. Cell labels are rounded. Gray: unavailable.\nA prototype passes if any part exceeds 80%; several parts can pass.", ha="center", fontsize=10)
+    fig.text(
+        0.5,
+        0.015,
+        "Gold outline: exact frequency > 80%. Cell labels are rounded. Gray: unavailable.\nA prototype passes if any part exceeds 80%; several parts can pass.",
+        ha="center",
+        fontsize=10,
+    )
     save(fig, "01_prototype_part_heatmaps", pdf)
     write_csv("01_heatmap_values.csv", records)
 
@@ -195,26 +236,53 @@ def class_bars(stats, pdf):
     records = []
     for j, q in enumerate(QUANTILES):
         rates = [stats[q][c][0] / stats[q][c][1] for c in CLASSES]
-        bars = ax.bar(xs + (j - 1) * .24, rates, width=.22, color=QCOLORS[j], label=f"Quantile {q}", zorder=3)
+        bars = ax.bar(xs + (j - 1) * 0.24, rates, width=0.22, color=QCOLORS[j], label=f"Quantile {q}", zorder=3)
         for bar, c in zip(bars, CLASSES):
             yes, n = stats[q][c]
-            ax.annotate(f"{yes}/{n}", (bar.get_x() + bar.get_width() / 2, bar.get_height()),
-                        xytext=(0, 6 + j * 12), textcoords="offset points", ha="center", fontsize=8, weight="bold")
-            records.append(dict(quantile=q, class_name=CLASSES[c], consistent_prototypes=yes,
-                                total_prototypes=n, consistency_fraction=yes / n))
-    ax.set_xticks(xs, [f"{CLASSES[c]}\n{stats[.7][c][1]} prototypes" for c in CLASSES], fontsize=9, rotation=25, ha="right")
+            ax.annotate(
+                f"{yes}/{n}",
+                (bar.get_x() + bar.get_width() / 2, bar.get_height()),
+                xytext=(0, 6 + j * 12),
+                textcoords="offset points",
+                ha="center",
+                fontsize=8,
+                weight="bold",
+            )
+            records.append(
+                dict(
+                    quantile=q,
+                    class_name=CLASSES[c],
+                    consistent_prototypes=yes,
+                    total_prototypes=n,
+                    consistency_fraction=yes / n,
+                )
+            )
+    ax.set_xticks(
+        xs, [f"{CLASSES[c]}\n{stats[0.7][c][1]} prototypes" for c in CLASSES], fontsize=9, rotation=25, ha="right"
+    )
     ax.set_ylim(0, 1.15)
-    ax.set_yticks(np.arange(0, 1.01, .2))
+    ax.set_yticks(np.arange(0, 1.01, 0.2))
     ax.yaxis.set_major_formatter(PercentFormatter(1))
     ax.set_ylabel("Share of prototypes that are consistent")
-    ax.grid(axis="y", alpha=.2, zorder=0)
+    ax.grid(axis="y", alpha=0.2, zorder=0)
     ax.spines[["top", "right"]].set_visible(False)
     ax.legend(loc="upper left", frameon=False)
-    fig.suptitle("Consistency by object class", fontsize=21, x=.09, ha="left", y=.96)
-    fig.text(.09, .90, "A prototype is consistent when at least one part has activation frequency strictly above 80%.", fontsize=11)
+    fig.suptitle("Consistency by object class", fontsize=21, x=0.09, ha="left", y=0.96)
+    fig.text(
+        0.09,
+        0.90,
+        "A prototype is consistent when at least one part has activation frequency strictly above 80%.",
+        fontsize=11,
+    )
     totals = [(q, *OVERALL[q]) for q in QUANTILES]
-    fig.text(.09, .045, "Overall (each prototype counted once):  " + "    |    ".join(f"q={q}: {a}/{b} ({a/b:.1%})" for q, a, b in totals), fontsize=11)
-    fig.subplots_adjust(left=.09, right=.97, top=.84, bottom=.18)
+    fig.text(
+        0.09,
+        0.045,
+        "Overall (each prototype counted once):  "
+        + "    |    ".join(f"q={q}: {a}/{b} ({a / b:.1%})" for q, a, b in totals),
+        fontsize=11,
+    )
+    fig.subplots_adjust(left=0.09, right=0.97, top=0.84, bottom=0.18)
     save(fig, "02_consistency_by_class", pdf)
     write_csv("02_class_consistency.csv", records)
 
@@ -231,37 +299,71 @@ def prototype_lines(values, prototypes, pdf):
                 best = max(ps.values())
                 names = [PARTS[c][part] for part, val in ps.items() if abs(val - best) < 1e-12]
                 scores.append(best)
-                records.append(dict(quantile=q, class_name=CLASSES[c], prototype_id=proto,
-                                    max_part_frequency=best, best_parts="; ".join(names), consistent=best > THRESHOLD))
-            ax.plot(QUANTILES, scores, marker="o", markersize=6, linewidth=1.9,
-                    color=plt.get_cmap("tab10")(idx), linestyle="-" if idx < 5 else "--", label=f"P{proto}")
+                records.append(
+                    dict(
+                        quantile=q,
+                        class_name=CLASSES[c],
+                        prototype_id=proto,
+                        max_part_frequency=best,
+                        best_parts="; ".join(names),
+                        consistent=best > THRESHOLD,
+                    )
+                )
+            ax.plot(
+                QUANTILES,
+                scores,
+                marker="o",
+                markersize=6,
+                linewidth=1.9,
+                color=plt.get_cmap("tab10")(idx),
+                linestyle="-" if idx < 5 else "--",
+                label=f"P{proto}",
+            )
         ax.axhline(THRESHOLD, color="#595959", linestyle=(0, (3, 3)), linewidth=1.3, zorder=0)
         ax.set_title(f"{CLASSES[c]} · {len(prototypes[c])} prototypes", loc="left", fontsize=13, weight="bold")
-        ax.set_xlim(.685, .915)
+        ax.set_xlim(0.685, 0.915)
         ax.set_ylim(0, 1.03)
         ax.set_xticks(QUANTILES)
-        ax.set_yticks(np.arange(0, 1.01, .2))
+        ax.set_yticks(np.arange(0, 1.01, 0.2))
         ax.yaxis.set_major_formatter(PercentFormatter(1))
-        ax.grid(alpha=.17)
+        ax.grid(alpha=0.17)
         ax.spines[["top", "right"]].set_visible(False)
         ax.set_xlabel("Activation quantile")
         ax.set_ylabel("Highest part activation frequency")
         if len(prototypes[c]) <= 20:
-            ax.legend(loc="upper center", bbox_to_anchor=(.5, -.21), ncols=5 if len(prototypes[c]) > 6 else 3, frameon=False, fontsize=9)
+            ax.legend(
+                loc="upper center",
+                bbox_to_anchor=(0.5, -0.21),
+                ncols=5 if len(prototypes[c]) > 6 else 3,
+                frameon=False,
+                fontsize=9,
+            )
     axes.flat[len(CLASSES)].axis("off")
-    axes.flat[len(CLASSES)].text(.05, .88, "Reading this plot", weight="bold", fontsize=15, va="top")
-    axes.flat[len(CLASSES)].text(.05, .74, "One line = one prototype.\n\nEach point is its strongest part score\nat that quantile. The strongest part\ncan change between points.\n\nDashed gray line = 80% cutoff.\nPoints must be above it to pass.\n\nHigher quantiles retain fewer activated\npixels. Lines connect the three evaluated\nsettings; they are not training curves.", fontsize=12, linespacing=1.5, va="top")
-    for extra_ax in list(axes.flat)[len(CLASSES) + 1:]:
+    axes.flat[len(CLASSES)].text(0.05, 0.88, "Reading this plot", weight="bold", fontsize=15, va="top")
+    axes.flat[len(CLASSES)].text(
+        0.05,
+        0.74,
+        "One line = one prototype.\n\nEach point is its strongest part score\nat that quantile. The strongest part\ncan change between points.\n\nDashed gray line = 80% cutoff.\nPoints must be above it to pass.\n\nHigher quantiles retain fewer activated\npixels. Lines connect the three evaluated\nsettings; they are not training curves.",
+        fontsize=12,
+        linespacing=1.5,
+        va="top",
+    )
+    for extra_ax in list(axes.flat)[len(CLASSES) + 1 :]:
         extra_ax.axis("off")
-    fig.suptitle("Which prototypes stay consistent at stricter quantiles?", fontsize=21, x=.07, ha="left", y=.978)
-    fig.text(.07, .945, f"{LABEL}  ·  Maximum part frequency for each of the {sum(map(len, prototypes.values()))} evaluated prototypes", fontsize=11)
-    fig.subplots_adjust(left=.08, right=.97, top=.90, bottom=.10, hspace=.75, wspace=.23)
+    fig.suptitle("Which prototypes stay consistent at stricter quantiles?", fontsize=21, x=0.07, ha="left", y=0.978)
+    fig.text(
+        0.07,
+        0.945,
+        f"{LABEL}  ·  Maximum part frequency for each of the {sum(map(len, prototypes.values()))} evaluated prototypes",
+        fontsize=11,
+    )
+    fig.subplots_adjust(left=0.08, right=0.97, top=0.90, bottom=0.10, hspace=0.75, wspace=0.23)
     save(fig, "03_prototype_scores_across_quantiles", pdf)
     write_csv("03_prototype_scores.csv", records)
 
 
 def support_bars(supports, prototypes, pdf):
-    fig, ax = plt.subplots(figsize=(14, max(11, .3 * len(supports) + 3)))
+    fig, ax = plt.subplots(figsize=(14, max(11, 0.3 * len(supports) + 3)))
     positions, labels, numbers, colors, records = [], [], [], [], []
     y = 0
     for c in CLASSES:
@@ -271,23 +373,35 @@ def support_bars(supports, prototypes, pdf):
             labels.append(f"{CLASSES[c]} / {name}")
             numbers.append(n)
             colors.append(CCOLORS[c])
-            records.append(dict(class_name=CLASSES[c], part_id=part, part_name=name,
-                                usable_images=n, evaluated_prototypes=len(prototypes[c])))
+            records.append(
+                dict(
+                    class_name=CLASSES[c],
+                    part_id=part,
+                    part_name=name,
+                    usable_images=n,
+                    evaluated_prototypes=len(prototypes[c]),
+                )
+            )
             y += 1
-        y += .65
-    bars = ax.barh(positions, numbers, color=colors, height=.73, zorder=3)
+        y += 0.65
+    bars = ax.barh(positions, numbers, color=colors, height=0.73, zorder=3)
     ax.bar_label(bars, padding=6, fontsize=10)
     ax.set_yticks(positions, labels, fontsize=10)
     ax.invert_yaxis()
     ax.set_xlim(0, max(numbers) * 1.13)
     ax.set_xlabel("Unique images with an available part annotation", fontsize=11, labelpad=12)
-    ax.grid(axis="x", alpha=.2, zorder=0)
+    ax.grid(axis="x", alpha=0.2, zorder=0)
     ax.spines[["top", "right", "left"]].set_visible(False)
     ax.tick_params(axis="y", length=0)
-    fig.suptitle("How many images support each part score?", fontsize=21, x=.08, ha="left", y=.975)
-    fig.text(.08, .937, f"{LABEL}  ·  The available image sets are identical at all three quantiles", fontsize=11)
-    fig.text(.08, .018, "Counts include both activated and non-activated observations. Each image is counted once per class–part pair,\nregardless of how many prototypes were evaluated. These are the denominators used for the part frequencies.", fontsize=10)
-    fig.subplots_adjust(left=.24, right=.97, top=.90, bottom=.14)
+    fig.suptitle("How many images support each part score?", fontsize=21, x=0.08, ha="left", y=0.975)
+    fig.text(0.08, 0.937, f"{LABEL}  ·  The available image sets are identical at all three quantiles", fontsize=11)
+    fig.text(
+        0.08,
+        0.018,
+        "Counts include both activated and non-activated observations. Each image is counted once per class–part pair,\nregardless of how many prototypes were evaluated. These are the denominators used for the part frequencies.",
+        fontsize=10,
+    )
+    fig.subplots_adjust(left=0.24, right=0.97, top=0.90, bottom=0.14)
     save(fig, "04_usable_images_by_part", pdf)
     write_csv("04_usable_images.csv", records)
 
@@ -296,21 +410,26 @@ def main(argv=None):
     global SOURCE, OUT, LABEL, PARTS, CLASSES, CCOLORS
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "log_folder", nargs="?", type=Path,
+        "log_folder",
+        nargs="?",
+        type=Path,
         default=Path(__file__).resolve().parent.parent,
         help="Log directory (default: the script's parent log directory).",
     )
-    parser.add_argument("--parts-spec", type=Path,
-                        help="Pascal parts YAML specification for native wide CSV logs (requires PyYAML).")
+    parser.add_argument(
+        "--parts-spec", type=Path, help="Pascal parts YAML specification for native wide CSV logs (requires PyYAML)."
+    )
     parser.add_argument("--label", help="Dataset/model label shown on the figures.")
     args = parser.parse_args(argv)
     SOURCE = args.log_folder.expanduser().resolve()
     if not SOURCE.is_dir():
         parser.error(f"Log directory does not exist: {SOURCE}")
     for q in QUANTILES:
-        for pattern in ("part_presence_th_0.8_qt_{}.csv",
-                        "part_presence_mean_th_0.8_qt_{}.csv",
-                        "consistency_score_th_0.8_qt_{}.txt"):
+        for pattern in (
+            "part_presence_th_0.8_qt_{}.csv",
+            "part_presence_mean_th_0.8_qt_{}.csv",
+            "consistency_score_th_0.8_qt_{}.txt",
+        ):
             path = SOURCE / pattern.format(q)
             if not path.is_file():
                 parser.error(f"Missing required log file: {path}")
@@ -319,17 +438,18 @@ def main(argv=None):
     if args.label:
         LABEL = args.label
     # Include additional observed IDs without inventing anatomical names.
-    official_parts = {12: ("Torso", "Head", "Arm", "Leg"),
-                      13: ("Torso", "Head", "Arm", "Leg"),
-                      **{c: ("Window", "Wheel", "Light", "License plate", "Chassis")
-                         for c in (14, 15, 16)}}
+    official_parts = {
+        12: ("Torso", "Head", "Arm", "Leg"),
+        13: ("Torso", "Head", "Arm", "Leg"),
+        **{c: ("Window", "Wheel", "Light", "License plate", "Chassis") for c in (14, 15, 16)},
+    }
     metadata_path = SOURCE / "pascal_evaluation.json"
     if args.parts_spec is not None:
         import yaml
+
         spec = yaml.safe_load(args.parts_spec.expanduser().read_text())
         specification = list(spec["scene_class2part_classes"].items())[:20]
-        CLASSES = {c: ("diningtable" if name == "table" else name)
-                   for c, (name, _) in enumerate(specification, 1)}
+        CLASSES = {c: ("diningtable" if name == "table" else name) for c, (name, _) in enumerate(specification, 1)}
         observed = defaultdict(set)
         for q in QUANTILES:
             for row in read_csv(SOURCE / f"part_presence_mean_th_0.8_qt_{q}.csv"):
@@ -338,21 +458,44 @@ def main(argv=None):
         PARTS = {}
         for c in CLASSES:
             names = dict(enumerate(specification[c - 1][1], 1))
-            PARTS[c] = {part: names.get(part, f"Part {part} (unmapped)")
-                        for part in sorted(observed[c])}
+            PARTS[c] = {part: names.get(part, f"Part {part} (unmapped)") for part in sorted(observed[c])}
         CCOLORS = {c: plt.get_cmap("tab20")(i % 20) for i, c in enumerate(CLASSES)}
     elif metadata_path.exists():
         metadata = json.loads(metadata_path.read_text())
-        names = ("Aeroplane", "Bicycle", "Bird", "Boat", "Bottle", "Bus", "Car",
-                 "Cat", "Chair", "Cow", "Dining table", "Dog", "Horse", "Motorbike",
-                 "Person", "Potted plant", "Sheep", "Sofa", "Train", "TV monitor")
+        names = (
+            "Aeroplane",
+            "Bicycle",
+            "Bird",
+            "Boat",
+            "Bottle",
+            "Bus",
+            "Car",
+            "Cat",
+            "Chair",
+            "Cow",
+            "Dining table",
+            "Dog",
+            "Horse",
+            "Motorbike",
+            "Person",
+            "Potted plant",
+            "Sheep",
+            "Sofa",
+            "Train",
+            "TV monitor",
+        )
         observed = defaultdict(set)
         for q in QUANTILES:
             for row in read_csv(SOURCE / f"part_presence_mean_th_0.8_qt_{q}.csv"):
                 observed[int(row["class_id"])].add(int(row["part_id"]))
         CLASSES = {c: names[c - 1] for c in sorted(observed)}
-        PARTS = {c: {part: metadata["part_names"].get(f"{c}:{part}", f"Part {part} (unmapped)")
-                     for part in sorted(observed[c])} for c in CLASSES}
+        PARTS = {
+            c: {
+                part: metadata["part_names"].get(f"{c}:{part}", f"Part {part} (unmapped)")
+                for part in sorted(observed[c])
+            }
+            for c in CLASSES
+        }
         CCOLORS = {c: plt.get_cmap("tab20")(i % 20) for i, c in enumerate(CLASSES)}
     else:
         PARTS = {c: dict(enumerate(names, 1)) for c, names in official_parts.items()}
@@ -399,7 +542,9 @@ def main(argv=None):
         + "` "
         "(requires numpy and matplotlib).\n"
     )
-    print(f"Validated {sum(map(len, prototypes.values()))} prototypes and {len(supports)} class–part pairs across 3 quantiles.")
+    print(
+        f"Validated {sum(map(len, prototypes.values()))} prototypes and {len(supports)} class–part pairs across 3 quantiles."
+    )
     print(f"Output directory: {OUT}")
     print("Saved 4 PNGs, 4 individual PDFs, a combined 4-page PDF, 4 data CSVs, and README.md.")
     for q in QUANTILES:

@@ -592,8 +592,7 @@ def run_consistency_evaluation(cfg: EvaluateConfig) -> ConsistencyResult:
             std=cfg.data.std,
         )
         logger.info(
-            f"Pascal validation: {len(parts_data)} images with parts; "
-            f"{parts_data.num_missing_parts} without TIFFs."
+            f"Pascal validation: {len(parts_data)} images with parts; {parts_data.num_missing_parts} without TIFFs."
         )
     else:
         image_shape = consistency_cfg.image_shape or CITYSCAPES_NATIVE_IMAGE_SHAPE
