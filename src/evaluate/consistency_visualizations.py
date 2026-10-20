@@ -222,7 +222,10 @@ def heatmaps(values, prototypes, pdf):
     fig.text(
         0.5,
         0.015,
-        "Gold outline: exact frequency > 80%. Cell labels are rounded. Gray: unavailable.\nA prototype passes if any part exceeds 80%; several parts can pass.",
+        (
+            "Gold outline: exact frequency > 80%. Cell labels are rounded. Gray: unavailable.\n"
+            "A prototype passes if any part exceeds 80%; several parts can pass."
+        ),
         ha="center",
         fontsize=10,
     )
@@ -237,7 +240,7 @@ def class_bars(stats, pdf):
     for j, q in enumerate(QUANTILES):
         rates = [stats[q][c][0] / stats[q][c][1] for c in CLASSES]
         bars = ax.bar(xs + (j - 1) * 0.24, rates, width=0.22, color=QCOLORS[j], label=f"Quantile {q}", zorder=3)
-        for bar, c in zip(bars, CLASSES):
+        for bar, c in zip(bars, CLASSES, strict=True):
             yes, n = stats[q][c]
             ax.annotate(
                 f"{yes}/{n}",
@@ -291,9 +294,9 @@ def prototype_lines(values, prototypes, pdf):
     nrows = (len(CLASSES) + 2) // 2
     fig, axes = plt.subplots(nrows, 2, squeeze=False, figsize=(18, 5 * nrows))
     records = []
-    for ax, c in zip(axes.flat, CLASSES):
+    for ax, c in zip(axes.flat, CLASSES, strict=True):
         for idx, proto in enumerate(prototypes[c]):
-            scores, best_parts = [], []
+            scores = []
             for q in QUANTILES:
                 ps = {part: values[q][c, proto, part] for part in PARTS[c]}
                 best = max(ps.values())
@@ -343,7 +346,17 @@ def prototype_lines(values, prototypes, pdf):
     axes.flat[len(CLASSES)].text(
         0.05,
         0.74,
-        "One line = one prototype.\n\nEach point is its strongest part score\nat that quantile. The strongest part\ncan change between points.\n\nDashed gray line = 80% cutoff.\nPoints must be above it to pass.\n\nHigher quantiles retain fewer activated\npixels. Lines connect the three evaluated\nsettings; they are not training curves.",
+        (
+            "One line = one prototype.\n\n"
+            "Each point is its strongest part score\n"
+            "at that quantile. The strongest part\n"
+            "can change between points.\n\n"
+            "Dashed gray line = 80% cutoff.\n"
+            "Points must be above it to pass.\n\n"
+            "Higher quantiles retain fewer activated\n"
+            "pixels. Lines connect the three evaluated\n"
+            "settings; they are not training curves."
+        ),
         fontsize=12,
         linespacing=1.5,
         va="top",
@@ -398,7 +411,12 @@ def support_bars(supports, prototypes, pdf):
     fig.text(
         0.08,
         0.018,
-        "Counts include both activated and non-activated observations. Each image is counted once per class–part pair,\nregardless of how many prototypes were evaluated. These are the denominators used for the part frequencies.",
+        (
+            "Counts include both activated and non-activated observations. "
+            "Each image is counted once per class-part pair,\n"
+            "regardless of how many prototypes were evaluated. "
+            "These are the denominators used for the part frequencies."
+        ),
         fontsize=10,
     )
     fig.subplots_adjust(left=0.24, right=0.97, top=0.90, bottom=0.14)
@@ -445,7 +463,7 @@ def main(argv=None):
     }
     metadata_path = SOURCE / "pascal_evaluation.json"
     if args.parts_spec is not None:
-        import yaml
+        import yaml  # type: ignore[import-untyped]
 
         spec = yaml.safe_load(args.parts_spec.expanduser().read_text())
         specification = list(spec["scene_class2part_classes"].items())[:20]
@@ -521,18 +539,22 @@ def main(argv=None):
         "1. 01_prototype_part_heatmaps: per-prototype part frequencies, with classes in rows and "
         "quantiles in columns. Gold outlines mark exact values strictly above 0.8. Displayed percentages are rounded.\n"
         "2. 02_consistency_by_class: consistent prototypes divided by all evaluated prototypes of each class. "
-        "Labels show passing/total counts. For Pascal ReProSeg, overall consistency counts distinct concept IDs passing for any class, divided by distinct evaluated IDs.\n"
+        "Labels show passing/total counts. For Pascal ReProSeg, "
+        "overall consistency counts distinct concept IDs passing for any class, divided by distinct evaluated IDs.\n"
         "3. 03_prototype_scores_across_quantiles: each prototype's highest part frequency at each quantile. "
         "The strongest part may change; the corresponding part names are in the CSV. Gray dashed line is 0.8.\n"
-        "4. 04_usable_images_by_part: unique image_index (or ProtoSeg img_id) counts per class and part, including True and False. "
+        "4. 04_usable_images_by_part: unique image_index (or ProtoSeg img_id) counts per class and part, "
+        "including True and False. "
         "Available image sets match across prototypes within each class/part and across all quantiles, "
-        "so a single support chart covers the three settings. Do not sum counts across parts to obtain unique dataset images.\n\n"
+        "so a single support chart covers the three settings. "
+        "Do not sum counts across parts to obtain unique dataset images.\n\n"
         "Sources: ../part_presence_th_0.8_qt_*.csv, ../part_presence_mean_th_0.8_qt_*.csv, "
         "../consistency_summary_th_0.8_qt_*.json, ../consistency_score_th_0.8_qt_*.txt. "
         "Counts and averages are recomputed from per-image observations and checked against saved means, "
         "consistency flags, overall scores, and JSON summaries when available. Missing annotations are excluded. "
         "All evaluated prototypes are included; no filter on consistency is applied.\n\n"
-        "Pascal inputs use VOC class IDs and part names from the supplied --parts-spec YAML or ../pascal_evaluation.json; "
+        "Pascal inputs use VOC class IDs and part names from "
+        "the supplied --parts-spec YAML or ../pascal_evaluation.json; "
         "otherwise Cityscapes class and part mappings apply. Only observed Pascal parts are plotted. "
         "Prototype legends are omitted for classes with more than 20 prototypes; exact IDs are in the CSV.\n\n"
         "Additional observed part IDs are labeled unmapped and included in the calculations.\n\n"
@@ -543,7 +565,8 @@ def main(argv=None):
         "(requires numpy and matplotlib).\n"
     )
     print(
-        f"Validated {sum(map(len, prototypes.values()))} prototypes and {len(supports)} class–part pairs across 3 quantiles."
+        f"Validated {sum(map(len, prototypes.values()))} prototypes "
+        f"and {len(supports)} class-part pairs across 3 quantiles."
     )
     print(f"Output directory: {OUT}")
     print("Saved 4 PNGs, 4 individual PDFs, a combined 4-page PDF, 4 data CSVs, and README.md.")

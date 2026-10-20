@@ -576,8 +576,11 @@ def run_consistency_evaluation(cfg: EvaluateConfig) -> ConsistencyResult:
         )
 
     device = torch.device(cfg.env.device)
-    checkpoint = _load_checkpoint(cfg.model.checkpoint)
-    model = _build_supported_model(checkpoint, cfg.model.checkpoint, model_cfg=cfg.model)
+    checkpoint_path = cfg.model.checkpoint
+    if checkpoint_path is None:
+        raise ValueError("model.checkpoint must be set to the checkpoint to evaluate.")
+    checkpoint = _load_checkpoint(checkpoint_path)
+    model = _build_supported_model(checkpoint, checkpoint_path, model_cfg=cfg.model)
 
     semantic_class_offset = None
     if cfg.data.dataset == DatasetType.VOC_SEGMENTATION:

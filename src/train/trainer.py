@@ -29,7 +29,10 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
 
     optimizer_scheduler_manager = OptimizerSchedulerManager(net, len(train_loader) * cfg.training.epochs.pretrain)
     if cfg.training.resume:
-        checkpoint = torch.load(cfg.model.checkpoint, map_location=cfg.env.device, weights_only=False)
+        checkpoint_path = cfg.model.checkpoint
+        if checkpoint_path is None:
+            raise ValueError("model.checkpoint must be set to resume training.")
+        checkpoint = torch.load(checkpoint_path, map_location=cfg.env.device, weights_only=False)
         optimizer_scheduler_manager.load_state_dict(checkpoint)
 
     class_weights = get_class_weights(train_data, cfg.data).to(cfg.env.device)
