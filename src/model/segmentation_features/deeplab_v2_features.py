@@ -1,6 +1,6 @@
 from typing import Optional
 
-from model.segmentation_features.deeplab_pytorch.libs.models.deeplabv2 import DeepLabV2
+from model.segmentation_features.deeplab_pytorch.libs.models.deeplabv2 import DeepLabV2  # type: ignore[import-untyped]
 from model.segmentation_features.msc import MSC
 
 
