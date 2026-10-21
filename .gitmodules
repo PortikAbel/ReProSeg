@@ -1,0 +1,3 @@
+[submodule "src/model/segmentation_features/deeplab_pytorch"]
+	path = src/model/segmentation_features/deeplab_pytorch
+	url = https://github.com/kazuto1011/deeplab-pytorch.git

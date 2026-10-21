@@ -164,5 +164,8 @@ node_modules/
 
 runs/
 pretrained/
+logs/
 
 class_distribution/
+
+consistency_results*

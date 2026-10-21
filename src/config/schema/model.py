@@ -43,7 +43,9 @@ class ModelConfig(BaseConfig):
     backbone_network: BackboneArchitecture = Field(
         default=BackboneArchitecture.DEEPLAB_V3, description="Backbone network"
     )
-    checkpoint: Optional[Path] = Field(default=None, description="Path to ReProSeg checkpoint to resume from")
+    checkpoint: Optional[Path] = Field(
+        default=None, description="Path to a ReProSeg checkpoint to load weights from (resume or inference)"
+    )
     backbone_checkpoint: Optional[Path] = Field(
         default=None,
         description="Optional checkpoint used to initialize backbone weights",

@@ -40,8 +40,9 @@ class LearningRateConfig(BaseConfig):
 class TrainingConfig(BaseConfig):
     """Training parameters and optimization configuration."""
 
-    skip_training: bool = Field(
-        default=False, description="Skips training and only visualizes concepts and predictions"
+    resume: bool = Field(
+        default=False,
+        description="Resume an in-progress run: also restore optimizer/scheduler state from model.checkpoint",
     )
     epochs: EpochConfig = Field(default_factory=lambda: EpochConfig(), description="Epoch configuration")
     optimizer: OptimizerType = Field(default=OptimizerType.ADAMW, description="Optimizer type")

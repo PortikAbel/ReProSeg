@@ -5,12 +5,12 @@ from torch.utils.data import Dataset as TorchDataset
 from torch.utils.data import random_split
 from torch.utils.data.dataset import Subset
 
-from config import ReProSegConfig
+from config import BaseScenarioConfig
 from data.data_split import DataSplit
 from data.dataset.factory import DatasetFactory
 
 
-def get_train_val_split(cfg: ReProSegConfig) -> Tuple[Subset[TorchDataset], Subset[TorchDataset]]:
+def get_train_val_split(cfg: BaseScenarioConfig) -> Tuple[Subset[TorchDataset], Subset[TorchDataset]]:
     train_set = DatasetFactory.create(cfg.data, split=DataSplit.TRAIN)
     if cfg.data.validation_size is not None:
         train_subset: Subset[TorchDataset]

@@ -1,0 +1,20 @@
+# Evaluation entry point: compute an interpretability metric (e.g. consistency score)
+# for a trained checkpoint. Works for any SupportedModel (ReProSeg, PPNet, ...).
+# Point model.checkpoint at a checkpoint; override `evaluate` to select a different metric.
+
+defaults:
+  - env: default
+  - data: pascal_voc
+  - model: default
+  - evaluate: consistency
+  - logging: default
+  - override hydra/job_logging: experiment
+  - _self_
+
+hydra:
+  run:
+    dir: ${oc.env:LOG_ROOT}/${now:%Y_%m_%d-%H_%M_%S}
+
+env:
+  gpu_id: 0
+  seed: 1

@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from config import ReProSegConfig
+from config import TrainConfig
 from model.model import ReProSeg
 from utils.run_context import get_run_context
 
@@ -27,7 +27,7 @@ class EvalInfo:
 
 @torch.no_grad()
 def eval(
-    cfg: ReProSegConfig,
+    cfg: TrainConfig,
     net: ReProSeg,
     valid_loader: DataLoader,
     epoch,

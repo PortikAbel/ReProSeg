@@ -1,13 +1,11 @@
-# Base configuration file
-# This is the main entry point for Hydra configuration
+# Training entry point
 
 defaults:
   - env: default
-  - data: cityscapes
+  - data: pascal_voc
   - model: default
   - training: default
   - logging: default
-  - visualization: default
   - override hydra/job_logging: experiment
   - _self_
 

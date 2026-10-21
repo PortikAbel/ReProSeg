@@ -50,8 +50,8 @@ def test_deeplab_v3_features_loads_external_checkpoint(monkeypatch):
         for index, (key, value) in enumerate(checkpoint_model.state_dict().items())
     }
 
-    created_models: list[_FakeDeepLab] = []
-    constructor_kwargs: dict[str, object] = {}
+    created_models: list[_FakeDeepLab] = []  # type: ignore[annotation-unchecked]
+    constructor_kwargs: dict[str, object] = {}  # type: ignore[annotation-unchecked]
 
     def fake_deeplabv3_resnet50(**kwargs):
         constructor_kwargs.update(kwargs)

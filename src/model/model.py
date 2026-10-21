@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms as transforms
 
-from config.schema.main import ReProSegConfig
+from config.schema.main import BaseScenarioConfig
 from config.schema.training import OptimizerType
 from model.segmentation_features import base_architecture_to_features
 from utils.func import init_weights_xavier
@@ -36,7 +36,7 @@ class TrainPhase(Enum):
 
 
 class ReProSegLayers(nn.Module):
-    def __init__(self, cfg: ReProSegConfig):
+    def __init__(self, cfg: BaseScenarioConfig):
         super().__init__()
 
         features, aspp_convs = base_architecture_to_features[cfg.model.backbone_network](
@@ -66,7 +66,7 @@ class ReProSegLayers(nn.Module):
 class ReProSeg(nn.Module):
     def __init__(
         self,
-        cfg: ReProSegConfig,
+        cfg: BaseScenarioConfig,
     ):
         super().__init__()
         assert cfg.data.require_num_classes() > 0

@@ -6,6 +6,7 @@
 
 set -u
 set -o pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 
 EXPORT_VARS="ALL,NNI_OUTPUT_DIR=${NNI_OUTPUT_DIR},NNI_SYS_DIR=${NNI_SYS_DIR},NNI_TRIAL_JOB_ID=${NNI_TRIAL_JOB_ID}"
 SBATCH_RETRIES="${SBATCH_RETRIES:-5}"
@@ -19,9 +20,7 @@ echo "Exported variables: ${EXPORT_VARS}"
 jobid=""
 submit_attempt=1
 while (( submit_attempt <= SBATCH_RETRIES )); do
-  sbatch_args=(--parsable --job-name="ReProSeg_NNI_${NNI_TRIAL_JOB_ID}" --export="${EXPORT_VARS}" --output="${NNI_OUTPUT_DIR}/slurm-%j.log")
-
-  submit_output="$(src/scripts/start_slurm_job.sh "${sbatch_args[@]}" 2>&1)"
+  submit_output="$(sbatch_submit --parsable --job-name="ReProSeg_NNI_${NNI_TRIAL_JOB_ID}" --export="${EXPORT_VARS}" --output="${NNI_OUTPUT_DIR}/slurm-%j.log" src/scripts/_submit.sh -m train 2>&1)"
   submit_rc=$?
 
   if [[ ${submit_rc} -eq 0 ]]; then

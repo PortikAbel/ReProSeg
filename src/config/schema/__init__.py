@@ -3,21 +3,25 @@
 from .base import BaseConfig
 from .data import DataConfig
 from .environment import EnvironmentConfig
-from .evaluation import EvaluationConfig
+from .evaluate import ConsistencyEvalConfig, EvaluateMetricsConfig
 from .logging import LoggingConfig
-from .main import ReProSegConfig
+from .main import BaseScenarioConfig, EvaluateConfig, TrainConfig, VisualizeConfig
 from .model import ModelConfig
 from .training import TrainingConfig
 from .visualization import VisualizationConfig
 
 __all__ = [
     "BaseConfig",
+    "BaseScenarioConfig",
     "DataConfig",
     "EnvironmentConfig",
     "ModelConfig",
     "TrainingConfig",
     "LoggingConfig",
-    "ReProSegConfig",
+    "TrainConfig",
+    "VisualizeConfig",
+    "EvaluateConfig",
     "VisualizationConfig",
-    "EvaluationConfig",
+    "EvaluateMetricsConfig",
+    "ConsistencyEvalConfig",
 ]

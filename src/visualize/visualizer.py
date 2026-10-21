@@ -12,7 +12,7 @@ from PIL import Image, ImageFilter
 from torch.utils.data.dataset import Subset
 from tqdm import tqdm
 
-from config import ReProSegConfig
+from config import VisualizeConfig
 from data.dataloader import DataLoader
 from model.model import ReProSeg
 from utils.run_context import get_run_context
@@ -43,7 +43,7 @@ class ModelVisualizer:
 
     MIN_ACTIVATION_SCORE = 0.1
 
-    def __init__(self, net: ReProSeg, cfg: ReProSegConfig):
+    def __init__(self, net: ReProSeg, cfg: VisualizeConfig):
         self.net = net
         self.device = cfg.env.device
         self.image_shape = cfg.data.img_shape

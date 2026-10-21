@@ -6,7 +6,6 @@ defaults:
   - /model: default
   - /training: fast
   - /logging: debug
-  - /visualization: default
   - override hydra/job_logging: debug
   - _self_
 

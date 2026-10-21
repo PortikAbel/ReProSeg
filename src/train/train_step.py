@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 
-from config import ReProSegConfig
+from config import TrainConfig
 from model.model import ReProSeg, TrainPhase
 from model.optimizers import OptimizerSchedulerManager
 from train.eval import acc_from_cm, compute_cm, intersection_and_union_from_cm
@@ -27,7 +27,7 @@ class TrainInfo:
 
 
 def train(
-    cfg: ReProSegConfig,
+    cfg: TrainConfig,
     net: ReProSeg,
     train_loader,
     optimizer_scheduler_manager: OptimizerSchedulerManager,

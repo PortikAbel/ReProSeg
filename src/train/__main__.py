@@ -1,3 +1,9 @@
+"""Hydra entry point for training ReProSeg.
+
+Produces checkpoints under the run's log directory. Visualize or evaluate a
+trained checkpoint separately via `python -m visualize` / `python -m evaluate`.
+"""
+
 import logging
 import os
 import socket
@@ -9,9 +15,10 @@ import torch
 from dotenv import load_dotenv
 from omegaconf import DictConfig, OmegaConf
 
-from config import ReProSegConfig
-from data import DataLoader, Dataset, PanopticPartsDataset, get_train_val_split
+from config import TrainConfig
+from data import get_train_val_split
 from model.model import ReProSeg
+from train.trainer import train_model
 from utils.run_context import get_run_context, init_run_context
 
 load_dotenv()
@@ -19,8 +26,8 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
-@hydra.main(version_base=None, config_path="../../config/hydra", config_name="config")
-def main(cfg_dict: DictConfig):
+@hydra.main(version_base=None, config_path="../../config/hydra", config_name="train")
+def main(cfg_dict: DictConfig) -> None:
     nni_trial_id = os.environ.get("NNI_TRIAL_JOB_ID")
     if nni_trial_id:
         if nni_params := nni.get_next_parameter():
@@ -29,7 +36,7 @@ def main(cfg_dict: DictConfig):
             cfg_dict = OmegaConf.merge(cfg_dict, nni_overrides)  # type: ignore[assignment]
             OmegaConf.set_struct(cfg_dict, True)
     cfg_object: Dict[str, Any] = OmegaConf.to_container(cfg_dict, resolve=True)  # type: ignore[assignment]
-    cfg = ReProSegConfig(**cfg_object)
+    cfg = TrainConfig(**cfg_object)
 
     # Setup run artifacts (checkpoints, tensorboard, tqdm output)
     init_run_context(cfg.logging)
@@ -43,37 +50,11 @@ def main(cfg_dict: DictConfig):
     if nni_trial_id:
         logger.info(f"NNI trial ID: {nni_trial_id}")
 
-    # Create the dataloaders
     train_subset, valid_subset = get_train_val_split(cfg)
 
-    # Model
     net = ReProSeg(cfg=cfg).to(device=cfg.env.device)
 
-    if not cfg.training.skip_training:
-        from train.trainer import train_model
-
-        try:
-            train_model(net, train_subset, valid_subset, cfg)
-        except Exception as e:
-            logger.exception(e)
-
-    if cfg.visualization.generate_explanations:
-        from visualize.visualizer import ModelVisualizer
-
-        visualize_set = Dataset(cfg.data, train_subset)
-        visualize_loader = DataLoader(visualize_set, cfg.data)
-
-        visualizer = ModelVisualizer(net, cfg)
-        visualizer.visualize_prototypes(visualize_loader)
-
-    if cfg.evaluation.consistency_score.calculate:
-        from visualize.interpretability import ModelInterpretability
-
-        panoptic_parts_subset = PanopticPartsDataset(cfg.data, train_subset)
-        panoptic_parts_loader = DataLoader(panoptic_parts_subset, cfg.data)
-
-        interpretability = ModelInterpretability(net, cfg)
-        interpretability.compute_concept_consistency_score(panoptic_parts_loader)
+    train_model(net, train_subset, valid_subset, cfg)
 
     get_run_context().close()
 

@@ -1,6 +1,5 @@
 import os
 import random
-from pathlib import Path
 from typing import Optional
 
 import numpy as np
@@ -19,10 +18,6 @@ class EnvironmentConfig(BaseConfig):
         ge=0,
     )
     device: torch.device = Field(default=torch.device("cpu"), description="Computed device string (set at runtime)")
-
-    pretrained_backbones_dir: Path = Field(
-        default=Path("pretrained"), description="Directory to store pretrained backbone checkpoints"
-    )
 
     seed: int = Field(default=1, description="Random seed")
 
