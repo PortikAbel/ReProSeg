@@ -40,6 +40,41 @@ class PartStability:
     score: int
 
 
+@dataclass(frozen=True)
+class StabilitySummary:
+    """Mean exact part-vector agreement for one activation quantile."""
+
+    activation_quantile: float
+    score: float
+    num_evaluated_pairs: int
+    num_stable_pairs: int
+    num_both_empty_pairs: int
+
+
+def summarize_stability(
+    comparisons: Sequence[PartStability],
+    *,
+    activation_quantile: float,
+) -> StabilitySummary:
+    """Average pair scores; require at least one annotated pair."""
+    if not 0.0 <= activation_quantile <= 1.0:
+        raise ValueError("Activation quantile must be in [0, 1].")
+    if not comparisons:
+        raise ValueError("Stability is undefined because there are no evaluated image/prototype pairs.")
+
+    stable_count = sum(comparison.score for comparison in comparisons)
+    both_empty_count = sum(
+        not any(comparison.clean_presence) and not any(comparison.noisy_presence) for comparison in comparisons
+    )
+    return StabilitySummary(
+        activation_quantile=activation_quantile,
+        score=stable_count / len(comparisons),
+        num_evaluated_pairs=len(comparisons),
+        num_stable_pairs=stable_count,
+        num_both_empty_pairs=both_empty_count,
+    )
+
+
 def compare_part_presence(clean: Sequence[PartPresence], noisy: Sequence[PartPresence]) -> tuple[PartStability, ...]:
     """Score 1 only when every annotated part agrees; two all-zero vectors agree.
 
