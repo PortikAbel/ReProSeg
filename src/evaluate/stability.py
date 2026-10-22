@@ -1,17 +1,75 @@
 """Preparation and part observations for the future stability evaluator.
 
-This module accepts an already perturbed image. Noise generation, stability
-scoring, dataset iteration, and CLI registration belong to later steps.
+Noise is added to already normalized images. Prepare each clean/noisy pair once
+and reuse it across activation thresholds. Stability scoring, dataset iteration,
+and CLI registration belong to later steps.
 """
 
+from dataclasses import dataclass
 from pathlib import Path
 
 import torch
 from torch import Tensor
 
+from config.schema.evaluate import StabilityEvalConfig
 from config.schema.model import ModelConfig
 from evaluate.checkpoint import _build_supported_model, _load_checkpoint
 from evaluate.parts import PartObservationExtractor, PartPresence
+
+
+@dataclass(frozen=True)
+class StabilityImagePair:
+    """Normalized clean/noisy inputs to reuse for every activation threshold."""
+
+    clean: Tensor
+    noisy: Tensor
+
+
+class StabilityNoise:
+    """A private, reproducible Gaussian noise stream for one evaluation run.
+
+    Create one instance per run and call prepare_pair once per image, in dataset
+    order. Reuse the returned pair for all quantiles (0.7/0.8/0.9 by default).
+    A new instance with the same seed repeats the stream on the same device
+    backend; CPU and CUDA streams are not guaranteed to match each other.
+    """
+
+    def __init__(
+        self,
+        *,
+        std_dev: float = 0.2,
+        seed: int = 0,
+        device: torch.device | str = "cpu",
+    ):
+        settings = StabilityEvalConfig(std_dev=std_dev, seed=seed)
+        self.std_dev = settings.std_dev
+        self.seed = settings.seed
+        self.device = torch.device(device)
+        self._generator = torch.Generator(device=self.device).manual_seed(self.seed)
+
+    @torch.no_grad()
+    def prepare_pair(self, normalized_image: Tensor) -> StabilityImagePair:
+        """Add N(0, std_dev**2) after normalization, without clipping.
+
+        Input is one floating-point (C, H, W) image, already normalized by the
+        dataset. It is copied to the configured device and left unchanged.
+        Keeping this operation per image makes noise independent of batching.
+        """
+        if normalized_image.ndim != 3 or normalized_image.numel() == 0:
+            raise ValueError("Expected a nonempty normalized image shaped (C, H, W).")
+        if not normalized_image.is_floating_point():
+            raise TypeError("Normalized images must contain floating-point values.")
+        if not torch.isfinite(normalized_image).all():
+            raise ValueError("Normalized images must contain finite values.")
+
+        clean = normalized_image.detach().to(self.device).clone()
+        noise = torch.randn(
+            clean.shape,
+            dtype=clean.dtype,
+            device=clean.device,
+            generator=self._generator,
+        )
+        return StabilityImagePair(clean=clean, noisy=clean + self.std_dev * noise)
 
 
 class StabilityObserver(PartObservationExtractor):
