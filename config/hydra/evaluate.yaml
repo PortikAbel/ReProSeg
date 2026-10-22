@@ -15,6 +15,9 @@ hydra:
   run:
     dir: ${oc.env:LOG_ROOT}/${now:%Y_%m_%d-%H_%M_%S}
 
+model:
+  checkpoint: null
+
 env:
   gpu_id: 0
   seed: 1
