@@ -162,6 +162,16 @@ uv run pytest <test_file_name>::<TestClassName>::<test_method_name>
 uv run pytest --cov=src --cov-report=term
 ```
 
+## Releases
+
+1. Bump `version` in `pyproject.toml` (then run `uv sync`).
+2. Commit it as `Release X.Y.Z`.
+3. Tag it: `git tag -a vX.Y.Z -m "X.Y.Z"`
+4. Push the tag: `git push origin vX.Y.Z`
+5. Optionally create a GitHub release: `gh release create vX.Y.Z --generate-notes`
+
+Checkpoints store the `major.minor` version and can only be loaded by code with the same `major.minor`. Patch releases are compatible; a minor bump is breaking for checkpoints.
+
 ## Code Formatting and Type Checking
 
 ```bash
