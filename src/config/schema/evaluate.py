@@ -1,7 +1,7 @@
 """Evaluation metric configuration schemas."""
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Optional
 
 from pydantic import Field
 
@@ -36,7 +36,7 @@ class ConsistencyEvalConfig(BaseConfig):
 class StabilityEvalConfig(BaseConfig):
     """Clean/noisy part agreement for PPNet on Cityscapes."""
 
-    quantiles: tuple[Annotated[float, Field(ge=0.0, le=1.0)], ...] = Field(default=(0.7, 0.8, 0.9), min_length=1)
+    quantile: float = Field(default=0.8, ge=0.0, le=1.0, description="Activation quantile for this evaluation run")
     std_dev: float = Field(default=0.2, ge=0.0, allow_inf_nan=False)
     seed: int = Field(default=0, ge=0, le=2**63 - 1)
     official_parts_only: bool = False

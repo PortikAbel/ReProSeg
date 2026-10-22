@@ -1,7 +1,7 @@
 # PPNet stability on native-resolution Cityscapes validation images.
 metric_name: stability
 stability:
-  quantiles: [0.7, 0.8, 0.9]
+  quantile: 0.8
   std_dev: 0.2
   seed: 0
   official_parts_only: false

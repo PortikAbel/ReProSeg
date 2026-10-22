@@ -1,18 +1,18 @@
 """Preparation and part observations for the future stability evaluator.
 
-Noise is added to already normalized images. Prepare each clean/noisy pair once
-and reuse it across activation thresholds. This module scores each observed
-image/class/prototype pair; dataset aggregation and CLI registration come later.
+Noise is added to already normalized images. Each run evaluates one activation
+quantile across the supplied dataset. CLI registration and saving come later.
 """
 
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from config import EvaluateConfig
 from config.schema.evaluate import StabilityEvalConfig
@@ -20,6 +20,8 @@ from config.schema.model import ModelConfig
 from evaluate.checkpoint import _build_supported_model, _load_checkpoint
 from evaluate.data import create_cityscapes_parts_dataloader
 from evaluate.parts import PartObservationExtractor, PartPresence
+from evaluate.utils import _squeeze_mask_channel
+from model.proto_segmentation import PPNet
 
 
 def create_stability_dataloader(cfg: EvaluateConfig) -> DataLoader:
@@ -76,6 +78,89 @@ class StabilitySummary:
     num_evaluated_pairs: int
     num_stable_pairs: int
     num_both_empty_pairs: int
+
+
+@dataclass(frozen=True)
+class StabilityResult:
+    """All comparisons and their summary for one dataset run."""
+
+    summary: StabilitySummary
+    comparisons: tuple[PartStability, ...]
+    num_images: int
+    std_dev: float
+    seed: int
+
+
+@torch.no_grad()
+def run_stability(
+    model: PPNet,
+    data_loader: Iterable[tuple[Tensor, Tensor, Tensor]],
+    *,
+    quantile: float = 0.8,
+    std_dev: float = 0.2,
+    seed: int = 0,
+    device: torch.device | str | None = None,
+    show_progress: bool = True,
+) -> StabilityResult:
+    """Process every image at one quantile, averaging over annotated pairs.
+
+    Images must already be normalized. Noise is drawn per image in loader order
+    with a new private stream per run, so changing the quantile alone preserves
+    the perturbations. Images without part observations contribute no pairs.
+    """
+    if not isinstance(model, PPNet):
+        raise TypeError("Stability evaluation currently requires a PPNet checkpoint.")
+    settings = StabilityEvalConfig(quantile=quantile, std_dev=std_dev, seed=seed)
+    observer = StabilityObserver(model, activation_quantile=settings.quantile, device=device)
+    noise = StabilityNoise(std_dev=settings.std_dev, seed=settings.seed, device=observer.device)
+    comparisons: list[PartStability] = []
+    image_index = 0
+    for images, semantics, parts in tqdm(data_loader, desc="Computing PPNet stability", disable=not show_progress):
+        semantics = _squeeze_mask_channel(semantics, "semantic")
+        parts = _squeeze_mask_channel(parts, "part")
+        if semantics.shape != parts.shape:
+            raise ValueError("Semantic and part masks must have matching shapes.")
+        if images.ndim != 4 or images.shape[0] != semantics.shape[0]:
+            raise ValueError("Images must have shape (B, C, H, W) with the same batch size as masks.")
+        for index in range(images.shape[0]):
+            pair = noise.prepare_pair(images[index])
+            comparisons.extend(
+                observer.compare_pair(
+                    pair.clean,
+                    pair.noisy,
+                    semantic_mask=semantics[index],
+                    part_mask=parts[index],
+                    image_index=image_index,
+                )
+            )
+            image_index += 1
+    return StabilityResult(
+        summary=summarize_stability(comparisons, activation_quantile=settings.quantile),
+        comparisons=tuple(comparisons),
+        num_images=image_index,
+        std_dev=settings.std_dev,
+        seed=settings.seed,
+    )
+
+
+def run_stability_evaluation(cfg: EvaluateConfig) -> StabilityResult:
+    """Load the configured PPNet and Cityscapes data, then evaluate one quantile."""
+    checkpoint_path = cfg.model.checkpoint
+    if checkpoint_path is None:
+        raise ValueError("model.checkpoint must be set to the checkpoint to evaluate.")
+    data_loader = create_stability_dataloader(cfg)
+    model = _build_supported_model(_load_checkpoint(checkpoint_path), checkpoint_path, model_cfg=cfg.model)
+    if not isinstance(model, PPNet) or model.prototype_class_identity.shape[1] != 19:
+        raise ValueError("Cityscapes stability requires a PPNet checkpoint with 19 classes.")
+    settings = cfg.evaluate.stability
+    return run_stability(
+        model,
+        data_loader,
+        quantile=settings.quantile,
+        std_dev=settings.std_dev,
+        seed=settings.seed,
+        device=cfg.env.device,
+    )
 
 
 def summarize_stability(
@@ -141,7 +226,7 @@ class StabilityNoise:
     """A private, reproducible Gaussian noise stream for one evaluation run.
 
     Create one instance per run and call prepare_pair once per image, in dataset
-    order. Reuse the returned pair for all quantiles (0.7/0.8/0.9 by default).
+    order. Each evaluation run uses its configured activation quantile.
     A new instance with the same seed repeats the stream on the same device
     backend; CPU and CUDA streams are not guaranteed to match each other.
     """

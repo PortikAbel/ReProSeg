@@ -51,7 +51,7 @@ def test_zero_noise_returns_equal_inputs_without_gradients():
     assert not pair.clean.requires_grad and not pair.noisy.requires_grad
 
 
-def test_one_prepared_pair_is_reused_across_all_configured_thresholds(monkeypatch):
+def test_one_prepared_pair_uses_the_configured_threshold(monkeypatch):
     settings = StabilityEvalConfig()
     model = DummyPPNet()
     forward = MagicMock(wraps=model.push_forward)
@@ -63,15 +63,14 @@ def test_one_prepared_pair_is_reused_across_all_configured_thresholds(monkeypatc
     parts = torch.zeros_like(semantic)
     parts[0, 0] = 2401
 
-    for quantile in settings.quantiles:
-        observer = StabilityObserver(model, activation_quantile=quantile, device="cpu")
-        observer.observe_pair(pair.clean, pair.noisy, semantic_mask=semantic, part_mask=parts)
+    observer = StabilityObserver(model, activation_quantile=settings.quantile, device="cpu")
+    observer.observe_pair(pair.clean, pair.noisy, semantic_mask=semantic, part_mask=parts)
 
-    assert forward.call_count == 6
+    assert forward.call_count == 2
     for clean_call, noisy_call in zip(forward.call_args_list[::2], forward.call_args_list[1::2], strict=True):
         torch.testing.assert_close(clean_call.args[0][0], pair.clean, rtol=0, atol=0)
         torch.testing.assert_close(noisy_call.args[0][0], pair.noisy, rtol=0, atol=0)
-    # Observing all three thresholds consumes no extra random draws.
+    # Observing the image pair consumes no extra random draws.
     reference = StabilityNoise()
     reference.prepare_pair(image)
     torch.testing.assert_close(noise.prepare_pair(image).noisy, reference.prepare_pair(image).noisy, rtol=0, atol=0)
