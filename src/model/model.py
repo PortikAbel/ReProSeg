@@ -83,6 +83,7 @@ class ReProSeg(nn.Module):
             self._init_add_on_weights()
             self._init_classifier_weights()
         self._init_param_groups()
+        self._apply_phase(TrainPhase.FULL_TRAINING)
 
     def forward(self, xs, inference=False):
         backbone_features = self.layers.backbone(xs)["out"]
@@ -184,14 +185,24 @@ class ReProSeg(nn.Module):
         else:
             raise ValueError("this optimizer type is not implemented")
 
+    def _apply_phase(self, phase: TrainPhase):
+        self.train_phase = phase
+        backbone_trainable = phase is not TrainPhase.FINETUNE
+        classifier_trainable = phase is not TrainPhase.PRETRAIN
+
+        for param in self.param_groups["backbone"]:
+            param.requires_grad_(backbone_trainable)
+        for param in self.param_groups["classifier_head"]:
+            param.requires_grad_(classifier_trainable)
+
     def pretrain(self):
-        self.train_phase = TrainPhase.PRETRAIN
+        self._apply_phase(TrainPhase.PRETRAIN)
 
     def finetune(self):
-        self.train_phase = TrainPhase.FINETUNE
+        self._apply_phase(TrainPhase.FINETUNE)
 
     def full_train(self):
-        self.train_phase = TrainPhase.FULL_TRAINING
+        self._apply_phase(TrainPhase.FULL_TRAINING)
 
 
 class NonNegConv1x1(nn.Module):
