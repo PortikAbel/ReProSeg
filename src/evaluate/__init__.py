@@ -3,6 +3,6 @@
 Generic over any SupportedModel (ReProSeg, PPNet, ...); see consistency.py.
 """
 
-from . import consistency
+from . import consistency, stability
 
-__all__ = ["consistency"]
+__all__ = ["consistency", "stability"]

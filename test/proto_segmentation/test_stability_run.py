@@ -7,6 +7,7 @@ import torch
 from config import EvaluateConfig
 from config.schema.evaluate import StabilityEvalConfig
 from evaluate import stability
+from evaluate.registry import run as run_metric
 from test.proto_segmentation.test_consistency import DummyPPNet
 
 
@@ -67,20 +68,29 @@ def test_result_is_independent_of_batch_size():
     assert combined == individual
 
 
-def test_configured_quantile_reaches_runner(monkeypatch):
+def test_cli_registration_passes_quantile_and_saves_results(monkeypatch, temp_dir):
     cfg = EvaluateConfig()
     cfg.model.checkpoint = Path("push_best.pth")
     cfg.evaluate.stability.quantile = 0.9
+    cfg.evaluate.metric_name = "stability"
     model = DummyPPNet()
     model.prototype_class_identity = torch.ones(2, 19)
     loader = object()
     monkeypatch.setattr(stability, "create_stability_dataloader", lambda cfg: loader)
     monkeypatch.setattr(stability, "_load_checkpoint", lambda path: model)
-    run = MagicMock()
+    comparison = stability.PartStability(0, 1, 0, (2401,), (False,), (False,), 1)
+    result = stability.StabilityResult(
+        stability.StabilitySummary(0.9, 1.0, 1, 1, 1), (comparison,), 1, 0.2, 0
+    )
+    run = MagicMock(return_value=result)
     monkeypatch.setattr(stability, "run_stability", run)
-    stability.run_stability_evaluation(cfg)
+    assert run_metric(cfg) == result
     assert run.call_args.args == (model, loader)
     assert run.call_args.kwargs["quantile"] == 0.9
+    output_dir = temp_dir / "stability"
+    assert (output_dir / "stability_score_qt_0.9_std_0.2_seed_0.txt").read_text() == "1.0\n"
+    assert '"num_both_empty_pairs": 1' in (output_dir / "stability_summary_qt_0.9_std_0.2_seed_0.json").read_text()
+    assert ",[false],[false],1" in (output_dir / "stability_pairs_qt_0.9_std_0.2_seed_0.csv").read_text()
 
 
 @pytest.mark.parametrize("quantile", [-0.1, 1.1, float("nan")])

@@ -1,12 +1,11 @@
-"""Preparation and part observations for the future stability evaluator.
+"""PPNet part stability on clean and noisy Cityscapes images."""
 
-Noise is added to already normalized images. Each run evaluates one activation
-quantile across the supplied dataset. CLI registration and saving come later.
-"""
-
+import csv
+import json
+import logging
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import torch
@@ -20,8 +19,12 @@ from config.schema.model import ModelConfig
 from evaluate.checkpoint import _build_supported_model, _load_checkpoint
 from evaluate.data import create_cityscapes_parts_dataloader
 from evaluate.parts import PartObservationExtractor, PartPresence
+from evaluate.registry import register
 from evaluate.utils import _squeeze_mask_channel
 from model.proto_segmentation import PPNet
+from utils.run_context import get_run_context
+
+logger = logging.getLogger(__name__)
 
 
 def create_stability_dataloader(cfg: EvaluateConfig) -> DataLoader:
@@ -90,6 +93,28 @@ class StabilityResult:
     std_dev: float
     seed: int
 
+    def save(self, output_dir: Path) -> None:
+        """Write the score, run summary, and each image/prototype comparison."""
+        output_dir.mkdir(parents=True, exist_ok=True)
+        suffix = f"qt_{self.summary.activation_quantile:g}_std_{self.std_dev:g}_seed_{self.seed}"
+        (output_dir / f"stability_score_{suffix}.txt").write_text(f"{self.summary.score}\n")
+        summary = {**asdict(self.summary), "num_images": self.num_images, "std_dev": self.std_dev, "seed": self.seed}
+        (output_dir / f"stability_summary_{suffix}.json").write_text(json.dumps(summary, indent=2) + "\n")
+        with (output_dir / f"stability_pairs_{suffix}.csv").open("w", newline="") as file:
+            writer = csv.DictWriter(
+                file,
+                fieldnames=[
+                    "image_index", "class_id", "prototype_id", "part_ids",
+                    "clean_presence", "noisy_presence", "score",
+                ],
+            )
+            writer.writeheader()
+            for comparison in self.comparisons:
+                row = asdict(comparison)
+                for field in ("part_ids", "clean_presence", "noisy_presence"):
+                    row[field] = json.dumps(row[field])
+                writer.writerow(row)
+
 
 @torch.no_grad()
 def run_stability(
@@ -143,6 +168,7 @@ def run_stability(
     )
 
 
+@register("stability")
 def run_stability_evaluation(cfg: EvaluateConfig) -> StabilityResult:
     """Load the configured PPNet and Cityscapes data, then evaluate one quantile."""
     checkpoint_path = cfg.model.checkpoint
@@ -153,7 +179,7 @@ def run_stability_evaluation(cfg: EvaluateConfig) -> StabilityResult:
     if not isinstance(model, PPNet) or model.prototype_class_identity.shape[1] != 19:
         raise ValueError("Cityscapes stability requires a PPNet checkpoint with 19 classes.")
     settings = cfg.evaluate.stability
-    return run_stability(
+    result = run_stability(
         model,
         data_loader,
         quantile=settings.quantile,
@@ -161,6 +187,16 @@ def run_stability_evaluation(cfg: EvaluateConfig) -> StabilityResult:
         seed=settings.seed,
         device=cfg.env.device,
     )
+    output_dir = get_run_context().log_dir / f"stability{'_official_parts' if settings.official_parts_only else ''}"
+    result.save(output_dir)
+    logger.info(
+        "Stability score: %.6f (%d/%d pairs)",
+        result.summary.score,
+        result.summary.num_stable_pairs,
+        result.summary.num_evaluated_pairs,
+    )
+    logger.info("Results written to %s", output_dir.resolve())
+    return result
 
 
 def summarize_stability(
