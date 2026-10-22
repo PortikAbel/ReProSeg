@@ -16,6 +16,7 @@ from train.optim.manager import OptimizerSchedulerManager
 from train.test_step import eval
 from train.train_step import train
 from utils.run_context import get_run_context
+from utils.version import check_checkpoint_version, compat_version
 
 logger = logging.getLogger(__name__)
 
@@ -39,12 +40,7 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
         if checkpoint_path is None:
             raise ValueError("model.checkpoint must be set to resume training.")
         checkpoint = torch.load(checkpoint_path, map_location=cfg.env.device, weights_only=False)
-        missing = [key for key in ("epoch", "total_epochs", "best_acc", "best_miou") if key not in checkpoint]
-        if missing:
-            raise ValueError(
-                f"Checkpoint {checkpoint_path} cannot be resumed: missing {missing}. "
-                "It was saved by an older version; start a new training run instead."
-            )
+        check_checkpoint_version(checkpoint, checkpoint_path)
         optimizer_scheduler_manager.load_state_dict(checkpoint)
         last_epoch = checkpoint["epoch"]
         best_acc = checkpoint["best_acc"]
@@ -81,6 +77,7 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
     def get_checkpoint(epoch: int):
         checkpoint = optimizer_scheduler_manager.get_checkpoint()
         checkpoint["model_state_dict"] = net.state_dict()
+        checkpoint["version"] = compat_version()
         checkpoint["epoch"] = epoch
         checkpoint["total_epochs"] = cfg.training.epochs.total
         checkpoint["best_acc"] = best_acc

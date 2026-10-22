@@ -10,6 +10,7 @@ from config.schema.main import BaseScenarioConfig
 from config.schema.training import OptimizerType
 from model.segmentation_features import base_architecture_to_features
 from utils.func import init_weights_xavier
+from utils.version import check_checkpoint_version
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,7 @@ class ReProSeg(nn.Module):
 
         if cfg.model.checkpoint is not None:
             checkpoint = torch.load(cfg.model.checkpoint, map_location=cfg.env.device, weights_only=False)
+            check_checkpoint_version(checkpoint, cfg.model.checkpoint)
             self.load_state_dict(checkpoint["model_state_dict"], strict=True)
             logger.info("Pretrained network loaded")
         else:
