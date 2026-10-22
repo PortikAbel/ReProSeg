@@ -10,6 +10,7 @@ from torch.nn import functional as F
 
 from config import EvaluateConfig
 from config.schema.data import DatasetType
+from evaluate import data as evaluation_data
 from evaluate.checkpoint import _register_legacy_checkpoint_modules
 from evaluate.consistency import (
     CITYSCAPES_NATIVE_IMAGE_SHAPE,
@@ -129,9 +130,9 @@ def test_cityscapes_defaults_to_native_image_shape_when_unset(monkeypatch, tmp_p
         captured["img_shape"] = data_config.img_shape
         return object()
 
-    monkeypatch.setattr(consistency.DatasetFactory, "create", fake_create)
-    monkeypatch.setattr(consistency, "PanopticPartsDataset", MagicMock())
-    monkeypatch.setattr(consistency, "DataLoader", MagicMock())
+    monkeypatch.setattr(evaluation_data.DatasetFactory, "create", fake_create)
+    monkeypatch.setattr(evaluation_data, "PanopticPartsDataset", MagicMock())
+    monkeypatch.setattr(evaluation_data, "DataLoader", MagicMock())
     result = MagicMock()
     result.score = 0.5
     monkeypatch.setattr(consistency, "run_consistency", MagicMock(return_value=result))
@@ -309,11 +310,11 @@ def test_evaluation_passes_part_selection_to_loader_and_separates_results(
 
     monkeypatch.setattr(consistency, "_load_checkpoint", lambda *args, **kwargs: DummyPPNet())
     validation_data = object()
-    monkeypatch.setattr(consistency.DatasetFactory, "create", lambda *args, **kwargs: validation_data)
+    monkeypatch.setattr(evaluation_data.DatasetFactory, "create", lambda *args, **kwargs: validation_data)
     dataset = MagicMock()
-    monkeypatch.setattr(consistency, "PanopticPartsDataset", dataset)
+    monkeypatch.setattr(evaluation_data, "PanopticPartsDataset", dataset)
     loader = MagicMock()
-    monkeypatch.setattr(consistency, "DataLoader", loader)
+    monkeypatch.setattr(evaluation_data, "DataLoader", loader)
     evaluate_mock = MagicMock()
     evaluate_mock.return_value.score = 0.5
     monkeypatch.setattr(consistency, "run_consistency", evaluate_mock)

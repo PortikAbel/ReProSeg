@@ -42,11 +42,10 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from config import EvaluateConfig
-from config.schema.data import DataConfig, DatasetType
-from data import DataSplit, PanopticPartsDataset
-from data.dataset.factory import DatasetFactory
+from config.schema.data import DatasetType
 from data.dataset.pascal_parts import PascalPartsDataset
 from evaluate.checkpoint import SupportedModel, _build_supported_model, _load_checkpoint
+from evaluate.data import CITYSCAPES_NATIVE_IMAGE_SHAPE, create_cityscapes_parts_dataloader
 from evaluate.parts import PartObservationExtractor, PartPresence
 from evaluate.registry import register
 from evaluate.utils import _squeeze_mask_channel
@@ -59,7 +58,6 @@ logger = logging.getLogger(__name__)
 Batch: TypeAlias = tuple[Tensor, Tensor, Tensor]
 AccumulatorKey: TypeAlias = tuple[int, int, int]
 ComponentClassKey: TypeAlias = tuple[int, int]
-CITYSCAPES_NATIVE_IMAGE_SHAPE = (1024, 2048)
 
 
 @dataclass(frozen=True)
@@ -406,29 +404,22 @@ def run_consistency_evaluation(cfg: EvaluateConfig) -> ConsistencyResult:
         logger.info(
             f"Pascal validation: {len(parts_data)} images with parts; {parts_data.num_missing_parts} without TIFFs."
         )
-    else:
-        image_shape = consistency_cfg.image_shape or CITYSCAPES_NATIVE_IMAGE_SHAPE
-        data_config = DataConfig(
-            path=cfg.data.path,
-            batch_size=max(2, consistency_cfg.batch_size),
+        data_loader: DataLoader[Batch] = DataLoader(
+            parts_data,
+            batch_size=consistency_cfg.batch_size,
+            shuffle=False,
             num_workers=consistency_cfg.num_workers,
-            img_shape=image_shape,
-            filter_classes=True,
-            mean=cfg.data.mean,
-            std=cfg.data.std,
+            pin_memory=device.type == "cuda",
         )
-        validation_data = DatasetFactory.create(data_config, split=DataSplit.VAL)
-        parts_data = PanopticPartsDataset(
-            data_config, validation_data, official_parts_only=consistency_cfg.official_parts_only
+    else:
+        data_loader = create_cityscapes_parts_dataloader(
+            cfg.data,
+            batch_size=consistency_cfg.batch_size,
+            num_workers=consistency_cfg.num_workers,
+            image_shape=consistency_cfg.image_shape or CITYSCAPES_NATIVE_IMAGE_SHAPE,
+            official_parts_only=consistency_cfg.official_parts_only,
+            device=device,
         )
-
-    data_loader: DataLoader[Batch] = DataLoader(
-        parts_data,
-        batch_size=consistency_cfg.batch_size,
-        shuffle=False,
-        num_workers=consistency_cfg.num_workers,
-        pin_memory=device.type == "cuda",
-    )
 
     result = run_consistency(
         model,

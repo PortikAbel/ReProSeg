@@ -12,11 +12,38 @@ from pathlib import Path
 
 import torch
 from torch import Tensor
+from torch.utils.data import DataLoader
 
+from config import EvaluateConfig
 from config.schema.evaluate import StabilityEvalConfig
 from config.schema.model import ModelConfig
 from evaluate.checkpoint import _build_supported_model, _load_checkpoint
+from evaluate.data import create_cityscapes_parts_dataloader
 from evaluate.parts import PartObservationExtractor, PartPresence
+
+
+def create_stability_dataloader(cfg: EvaluateConfig) -> DataLoader:
+    """Load native-resolution Cityscapes validation images and part annotations.
+
+    Uses data.path, data.mean/std, and evaluate.stability's part mode, batch
+    size, worker count, and seed. Batches contain normalized RGB images
+    (B, 3, 1024, 2048), semantic masks (B, 1, H, W), and encoded part masks
+    (B, 1, H, W), with the same transforms as consistency evaluation.
+
+    Images are ordered by path in both part modes, without shuffling or dropping
+    the final batch. Missing annotations raise an error when their image is read.
+    The returned dataset's _get_image_path(index) identifies each image for audits.
+    """
+    settings = cfg.evaluate.stability
+    return create_cityscapes_parts_dataloader(
+        cfg.data,
+        batch_size=settings.batch_size,
+        num_workers=settings.num_workers,
+        official_parts_only=settings.official_parts_only,
+        device=cfg.env.device,
+        sort_images=True,
+        seed=settings.seed,
+    )
 
 
 @dataclass(frozen=True)
