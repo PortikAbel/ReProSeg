@@ -94,7 +94,7 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
     best_miou = 0.0
 
     for epoch in range(cfg.training.epochs.start, cfg.training.epochs.total + 1):
-        if epoch <= cfg.training.epochs.finetune and (cfg.training.epochs.pretrain > 0 or cfg.training.resume):
+        if epoch <= cfg.training.epochs.finetune:
             net.finetune()
         else:
             # unfreeze backbone
