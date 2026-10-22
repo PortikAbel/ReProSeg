@@ -5,4 +5,3 @@ skip_training: false
 epochs: 
   total: 2
   finetune: 1
-  start: 1

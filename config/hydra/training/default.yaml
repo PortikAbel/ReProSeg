@@ -7,7 +7,6 @@ skip_training: false
 epochs: 
   total: 1000
   finetune: 10
-  start: 1
 
 # Optimizer
 learning_rates:
