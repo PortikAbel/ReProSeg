@@ -1,10 +1,12 @@
 """Preparation and part observations for the future stability evaluator.
 
 Noise is added to already normalized images. Prepare each clean/noisy pair once
-and reuse it across activation thresholds. Stability scoring, dataset iteration,
-and CLI registration belong to later steps.
+and reuse it across activation thresholds. This module scores each observed
+image/class/prototype pair; dataset aggregation and CLI registration come later.
 """
 
+from collections import defaultdict
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -23,6 +25,54 @@ class StabilityImagePair:
 
     clean: Tensor
     noisy: Tensor
+
+
+@dataclass(frozen=True)
+class PartStability:
+    """Exact part-presence comparison for one image, class, and prototype."""
+
+    image_index: int
+    class_id: int
+    prototype_id: int
+    part_ids: tuple[int, ...]
+    clean_presence: tuple[bool, ...]
+    noisy_presence: tuple[bool, ...]
+    score: int
+
+
+def compare_part_presence(clean: Sequence[PartPresence], noisy: Sequence[PartPresence]) -> tuple[PartStability, ...]:
+    """Score 1 only when every annotated part agrees; two all-zero vectors agree.
+
+    Observations are keyed by image, class, prototype, and part ID. There must
+    be a matching observation on both sides so missing data cannot look stable.
+    An image/class without annotated parts has no observations and contributes
+    no comparison.
+    """
+    indexed: list[dict[tuple[int, int, int], dict[int, bool]]] = []
+    for observations in (clean, noisy):
+        by_pair: dict[tuple[int, int, int], dict[int, bool]] = defaultdict(dict)
+        for observation in observations:
+            key = (observation.image_index, observation.class_id, observation.prototype_id)
+            if observation.part_id in by_pair[key]:
+                raise ValueError(f"Duplicate part observation for {key}, part {observation.part_id}.")
+            by_pair[key][observation.part_id] = observation.present
+        indexed.append(by_pair)
+
+    clean_by_pair, noisy_by_pair = indexed
+    if clean_by_pair.keys() != noisy_by_pair.keys():
+        raise ValueError("Clean and noisy observations must have identical image/class/prototype pairs.")
+
+    comparisons = []
+    for key in sorted(clean_by_pair):
+        clean_parts = clean_by_pair[key]
+        noisy_parts = noisy_by_pair[key]
+        if clean_parts.keys() != noisy_parts.keys():
+            raise ValueError(f"Clean and noisy observations must have identical annotated parts for {key}.")
+        part_ids = tuple(sorted(clean_parts))
+        clean_vector = tuple(clean_parts[part_id] for part_id in part_ids)
+        noisy_vector = tuple(noisy_parts[part_id] for part_id in part_ids)
+        comparisons.append(PartStability(*key, part_ids, clean_vector, noisy_vector, int(clean_vector == noisy_vector)))
+    return tuple(comparisons)
 
 
 class StabilityNoise:
@@ -74,6 +124,25 @@ class StabilityNoise:
 
 class StabilityObserver(PartObservationExtractor):
     """Observe both versions using consistency's class assignments and geometry."""
+
+    def compare_pair(
+        self,
+        clean_image: Tensor,
+        perturbed_image: Tensor,
+        *,
+        semantic_mask: Tensor,
+        part_mask: Tensor,
+        image_index: int = 0,
+    ) -> tuple[PartStability, ...]:
+        """Compare the part vectors returned by the shared observation logic."""
+        clean, perturbed = self.observe_pair(
+            clean_image,
+            perturbed_image,
+            semantic_mask=semantic_mask,
+            part_mask=part_mask,
+            image_index=image_index,
+        )
+        return compare_part_presence(clean, perturbed)
 
     @torch.no_grad()
     def observe_pair(
