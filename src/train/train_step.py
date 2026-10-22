@@ -7,10 +7,10 @@ import torch.nn as nn
 from tqdm import tqdm
 
 from config import TrainConfig
-from model.model import ReProSeg, TrainPhase
-from model.optimizers import OptimizerSchedulerManager
+from model.model import ReProSeg
 from train.eval import acc_from_cm, compute_cm, intersection_and_union_from_cm
 from train.loss import Loss, calculate_loss
+from train.optim.manager import OptimizerSchedulerManager
 from utils.run_context import get_run_context
 
 logger = logging.getLogger(__name__)
@@ -37,9 +37,6 @@ def train(
 ) -> TrainInfo:
     # Make sure the model is in train mode
     net.train()
-
-    if net.train_phase == TrainPhase.PRETRAIN:
-        progress_prefix = "Pretrain Epoch"
 
     loss_epoch: Loss = Loss.on_device(cfg.env.device)
     total_acc = 0.0
@@ -68,20 +65,17 @@ def train(
     accumulated_ys = []
 
     # Iterate through the data set to update leaves, concepts and network
-    for i, (xs1, xs2, ys) in train_iter:
-        xs1 = xs1.to(cfg.env.device, non_blocking=True)
-        xs2 = xs2.to(cfg.env.device, non_blocking=True)
+    for i, (xs, ys) in train_iter:
+        xs = xs.to(cfg.env.device, non_blocking=True)
         ys = ys.to(cfg.env.device, non_blocking=True)
 
         # Reset the gradients
         optimizer_scheduler_manager.reset_gradients()
 
         # Perform a forward pass through the network
-        aspp_features, pooled, out = net(torch.cat([xs1, xs2]))
-        ys = torch.cat([ys, ys])
+        _aspp_features, pooled, out = net(xs)
 
         loss = calculate_loss(
-            aspp_features,
             pooled,
             out,
             ys,
@@ -92,8 +86,7 @@ def train(
 
         train_iter.set_postfix_str(
             (
-                f"LA:{loss.alignment:.2f}, "
-                + f"LJ:{loss.jsd:.3f}, "
+                f"LJ:{loss.jsd:.3f}, "
                 + f"LT:{loss.tanh:.3f}, "
                 + f"LC:{loss.classification:.3f}, "
                 + f"L:{loss.total.item():.3f}"
@@ -104,35 +97,32 @@ def train(
         # Compute the gradient
         loss.total.backward()
 
-        optimizer_scheduler_manager.step(net.train_phase, epoch - 1 + (i / iters))
+        optimizer_scheduler_manager.step(net.train_phase)
 
         with torch.no_grad():
             loss_epoch.total += loss.total
-            loss_epoch.alignment += loss.alignment
             loss_epoch.jsd += loss.jsd
             loss_epoch.tanh += loss.tanh
             loss_epoch.classification += loss.classification
 
-            if net.train_phase is not TrainPhase.PRETRAIN:
-                accumulated_out.append(out.detach())
-                accumulated_ys.append(ys.detach())
+            accumulated_out.append(out.detach())
+            accumulated_ys.append(ys.detach())
 
-                if (i + 1) % CONFUSION_MATRIX_COMPUTE_INTERVAL == 0 or (i + 1) == iters:
-                    batched_out = torch.cat(accumulated_out, dim=0)
-                    batched_ys = torch.cat(accumulated_ys, dim=0)
+            if (i + 1) % CONFUSION_MATRIX_COMPUTE_INTERVAL == 0 or (i + 1) == iters:
+                batched_out = torch.cat(accumulated_out, dim=0)
+                batched_ys = torch.cat(accumulated_ys, dim=0)
 
-                    cm = compute_cm(batched_out, batched_ys)
-                    total_acc += acc_from_cm(cm)
-                    intersections, unions = intersection_and_union_from_cm(cm)
-                    total_intersections_by_class += intersections
-                    total_unions_by_class += unions
+                cm = compute_cm(batched_out, batched_ys)
+                total_acc += acc_from_cm(cm)
+                intersections, unions = intersection_and_union_from_cm(cm)
+                total_intersections_by_class += intersections
+                total_unions_by_class += unions
 
-                    accumulated_out.clear()
-                    accumulated_ys.clear()
+                accumulated_out.clear()
+                accumulated_ys.clear()
 
     # Average the losses over the epoch
     loss_epoch.total /= float(iters)
-    loss_epoch.alignment /= float(iters)
     loss_epoch.jsd /= float(iters)
     loss_epoch.tanh /= float(iters)
     loss_epoch.classification /= float(iters)

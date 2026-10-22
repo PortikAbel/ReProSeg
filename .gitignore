@@ -169,3 +169,6 @@ logs/
 class_distribution/
 
 consistency_results*
+
+# Superpowers workflow artifacts (specs, plans)
+docs/superpowers/

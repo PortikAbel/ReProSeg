@@ -10,6 +10,7 @@ from config.schema.main import BaseScenarioConfig
 from config.schema.training import OptimizerType
 from model.segmentation_features import base_architecture_to_features
 from utils.func import init_weights_xavier
+from utils.version import check_checkpoint_version
 
 logger = logging.getLogger(__name__)
 
@@ -17,11 +18,6 @@ logger = logging.getLogger(__name__)
 class TrainPhase(Enum):
     """
     Enum to define the training phase.
-    """
-
-    PRETRAIN = 0
-    """
-    Pretraining phase.
     """
 
     FINETUNE = 1
@@ -77,6 +73,7 @@ class ReProSeg(nn.Module):
 
         if cfg.model.checkpoint is not None:
             checkpoint = torch.load(cfg.model.checkpoint, map_location=cfg.env.device, weights_only=False)
+            check_checkpoint_version(checkpoint, cfg.model.checkpoint)
             self.load_state_dict(checkpoint["model_state_dict"], strict=True)
             logger.info("Pretrained network loaded")
         else:
@@ -188,15 +185,9 @@ class ReProSeg(nn.Module):
     def _apply_phase(self, phase: TrainPhase):
         self.train_phase = phase
         backbone_trainable = phase is not TrainPhase.FINETUNE
-        classifier_trainable = phase is not TrainPhase.PRETRAIN
 
         for param in self.param_groups["backbone"]:
             param.requires_grad_(backbone_trainable)
-        for param in self.param_groups["classifier_head"]:
-            param.requires_grad_(classifier_trainable)
-
-    def pretrain(self):
-        self._apply_phase(TrainPhase.PRETRAIN)
 
     def finetune(self):
         self._apply_phase(TrainPhase.FINETUNE)

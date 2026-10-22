@@ -1,14 +1,14 @@
-"""Unit tests for the DoubleAugmentDataset class."""
+"""Unit tests for the AugmentedDataset class."""
 
 import pytest
 import torch
 
 from config.schema.data import DatasetType
-from data import DoubleAugmentDataset
+from data import AugmentedDataset
 
 
-class TestDoubleAugmentDataset:
-    """Test cases for the DoubleAugmentDataset class."""
+class TestAugmentedDataset:
+    """Test cases for the AugmentedDataset class."""
 
     @pytest.fixture(
         params=[
@@ -22,7 +22,7 @@ class TestDoubleAugmentDataset:
     ):
         """Run before each test method to create a fresh dataset instance."""
         mock_config.data.dataset = request.param
-        self.dataset = DoubleAugmentDataset(mock_config.data)
+        self.dataset = AugmentedDataset(mock_config.data)
 
     def test_getitem_transforms_sequence(self, sample_image, sample_target):
         """Test __getitem__ method applies transforms in the correct sequence."""
@@ -30,7 +30,7 @@ class TestDoubleAugmentDataset:
         result = self.dataset[0]
 
         self.dataset.dataset.__getitem__.assert_called_once_with(0)
-        assert len(result) == 3
+        assert len(result) == 2
 
         self.dataset.transform_set.base_image.assert_called_once_with(sample_image)
         self.dataset.transform_set.base_target.assert_called_once_with(sample_target)
@@ -39,12 +39,11 @@ class TestDoubleAugmentDataset:
 
         self.dataset.transform_set.color_augmentation.assert_called()
         self.dataset.transform_set.image_normalization.assert_called()
-        assert self.dataset.transform_set.color_augmentation.call_count == 2
-        assert self.dataset.transform_set.image_normalization.call_count == 2
+        assert self.dataset.transform_set.color_augmentation.call_count == 1
+        assert self.dataset.transform_set.image_normalization.call_count == 1
 
         # Verify that the target shrink transform was applied
         self.dataset.transform_set.shrink_target.assert_called_once()
 
         assert isinstance(result[0], torch.Tensor)
         assert isinstance(result[1], torch.Tensor)
-        assert isinstance(result[2], torch.Tensor)
