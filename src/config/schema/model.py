@@ -30,7 +30,6 @@ class LossCriterion(str, Enum):
 class LossWeights(BaseConfig):
     """Weights for different loss components."""
 
-    alignment: float = Field(default=1.0, description="Ensures concepts of similar images are aligned")
     jsd: float = Field(default=0.0, description="Jensen-Shannon Divergence: enforces concept diversity")
     tanh: float = Field(default=0.0, description="Ensures each concept is activated at least once per batch")
     classification: float = Field(default=1.0, description="Standard classification loss weight")
@@ -55,9 +54,6 @@ class ModelConfig(BaseConfig):
     bias: bool = Field(default=False, description="Include a bias in classification layer if true")
     disable_pretrained: bool = Field(
         default=False, description="Initialize backbone randomly instead of using pretrained weights"
-    )
-    train_backbone_during_pretrain: bool = Field(
-        default=False, description="Whether to train the full backbone during pretraining"
     )
     criterion: LossCriterion = Field(default=LossCriterion.DICE, description="Loss function type")
     loss_weights: LossWeights = Field(default_factory=LossWeights, description="Weights for different loss components")

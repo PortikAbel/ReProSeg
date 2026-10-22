@@ -43,9 +43,8 @@ class OptimizerSchedulerManager:
         self.optimizer_classifier.zero_grad()
 
     def step(self, train_phase: TrainPhase):
-        if train_phase is not TrainPhase.PRETRAIN:
-            self.optimizer_classifier.step()
-            self.scheduler_classifier.step()
+        self.optimizer_classifier.step()
+        self.scheduler_classifier.step()
 
         if train_phase is not TrainPhase.FINETUNE:
             self.optimizer_net.step()

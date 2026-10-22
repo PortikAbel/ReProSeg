@@ -19,11 +19,6 @@ class TrainPhase(Enum):
     Enum to define the training phase.
     """
 
-    PRETRAIN = 0
-    """
-    Pretraining phase.
-    """
-
     FINETUNE = 1
     """
     Finetuning phase.
@@ -188,15 +183,9 @@ class ReProSeg(nn.Module):
     def _apply_phase(self, phase: TrainPhase):
         self.train_phase = phase
         backbone_trainable = phase is not TrainPhase.FINETUNE
-        classifier_trainable = phase is not TrainPhase.PRETRAIN
 
         for param in self.param_groups["backbone"]:
             param.requires_grad_(backbone_trainable)
-        for param in self.param_groups["classifier_head"]:
-            param.requires_grad_(classifier_trainable)
-
-    def pretrain(self):
-        self._apply_phase(TrainPhase.PRETRAIN)
 
     def finetune(self):
         self._apply_phase(TrainPhase.FINETUNE)

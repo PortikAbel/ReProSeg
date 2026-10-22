@@ -5,7 +5,6 @@ skip_training: false
 
 # Training epochs
 epochs: 
-  pretrain: 0
   total: 1000
   finetune: 10
   start: 1

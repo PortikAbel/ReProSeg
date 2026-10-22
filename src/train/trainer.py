@@ -7,7 +7,7 @@ from torch.utils.data import Dataset as TorchDataset
 
 from config import TrainConfig
 from config.schema.model import LossCriterion
-from data import DataLoader, Dataset, DoubleAugmentDataset
+from data import AugmentedDataset, DataLoader, Dataset
 from data.count_class_distribution import get_class_weights
 from model.model import ReProSeg
 from train.criterion.dice import DiceLoss
@@ -22,13 +22,13 @@ logger = logging.getLogger(__name__)
 
 def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDataset, cfg: TrainConfig):
     run = get_run_context()
-    double_augment_set = DoubleAugmentDataset(cfg.data, train_data)
+    train_set = AugmentedDataset(cfg.data, train_data)
     valid_set = Dataset(cfg.data, valid_data)
-    train_loader = DataLoader(double_augment_set, cfg.data)
+    train_loader = DataLoader(train_set, cfg.data)
     valid_loader = DataLoader(valid_set, cfg.data)
 
     optimizer_scheduler_manager = OptimizerSchedulerManager(
-        net, cfg.training.schedulers, len(train_loader), cfg.training.epochs.pretrain
+        net, cfg.training.schedulers, len(train_loader), cfg.training.epochs.total
     )
     if cfg.training.resume:
         checkpoint_path = cfg.model.checkpoint
@@ -53,46 +53,16 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
 
     # Forward one batch through the backbone to get the latent output size
     with torch.no_grad():
-        xs1, _, _ = next(iter(train_loader))
-        xs1 = xs1.to(cfg.env.device)
-        _aspp_features, pooled, _out = net(xs1)
+        xs, _ = next(iter(train_loader))
+        xs = xs.to(cfg.env.device)
+        _aspp_features, pooled, _out = net(xs)
         logger.debug(f"ASPP features output shape: {_aspp_features.shape}")
         logger.debug(f"pooled ASPP output shape: {pooled.shape}")
-
-    # PRETRAINING CONCEPTS PHASE
-    for epoch in range(1, cfg.training.epochs.pretrain + 1):
-        logger.info(f"Pretrain Epoch {epoch} with batch size {train_loader.batch_size}")
-
-        # Pretrain concepts
-        net.pretrain()
-        train_info = train(
-            cfg,
-            net,
-            train_loader,
-            optimizer_scheduler_manager,
-            criterion,
-            epoch,
-        )
 
     def get_checkpoint():
         checkpoint = optimizer_scheduler_manager.get_checkpoint()
         checkpoint["model_state_dict"] = net.state_dict()
         return checkpoint
-
-    if not cfg.training.resume:
-        net.eval()
-        run.model_checkpoint(get_checkpoint(), "net_pretrained")
-        net.train()
-
-    # SECOND TRAINING PHASE re-initialize optimizers and schedulers
-    # for second training phase
-    if cfg.training.epochs.start <= 1:
-        optimizer_scheduler_manager = OptimizerSchedulerManager(
-            net,
-            cfg.training.schedulers,
-            len(train_loader),
-            cfg.training.epochs.total,
-        )
 
     best_acc = 0.0
     best_miou = 0.0
@@ -116,7 +86,6 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
         run.tb_scalar("Acc/train-epochs", train_info.accuracy, epoch)
         run.tb_scalar("mIoU/train-epochs", train_info.miou, epoch)
         run.tb_scalar("loss-train/L", train_info.loss.total.item(), epoch)
-        run.tb_scalar("loss-train/LA", train_info.loss.alignment.item(), epoch)
         run.tb_scalar("loss-train/L_JSD", train_info.loss.jsd.item(), epoch)
         run.tb_scalar("loss-train/LT", train_info.loss.tanh.item(), epoch)
         run.tb_scalar("loss-train/LC", train_info.loss.classification.item(), epoch)
