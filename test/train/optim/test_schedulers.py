@@ -11,7 +11,7 @@ from config.schema.training import (
     SchedulersConfig,
     StepSchedulerConfig,
 )
-from model.schedulers import build_scheduler
+from train.optim.schedulers import build_scheduler
 
 
 def _lrs(cfg: SchedulerConfig, iters_per_epoch: int, epochs: int, steps: int) -> list[float]:

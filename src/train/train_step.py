@@ -8,9 +8,9 @@ from tqdm import tqdm
 
 from config import TrainConfig
 from model.model import ReProSeg, TrainPhase
-from model.optimizers import OptimizerSchedulerManager
 from train.eval import acc_from_cm, compute_cm, intersection_and_union_from_cm
 from train.loss import Loss, calculate_loss
+from train.optim.manager import OptimizerSchedulerManager
 from utils.run_context import get_run_context
 
 logger = logging.getLogger(__name__)

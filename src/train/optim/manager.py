@@ -1,6 +1,6 @@
 from config.schema.training import SchedulersConfig
 from model.model import ReProSeg, TrainPhase
-from model.schedulers import build_scheduler
+from train.optim.schedulers import build_scheduler
 
 
 class OptimizerSchedulerManager:

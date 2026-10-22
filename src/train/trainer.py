@@ -10,9 +10,9 @@ from config.schema.model import LossCriterion
 from data import DataLoader, Dataset, DoubleAugmentDataset
 from data.count_class_distribution import get_class_weights
 from model.model import ReProSeg
-from model.optimizers import OptimizerSchedulerManager
 from train.criterion.dice import DiceLoss
 from train.criterion.weighted_nll import WeightedCrossEntropyLoss
+from train.optim.manager import OptimizerSchedulerManager
 from train.test_step import eval
 from train.train_step import train
 from utils.run_context import get_run_context
