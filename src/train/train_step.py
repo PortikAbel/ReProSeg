@@ -104,7 +104,7 @@ def train(
         # Compute the gradient
         loss.total.backward()
 
-        optimizer_scheduler_manager.step(net.train_phase, epoch - 1 + (i / iters))
+        optimizer_scheduler_manager.step(net.train_phase)
 
         with torch.no_grad():
             loss_epoch.total += loss.total

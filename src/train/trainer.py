@@ -27,7 +27,9 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
     train_loader = DataLoader(double_augment_set, cfg.data)
     valid_loader = DataLoader(valid_set, cfg.data)
 
-    optimizer_scheduler_manager = OptimizerSchedulerManager(net, len(train_loader) * cfg.training.epochs.pretrain)
+    optimizer_scheduler_manager = OptimizerSchedulerManager(
+        net, cfg.training.schedulers, len(train_loader), cfg.training.epochs.pretrain
+    )
     if cfg.training.resume:
         checkpoint_path = cfg.model.checkpoint
         if checkpoint_path is None:
@@ -87,7 +89,9 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
     if cfg.training.epochs.start <= 1:
         optimizer_scheduler_manager = OptimizerSchedulerManager(
             net,
-            len(train_loader) * cfg.training.epochs.total,
+            cfg.training.schedulers,
+            len(train_loader),
+            cfg.training.epochs.total,
         )
 
     best_acc = 0.0
