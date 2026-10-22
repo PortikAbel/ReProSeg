@@ -1,7 +1,7 @@
 """Evaluation metric configuration schemas."""
 
 from pathlib import Path
-from typing import Optional
+from typing import Annotated, Optional
 
 from pydantic import Field
 
@@ -33,8 +33,20 @@ class ConsistencyEvalConfig(BaseConfig):
     )
 
 
+class StabilityEvalConfig(BaseConfig):
+    """Clean/noisy part agreement for PPNet on Cityscapes."""
+
+    quantiles: tuple[Annotated[float, Field(ge=0.0, le=1.0)], ...] = Field(default=(0.7, 0.8, 0.9), min_length=1)
+    std_dev: float = Field(default=0.2, ge=0.0, allow_inf_nan=False)
+    seed: int = Field(default=0, ge=0, le=2**63 - 1)
+    official_parts_only: bool = False
+    batch_size: int = Field(default=1, ge=1)
+    num_workers: int = Field(default=0, ge=0)
+
+
 class EvaluateMetricsConfig(BaseConfig):
     """Selects and configures which interpretability metric to compute."""
 
     metric_name: str = Field(default="consistency", description="Name of the registered metric to run")
     consistency: ConsistencyEvalConfig = Field(default_factory=ConsistencyEvalConfig)
+    stability: StabilityEvalConfig = Field(default_factory=StabilityEvalConfig)
