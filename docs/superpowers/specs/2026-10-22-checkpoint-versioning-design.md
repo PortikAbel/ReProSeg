@@ -4,7 +4,7 @@
 Fail clearly when resuming a checkpoint produced by an incompatible release. Breaking old checkpoints is accepted.
 
 ## Design
-- **Version source:** `pyproject.toml` `version` is the single source of truth. `src/version.py` reads it with `importlib.metadata` and exposes `get_version()` and `compat_version()` (`"x.y"`).
+- **Version source:** `pyproject.toml` `version` is the single source of truth. `src/utils/version.py` reads it with `importlib.metadata` and exposes `get_version()` and `compat_version()` (`"x.y"`).
 - **Compatibility rule:** checkpoints are compatible when `x.y` matches; patch (`z`) differences are compatible. Under `0.y.z`, a minor bump is the breaking one.
 - **Saving:** `get_checkpoint()` adds `version: "x.y"`.
 - **Loading:** `check_checkpoint_version(ckpt, path)` runs before any state is loaded. A missing or different `x.y` raises an error naming both versions and suggesting `git checkout vX.Y.Z` or retraining.
