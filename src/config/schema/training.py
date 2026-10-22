@@ -1,9 +1,9 @@
 """Training configuration schemas."""
 
 from enum import Enum
-from typing import Optional
+from typing import Annotated, Literal, Optional, Union
 
-from pydantic import Field, ValidationInfo, field_validator, model_validator
+from pydantic import ConfigDict, Field, ValidationInfo, field_validator
 
 from config.schema.base import BaseConfig
 
@@ -38,63 +38,61 @@ class LearningRateConfig(BaseConfig):
     classifier: float = Field(default=1.0, gt=0.0, description="Learning rate for concept → class weights")
 
 
-class SchedulerType(str, Enum):
-    """Supported learning rate scheduler types."""
+class _SchedulerBase(BaseConfig):
+    """Base for scheduler configs. Durations are expressed in epochs."""
 
-    COSINE_WARM_RESTARTS = "cosine_warm_restarts"
-    COSINE_ANNEALING = "cosine_annealing"
-    STEP = "step"
-    EXPONENTIAL = "exponential"
-    CONSTANT = "constant"
+    model_config = ConfigDict(extra="forbid")
 
 
-# Parameters each scheduler type accepts; unset ones fall back to defaults at build time.
-SCHEDULER_PARAMS: dict[SchedulerType, frozenset[str]] = {
-    SchedulerType.COSINE_WARM_RESTARTS: frozenset({"T_0", "T_mult", "eta_min"}),
-    SchedulerType.COSINE_ANNEALING: frozenset({"T_max", "eta_min"}),
-    SchedulerType.STEP: frozenset({"step_size", "gamma"}),
-    SchedulerType.EXPONENTIAL: frozenset({"gamma"}),
-    SchedulerType.CONSTANT: frozenset(),
-}
+class CosineWarmRestartsSchedulerConfig(_SchedulerBase):
+    type: Literal["cosine_warm_restarts"] = "cosine_warm_restarts"
+    T_0: int = Field(default=5, gt=0, description="Epochs until the first restart")
+    T_mult: int = Field(default=1, ge=1, description="Restart period multiplier")
+    eta_min: float = Field(default=0.0, ge=0.0, description="Minimum learning rate")
 
 
-class SchedulerConfig(BaseConfig):
-    """Learning rate scheduler configuration. Durations are expressed in epochs."""
+class CosineAnnealingSchedulerConfig(_SchedulerBase):
+    type: Literal["cosine_annealing"] = "cosine_annealing"
+    T_max: Optional[int] = Field(default=None, gt=0, description="Epochs of the cosine half-period (None: whole phase)")
+    eta_min: float = Field(default=0.0, ge=0.0, description="Minimum learning rate")
 
-    type: SchedulerType = Field(default=SchedulerType.COSINE_ANNEALING, description="Scheduler type")
-    T_0: Optional[int] = Field(default=None, gt=0, description="Epochs until the first restart (default 5)")
-    T_mult: Optional[int] = Field(default=None, ge=1, description="Restart period multiplier (default 1)")
-    T_max: Optional[int] = Field(
-        default=None, gt=0, description="Epochs of one cosine half-period (default: whole phase)"
-    )
-    eta_min: Optional[float] = Field(default=None, ge=0.0, description="Minimum learning rate (default 0.0)")
-    step_size: Optional[int] = Field(default=None, gt=0, description="Epochs between decays (default 10)")
-    gamma: Optional[float] = Field(
-        default=None,
-        gt=0.0,
-        description="Decay factor per `step_size` epochs (step, default 0.1) or per epoch (exponential, default 0.95)",
-    )
 
-    @model_validator(mode="after")
-    def validate_params_for_type(self):
-        allowed = SCHEDULER_PARAMS[SchedulerType(self.type)]
-        unused = sorted(
-            name
-            for name in ("T_0", "T_mult", "T_max", "eta_min", "step_size", "gamma")
-            if getattr(self, name) is not None and name not in allowed
-        )
-        if unused:
-            raise ValueError(f"parameters {unused} are not used by scheduler type '{self.type}'")
-        return self
+class StepSchedulerConfig(_SchedulerBase):
+    type: Literal["step"] = "step"
+    step_size: int = Field(default=10, gt=0, description="Epochs between decays")
+    gamma: float = Field(default=0.1, gt=0.0, description="Decay factor applied every `step_size` epochs")
+
+
+class ExponentialSchedulerConfig(_SchedulerBase):
+    type: Literal["exponential"] = "exponential"
+    gamma: float = Field(default=0.95, gt=0.0, description="Decay factor applied every epoch")
+
+
+class ConstantSchedulerConfig(_SchedulerBase):
+    type: Literal["constant"] = "constant"
+
+
+SchedulerConfig = Annotated[
+    Union[
+        CosineWarmRestartsSchedulerConfig,
+        CosineAnnealingSchedulerConfig,
+        StepSchedulerConfig,
+        ExponentialSchedulerConfig,
+        ConstantSchedulerConfig,
+    ],
+    Field(discriminator="type"),
+]
 
 
 class SchedulersConfig(BaseConfig):
     """Schedulers for the backbone network and the classifier head."""
 
-    net: SchedulerConfig = Field(default_factory=lambda: SchedulerConfig(), description="Backbone scheduler")
+    net: SchedulerConfig = Field(
+        default_factory=lambda: CosineAnnealingSchedulerConfig(), description="Backbone scheduler"
+    )
     classifier: SchedulerConfig = Field(
         # warm restarts let the classifier re-activate zeroed-out concepts
-        default_factory=lambda: SchedulerConfig(type=SchedulerType.COSINE_WARM_RESTARTS, T_0=5),
+        default_factory=lambda: CosineWarmRestartsSchedulerConfig(),
         description="Classifier scheduler",
     )
 
