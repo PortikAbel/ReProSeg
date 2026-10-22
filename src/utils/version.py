@@ -23,6 +23,7 @@ def check_checkpoint_version(checkpoint: Mapping, path: object) -> None:
             "Retrain, or check out the code that produced it."
         )
     current = compat_version()
+    saved = major_minor(str(saved))
     if saved != current:
         raise ValueError(
             f"Checkpoint {path} was saved by version {saved}.x but this code is {current}.x. "

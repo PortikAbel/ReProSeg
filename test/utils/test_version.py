@@ -30,3 +30,7 @@ def test_different_minor_raises(code_version):
 def test_missing_version_raises(code_version):
     with pytest.raises(ValueError, match="no version"):
         check_checkpoint_version({}, "ckpt.pt")
+
+
+def test_patch_in_saved_version_is_compatible(code_version):
+    check_checkpoint_version({"version": "0.2.5"}, "ckpt.pt")
