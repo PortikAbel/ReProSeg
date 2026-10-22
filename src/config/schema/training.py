@@ -21,7 +21,6 @@ class EpochConfig(BaseConfig):
 
     total: int = Field(default=0, gt=0, description="Total training epochs (stage 2)")
     finetune: int = Field(default=0, ge=0, description="Finetuning epochs with frozen backbone")
-    start: int = Field(default=1, gt=0, description="Starting epoch (for resuming)")
 
     @field_validator("finetune")
     def validate_finetune(cls, v, values: ValidationInfo):
