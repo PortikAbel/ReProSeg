@@ -1,4 +1,4 @@
-"""PPNet part stability on clean and noisy Cityscapes images."""
+"""Part stability for PPNet and ReProSeg on clean and noisy Cityscapes images."""
 
 import csv
 import json
@@ -16,11 +16,12 @@ from tqdm import tqdm
 from config import EvaluateConfig
 from config.schema.evaluate import StabilityEvalConfig
 from config.schema.model import ModelConfig
-from evaluate.checkpoint import _build_supported_model, _load_checkpoint
+from evaluate.checkpoint import SupportedModel, _build_supported_model, _load_checkpoint
 from evaluate.data import create_cityscapes_parts_dataloader
 from evaluate.parts import PartObservationExtractor, PartPresence
 from evaluate.registry import register
 from evaluate.utils import _squeeze_mask_channel
+from model.model import ReProSeg
 from model.proto_segmentation import PPNet
 from utils.run_context import get_run_context
 
@@ -116,9 +117,44 @@ class StabilityResult:
                 writer.writerow(row)
 
 
+def _validate_stability_model(model: SupportedModel, *, cityscapes: bool = False) -> int:
+    """Validate classifier layout and return the semantic-label offset.
+
+    Masks reserve zero for background/ignored pixels. PPNet omits that output
+    (label 1 maps to classifier row 0); ReProSeg includes it (label 1 maps to
+    row 1). The CLI additionally requires the Cityscapes class count.
+    """
+    if isinstance(model, PPNet):
+        identity = model.prototype_class_identity
+        weights = model.last_layer.weight
+        if identity.ndim != 2 or identity.shape[0] != model.num_prototypes:
+            raise ValueError("PPNet prototype_class_identity must have shape (num_prototypes, num_classes).")
+        num_classes = identity.shape[1]
+        if weights.ndim != 2 or tuple(weights.shape) != (num_classes, model.num_prototypes):
+            raise ValueError("PPNet classifier dimensions must match its prototype class assignments.")
+        offset, expected_classes = 1, 19
+    elif isinstance(model, ReProSeg):
+        weights = model.layers.classification_layer.weight
+        if weights.ndim != 4 or tuple(weights.shape[1:]) != (model.num_concepts, 1, 1):
+            raise ValueError("ReProSeg classifier must have shape (num_classes, num_concepts, 1, 1).")
+        num_classes = weights.shape[0]
+        offset, expected_classes = 0, 20
+    else:
+        raise TypeError("Stability evaluation requires a PPNet or ReProSeg checkpoint.")
+    if num_classes < (1 if offset else 2):
+        raise ValueError("Stability requires at least one foreground class.")
+    if cityscapes and num_classes != expected_classes:
+        layout = (
+            "PPNet with 19 foreground outputs"
+            if offset else "ReProSeg with 20 outputs including background at index 0"
+        )
+        raise ValueError(f"Cityscapes stability requires {layout}; received {num_classes} outputs.")
+    return offset
+
+
 @torch.no_grad()
 def run_stability(
-    model: PPNet,
+    model: SupportedModel,
     data_loader: Iterable[tuple[Tensor, Tensor, Tensor]],
     *,
     quantile: float = 0.8,
@@ -133,14 +169,15 @@ def run_stability(
     with a new private stream per run, so changing the quantile alone preserves
     the perturbations. Images without part observations contribute no pairs.
     """
-    if not isinstance(model, PPNet):
-        raise TypeError("Stability evaluation currently requires a PPNet checkpoint.")
+    semantic_class_offset = _validate_stability_model(model)
     settings = StabilityEvalConfig(quantile=quantile, std_dev=std_dev, seed=seed)
-    observer = StabilityObserver(model, activation_quantile=settings.quantile, device=device)
+    observer = StabilityObserver(
+        model, activation_quantile=settings.quantile, device=device, semantic_class_offset=semantic_class_offset
+    )
     noise = StabilityNoise(std_dev=settings.std_dev, seed=settings.seed, device=observer.device)
     comparisons: list[PartStability] = []
     image_index = 0
-    for images, semantics, parts in tqdm(data_loader, desc="Computing PPNet stability", disable=not show_progress):
+    for images, semantics, parts in tqdm(data_loader, desc="Computing stability", disable=not show_progress):
         semantics = _squeeze_mask_channel(semantics, "semantic")
         parts = _squeeze_mask_channel(parts, "part")
         if semantics.shape != parts.shape:
@@ -170,14 +207,13 @@ def run_stability(
 
 @register("stability")
 def run_stability_evaluation(cfg: EvaluateConfig) -> StabilityResult:
-    """Load the configured PPNet and Cityscapes data, then evaluate one quantile."""
+    """Load the configured PPNet/ReProSeg and Cityscapes data, then evaluate one quantile."""
     checkpoint_path = cfg.model.checkpoint
     if checkpoint_path is None:
         raise ValueError("model.checkpoint must be set to the checkpoint to evaluate.")
-    data_loader = create_stability_dataloader(cfg)
     model = _build_supported_model(_load_checkpoint(checkpoint_path), checkpoint_path, model_cfg=cfg.model)
-    if not isinstance(model, PPNet) or model.prototype_class_identity.shape[1] != 19:
-        raise ValueError("Cityscapes stability requires a PPNet checkpoint with 19 classes.")
+    _validate_stability_model(model, cityscapes=True)
+    data_loader = create_stability_dataloader(cfg)
     settings = cfg.evaluate.stability
     result = run_stability(
         model,
@@ -188,7 +224,7 @@ def run_stability_evaluation(cfg: EvaluateConfig) -> StabilityResult:
         device=cfg.env.device,
     )
     output_dir = get_run_context().stability_dir(
-        model_name="protoseg",
+        model_name="protoseg" if isinstance(model, PPNet) else "reproseg",
         dataset_name=cfg.data.dataset.value.lower(),
         official_parts_only=settings.official_parts_only,
     )
