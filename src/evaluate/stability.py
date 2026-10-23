@@ -173,6 +173,7 @@ def run_stability(
     quantile: float = 0.8,
     std_dev: float = 0.2,
     seed: int = 0,
+    max_images: int | None = None,
     device: torch.device | str | None = None,
     show_progress: bool = True,
 ) -> StabilityResult:
@@ -184,9 +185,10 @@ def run_stability(
     ReProSeg concepts assigned to multiple annotated classes contribute once
     for each class. All eligible comparisons have equal weight, including
     matching all-zero vectors; images may contribute different numbers of pairs.
+    max_images optionally limits processing to the first N images in loader order.
     """
     semantic_class_offset = _validate_stability_model(model)
-    settings = StabilityEvalConfig(quantile=quantile, std_dev=std_dev, seed=seed)
+    settings = StabilityEvalConfig(quantile=quantile, std_dev=std_dev, seed=seed, max_images=max_images)
     observer = StabilityObserver(
         model, activation_quantile=settings.quantile, device=device, semantic_class_offset=semantic_class_offset
     )
@@ -212,6 +214,10 @@ def run_stability(
                 )
             )
             image_index += 1
+            if settings.max_images is not None and image_index >= settings.max_images:
+                break
+        if settings.max_images is not None and image_index >= settings.max_images:
+            break
     return StabilityResult(
         summary=summarize_stability(comparisons, activation_quantile=settings.quantile),
         comparisons=tuple(comparisons),
@@ -238,12 +244,15 @@ def run_stability_evaluation(cfg: EvaluateConfig) -> StabilityResult:
         std_dev=settings.std_dev,
         seed=settings.seed,
         device=cfg.env.device,
+        max_images=settings.max_images,
     )
     output_dir = get_run_context().stability_dir(
         model_name="protoseg" if isinstance(model, PPNet) else "reproseg",
         dataset_name=cfg.data.dataset.value.lower(),
         official_parts_only=settings.official_parts_only,
     )
+    if settings.max_images is not None:
+        output_dir = output_dir / f"first_{settings.max_images}_images"
     result.save(output_dir)
     logger.info(
         "Stability score: %.6f (%d/%d pairs)",
