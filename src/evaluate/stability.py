@@ -23,6 +23,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from config import EvaluateConfig
+from config.schema.data import DatasetType
 from config.schema.evaluate import StabilityEvalConfig
 from config.schema.model import ModelConfig
 from evaluate.checkpoint import SupportedModel, _build_supported_model, _load_checkpoint
@@ -248,7 +249,7 @@ def run_stability_evaluation(cfg: EvaluateConfig) -> StabilityResult:
     )
     output_dir = get_run_context().stability_dir(
         model_name="protoseg" if isinstance(model, PPNet) else "reproseg",
-        dataset_name=cfg.data.dataset.value.lower(),
+        dataset_name=DatasetType(cfg.data.dataset).value.lower(),
         official_parts_only=settings.official_parts_only,
     )
     if settings.max_images is not None:

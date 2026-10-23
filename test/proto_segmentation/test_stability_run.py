@@ -70,8 +70,13 @@ def test_result_is_independent_of_batch_size():
 
 @pytest.mark.parametrize("official_parts_only", [False, True])
 @pytest.mark.parametrize("model_name", ["protoseg", "reproseg"])
-def test_cli_registration_passes_quantile_and_saves_results(monkeypatch, temp_dir, official_parts_only, model_name):
+@pytest.mark.parametrize("dataset_as_string", [False, True])
+def test_cli_registration_passes_quantile_and_saves_results(
+    monkeypatch, temp_dir, official_parts_only, model_name, dataset_as_string
+):
     cfg = EvaluateConfig()
+    if dataset_as_string:
+        cfg.data.dataset = "CityScapes"
     cfg.model.checkpoint = Path("push_best.pth")
     cfg.evaluate.stability.quantile = 0.9
     cfg.evaluate.metric_name = "stability"
