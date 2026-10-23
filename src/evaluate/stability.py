@@ -1,4 +1,13 @@
-"""Part stability for PPNet and ReProSeg on clean and noisy Cityscapes images."""
+"""Part stability for PPNet and ReProSeg on clean and noisy Cityscapes images.
+
+ReProSeg uses consistency's active concept-to-class connections, multi-scale
+concept maps, class-masked thresholds, and part centres. Each annotated
+image/class/concept combination contributes one exact vector comparison.
+A concept assigned to multiple classes contributes separately for each class;
+scores are averaged over comparisons, not over distinct concepts or images.
+Matching all-zero vectors count as stable. Classes without annotated parts,
+background, and concepts without active class connections contribute no score.
+"""
 
 import csv
 import json
@@ -62,7 +71,11 @@ class StabilityImagePair:
 
 @dataclass(frozen=True)
 class PartStability:
-    """Exact part-presence comparison for one image, class, and prototype."""
+    """Exact comparison for one image/class/component.
+
+    ``prototype_id`` denotes a PPNet prototype or a ReProSeg concept, retaining
+    the same field name as consistency's observations.
+    """
 
     image_index: int
     class_id: int
@@ -75,7 +88,7 @@ class PartStability:
 
 @dataclass(frozen=True)
 class StabilitySummary:
-    """Mean exact part-vector agreement for one activation quantile."""
+    """Mean agreement over image/class/component combinations at one quantile."""
 
     activation_quantile: float
     score: float
@@ -163,11 +176,14 @@ def run_stability(
     device: torch.device | str | None = None,
     show_progress: bool = True,
 ) -> StabilityResult:
-    """Process every image at one quantile, averaging over annotated pairs.
+    """Process every image and average over annotated image/class/components.
 
     Images must already be normalized. Noise is drawn per image in loader order
     with a new private stream per run, so changing the quantile alone preserves
     the perturbations. Images without part observations contribute no pairs.
+    ReProSeg concepts assigned to multiple annotated classes contribute once
+    for each class. All eligible comparisons have equal weight, including
+    matching all-zero vectors; images may contribute different numbers of pairs.
     """
     semantic_class_offset = _validate_stability_model(model)
     settings = StabilityEvalConfig(quantile=quantile, std_dev=std_dev, seed=seed)
@@ -244,7 +260,12 @@ def summarize_stability(
     *,
     activation_quantile: float,
 ) -> StabilitySummary:
-    """Average pair scores; require at least one annotated pair."""
+    """Average exact matches over image/class/components, including empty matches.
+
+    Keep classes separate when a ReProSeg concept has multiple assignments.
+    Require at least one annotated comparison; missing annotations are excluded
+    by the shared observation extractor rather than counted as empty matches.
+    """
     if not 0.0 <= activation_quantile <= 1.0:
         raise ValueError("Activation quantile must be in [0, 1].")
     if not comparisons:
@@ -346,7 +367,12 @@ class StabilityNoise:
 
 
 class StabilityObserver(PartObservationExtractor):
-    """Observe both versions using consistency's class assignments and geometry."""
+    """Reuse consistency's activations, active class assignments, and geometry.
+
+    For ReProSeg, the inherited extractor selects used concepts and their active
+    classifier connections, and merges their multi-scale spatial activations.
+    Stability only adds the second observation and exact vector comparison.
+    """
 
     def compare_pair(
         self,
@@ -406,7 +432,7 @@ def load_stability_observer(
     model_cfg: ModelConfig | None = None,
     semantic_class_offset: int | None = None,
 ) -> StabilityObserver:
-    """Reuse consistency's checkpoint compatibility and all-prototype selection."""
+    """Reuse checkpoint support, all PPNet prototypes, and active ReProSeg concepts."""
     checkpoint = _load_checkpoint(checkpoint_path)
     model = _build_supported_model(checkpoint, checkpoint_path, model_cfg=model_cfg)
     return StabilityObserver(
