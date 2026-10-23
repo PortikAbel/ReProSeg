@@ -100,7 +100,7 @@ class StabilityResult:
         (output_dir / f"stability_score_{suffix}.txt").write_text(f"{self.summary.score}\n")
         summary = {**asdict(self.summary), "num_images": self.num_images, "std_dev": self.std_dev, "seed": self.seed}
         (output_dir / f"stability_summary_{suffix}.json").write_text(json.dumps(summary, indent=2) + "\n")
-        with (output_dir / f"stability_pairs_{suffix}.csv").open("w", newline="") as file:
+        with (output_dir / f"part_presence_{suffix}.csv").open("w", newline="") as file:
             writer = csv.DictWriter(
                 file,
                 fieldnames=[
@@ -187,7 +187,11 @@ def run_stability_evaluation(cfg: EvaluateConfig) -> StabilityResult:
         seed=settings.seed,
         device=cfg.env.device,
     )
-    output_dir = get_run_context().log_dir / f"stability{'_official_parts' if settings.official_parts_only else ''}"
+    output_dir = get_run_context().stability_dir(
+        model_name="protoseg",
+        dataset_name=cfg.data.dataset.value.lower(),
+        official_parts_only=settings.official_parts_only,
+    )
     result.save(output_dir)
     logger.info(
         "Stability score: %.6f (%d/%d pairs)",

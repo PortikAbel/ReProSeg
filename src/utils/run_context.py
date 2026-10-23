@@ -73,6 +73,10 @@ class RunContext:
     def consistency_dir(self, official_parts_only: bool = False) -> Path:
         return self._log_dir / f"consistency{'_official_parts' if official_parts_only else ''}"
 
+    def stability_dir(self, *, model_name: str, dataset_name: str, official_parts_only: bool = False) -> Path:
+        parts = "official_parts" if official_parts_only else "all_parts"
+        return self._log_dir / f"stability_{model_name}_{dataset_name}_{parts}"
+
     def tb_scalar(self, tag, value, step):
         self._tensorboard_writer.add_scalar(tag, value, step)
 
