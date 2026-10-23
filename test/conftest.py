@@ -31,6 +31,7 @@ def mock_run_context(temp_dir: Path, monkeypatch):
     import utils.run_context as run_context
 
     stub = MagicMock(spec=run_context.RunContext)
+    stub._log_dir = temp_dir
     stub.log_dir = temp_dir
     stub.checkpoint_dir = temp_dir / "checkpoints"
     stub.tensorboard_dir = temp_dir / "tensorboard"
@@ -39,6 +40,7 @@ def mock_run_context(temp_dir: Path, monkeypatch):
     stub.consistency_dir.side_effect = (
         lambda official_parts_only=False: temp_dir / f"consistency{'_official_parts' if official_parts_only else ''}"
     )
+    stub.stability_dir.side_effect = lambda **kwargs: run_context.RunContext.stability_dir(stub, **kwargs)
     monkeypatch.setattr(run_context, "_run_context", stub)
     yield stub
 

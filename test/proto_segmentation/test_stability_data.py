@@ -84,3 +84,38 @@ def test_missing_part_annotations_raise_instead_of_silently_skipping(cityscapes_
     part_path.unlink()
     with pytest.raises(FileNotFoundError):
         next(iter(create_stability_dataloader(cfg)))
+
+
+@pytest.mark.parametrize("official_parts_only,expected_parts", [(False, [1, 5]), (True, [1])])
+def test_reproseg_cli_uses_actual_part_filtering_and_saves_subset(
+    cityscapes_config, temp_dir, official_parts_only, expected_parts
+):
+    import csv
+    import json
+
+    from evaluate.registry import run
+    from test.proto_segmentation.test_stability_reproseg import MultiScaleReProSeg
+
+    cfg = cityscapes_config
+    model = MultiScaleReProSeg(num_concepts=1, num_classes=20)
+    model.layers.classification_layer.weight.data[12, 0] = 1
+    cfg.model.checkpoint = temp_dir / "reproseg.pth"
+    torch.save(model, cfg.model.checkpoint)
+    cfg.evaluate.metric_name = "stability"
+    cfg.evaluate.stability.official_parts_only = official_parts_only
+    cfg.evaluate.stability.std_dev = 0
+    cfg.evaluate.stability.max_images = 1
+    result = run(cfg)
+    assert result.num_images == 1
+    assert result.summary.score == 1
+    assert result.summary.num_evaluated_pairs == 1
+    assert list(result.comparisons[0].part_ids) == expected_parts
+    mode = "official_parts" if official_parts_only else "all_parts"
+    output = temp_dir / f"stability_reproseg_cityscapes_{mode}" / "first_1_images"
+    summary = json.loads((output / "stability_summary_qt_0.8_std_0_seed_0.json").read_text())
+    assert summary["num_images"] == 1
+    assert summary["score"] == 1
+    with (output / "part_presence_qt_0.8_std_0_seed_0.csv").open() as file:
+        rows = list(csv.DictReader(file))
+    assert len(rows) == 1
+    assert json.loads(rows[0]["part_ids"]) == expected_parts
