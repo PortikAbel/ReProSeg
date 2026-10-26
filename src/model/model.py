@@ -192,6 +192,11 @@ class ReProSeg(nn.Module):
     def finetune(self):
         self._apply_phase(TrainPhase.FINETUNE)
 
+    def freeze_backbone_batchnorm(self):
+        for module in self.layers.backbone.modules():
+            if isinstance(module, nn.modules.batchnorm._BatchNorm):
+                module.eval()
+
     def full_train(self):
         self._apply_phase(TrainPhase.FULL_TRAINING)
 
