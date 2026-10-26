@@ -3,7 +3,6 @@ from dataclasses import dataclass
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -71,9 +70,13 @@ def eval(
     abstained /= len(test_iter)
     logger.info(f"model abstained from a decision for {abstained * 100}% of images")
 
-    num_nonzero_concepts = int(torch.count_nonzero(F.relu(net.layers.classification_layer.weight - 1e-3)).item())
-    num_concepts = torch.numel(net.layers.classification_layer.weight)
-    logger.info(f"sparsity ratio: {(num_concepts - num_nonzero_concepts) / num_concepts}")
+    classifier = net.layers.classification_layer
+    num_nonzero_concepts = classifier.used_concepts.numel()
+    sparsity = classifier.sparsity
+    logger.info(f"sparsity ratio: {sparsity}")
+    run = get_run_context()
+    run.tb_scalar("sparsity/eval-epochs", sparsity, epoch)
+    run.tb_scalar("abstained/eval-epochs", abstained, epoch)
 
     return EvalInfo(
         abstained=abstained,
