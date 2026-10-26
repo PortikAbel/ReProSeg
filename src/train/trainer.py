@@ -33,7 +33,7 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
     best_miou = 0.0
 
     optimizer_scheduler_manager = OptimizerSchedulerManager(
-        net, cfg.training.schedulers, len(train_loader), cfg.training.epochs.total
+        net, cfg.training.schedulers, len(train_loader), cfg.training.epochs
     )
     if cfg.training.resume:
         checkpoint_path = cfg.model.checkpoint
@@ -49,6 +49,11 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
             logger.warning(
                 f"epochs.total ({cfg.training.epochs.total}) differs from the checkpoint's "
                 f"({checkpoint['total_epochs']}); the scheduler state is restored as saved."
+            )
+        if checkpoint.get("finetune_epochs", cfg.training.epochs.finetune) != cfg.training.epochs.finetune:
+            logger.warning(
+                f"epochs.finetune ({cfg.training.epochs.finetune}) differs from the checkpoint's "
+                f"({checkpoint['finetune_epochs']}); the backbone scheduler state is restored as saved."
             )
         logger.info(f"Resuming training after epoch {last_epoch}")
 
@@ -80,6 +85,7 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
         checkpoint["version"] = compat_version()
         checkpoint["epoch"] = epoch
         checkpoint["total_epochs"] = cfg.training.epochs.total
+        checkpoint["finetune_epochs"] = cfg.training.epochs.finetune
         checkpoint["best_acc"] = best_acc
         checkpoint["best_miou"] = best_miou
         return checkpoint

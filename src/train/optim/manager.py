@@ -1,4 +1,4 @@
-from config.schema.training import SchedulersConfig
+from config.schema.training import EpochConfig, SchedulersConfig
 from model.model import ReProSeg, TrainPhase
 from train.optim.schedulers import build_scheduler
 
@@ -9,15 +9,17 @@ class OptimizerSchedulerManager:
         model: ReProSeg,
         schedulers_cfg: SchedulersConfig,
         iters_per_epoch: int,
-        epochs: int,
+        epochs: EpochConfig,
     ):
         self.scheduler_types = {
             "net": schedulers_cfg.net.type,
             "classifier": schedulers_cfg.classifier.type,
         }
         self.optimizer_net, self.optimizer_classifier = model.get_optimizers()
-        max_iterations = iters_per_epoch * epochs
-        self.scheduler_net = build_scheduler(self.optimizer_net, schedulers_cfg.net, iters_per_epoch, max_iterations)
+        max_iterations = iters_per_epoch * epochs.total
+        # the backbone scheduler is only stepped outside the finetune epochs
+        net_iterations = iters_per_epoch * max(epochs.total - epochs.finetune, 1)
+        self.scheduler_net = build_scheduler(self.optimizer_net, schedulers_cfg.net, iters_per_epoch, net_iterations)
         self.scheduler_classifier = build_scheduler(
             self.optimizer_classifier, schedulers_cfg.classifier, iters_per_epoch, max_iterations
         )

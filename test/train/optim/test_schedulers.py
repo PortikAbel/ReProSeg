@@ -61,3 +61,11 @@ def test_exponential_decays_gamma_per_epoch():
 def test_constant_and_cosine_annealing():
     assert _lrs(ConstantSchedulerConfig(), 4, 2, 8) == [1.0] * 8
     assert _lrs(CosineAnnealingSchedulerConfig(), 4, 2, 8)[-1] == pytest.approx(0.0, abs=1e-9)
+
+
+def test_warmup_ramps_up_then_follows_schedule():
+    lrs = _lrs(CosineAnnealingSchedulerConfig(warmup_epochs=1), iters_per_epoch=4, epochs=3, steps=8)
+    assert lrs[0] == pytest.approx(0.01 + (1 - 0.01) / 4)
+    assert lrs[:3] == sorted(lrs[:3])
+    assert lrs[3] == pytest.approx(1.0)
+    assert lrs[-1] < lrs[3]

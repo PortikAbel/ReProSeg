@@ -41,6 +41,10 @@ class _SchedulerBase(BaseConfig):
 
     model_config = ConfigDict(extra="forbid")
 
+    warmup_epochs: int = Field(
+        default=0, ge=0, description="Epochs of linear LR warmup from a fraction of the base LR before the schedule"
+    )
+
 
 class CosineWarmRestartsSchedulerConfig(_SchedulerBase):
     type: Literal["cosine_warm_restarts"] = "cosine_warm_restarts"

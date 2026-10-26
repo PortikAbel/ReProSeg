@@ -4,7 +4,9 @@ from torch.optim.lr_scheduler import (
     CosineAnnealingLR,
     CosineAnnealingWarmRestarts,
     ExponentialLR,
+    LinearLR,
     LRScheduler,
+    SequentialLR,
     StepLR,
 )
 
@@ -17,6 +19,8 @@ from config.schema.training import (
     StepSchedulerConfig,
 )
 
+WARMUP_START_FACTOR = 0.01
+
 
 def build_scheduler(
     optimizer: Optimizer,
@@ -27,7 +31,22 @@ def build_scheduler(
     """Build a scheduler that is stepped once per iteration.
 
     Config durations are in epochs and get converted to iterations here.
+    ``max_iterations`` is the number of steps the scheduler will be stepped in total, warmup included.
     """
+    warmup_iterations = cfg.warmup_epochs * iters_per_epoch
+    if warmup_iterations == 0:
+        return _build_main_scheduler(optimizer, cfg, iters_per_epoch, max_iterations)
+    main = _build_main_scheduler(optimizer, cfg, iters_per_epoch, max(max_iterations - warmup_iterations, 1))
+    warmup = LinearLR(optimizer, start_factor=WARMUP_START_FACTOR, total_iters=warmup_iterations)
+    return SequentialLR(optimizer, [warmup, main], milestones=[warmup_iterations])
+
+
+def _build_main_scheduler(
+    optimizer: Optimizer,
+    cfg: SchedulerConfig,
+    iters_per_epoch: int,
+    max_iterations: int,
+) -> LRScheduler:
     match cfg:
         case CosineWarmRestartsSchedulerConfig():
             return CosineAnnealingWarmRestarts(
