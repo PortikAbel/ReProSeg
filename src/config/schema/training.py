@@ -102,6 +102,10 @@ class TrainingConfig(BaseConfig):
         default=False,
         description="Resume an in-progress run: also restore optimizer/scheduler state from model.checkpoint",
     )
+    oom_retry: bool = Field(
+        default=False,
+        description="On CUDA out-of-memory, halve data.batch_size (down to 2) and restart training from scratch",
+    )
     epochs: EpochConfig = Field(default_factory=lambda: EpochConfig(), description="Epoch configuration")
     optimizer: OptimizerType = Field(default=OptimizerType.ADAMW, description="Optimizer type")
     learning_rates: LearningRateConfig = Field(

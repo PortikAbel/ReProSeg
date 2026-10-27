@@ -46,7 +46,7 @@ checkpoint is then visualized and/or evaluated separately.
 Each has its own top-level config (`config/hydra/train.yaml`, `visualize.yaml`, `evaluate.yaml`), composed from shared config groups:
 
 - **env**, **data**, **model**, **logging**: shared across all three scenarios
-- **training**: train-only (epochs, optimizer, learning rates, resume)
+- **training**: train-only (epochs, optimizer, learning rates, resume, `oom_retry` to halve the batch size and restart from scratch on CUDA OOM)
 - **visualization**: visualize-only (top-k prototypes per concept)
 - **evaluate**: evaluate-only, selects a metric (e.g. `evaluate/consistency.yaml`)
 
