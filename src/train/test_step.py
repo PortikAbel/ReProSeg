@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class EvalInfo:
     abstained: float
+    sparsity: float
     num_non_zero_concepts: int
     confusion_matrix: np.ndarray
     accuracy: float
@@ -74,12 +75,10 @@ def eval(
     num_nonzero_concepts = classifier.used_concepts.numel()
     sparsity = classifier.sparsity
     logger.info(f"sparsity ratio: {sparsity}")
-    run = get_run_context()
-    run.tb_scalar("sparsity/eval-epochs", sparsity, epoch)
-    run.tb_scalar("abstained/eval-epochs", abstained, epoch)
 
     return EvalInfo(
         abstained=abstained,
+        sparsity=sparsity,
         num_non_zero_concepts=num_nonzero_concepts,
         confusion_matrix=cm.detach().cpu().numpy(),
         accuracy=acc_from_cm(cm),

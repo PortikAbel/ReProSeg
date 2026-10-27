@@ -111,6 +111,8 @@ def train_model(net: ReProSeg, train_data: TorchDataset, valid_data: TorchDatase
 
         run.tb_scalar("Acc/eval-epochs", eval_info.accuracy, epoch)
         run.tb_scalar("mIoU/eval-epochs", eval_info.miou, epoch)
+        run.tb_scalar("sparsity/eval-epochs", eval_info.sparsity, epoch)
+        run.tb_scalar("abstained/eval-epochs", eval_info.abstained, epoch)
 
         nni.report_intermediate_result(eval_info.miou)
 

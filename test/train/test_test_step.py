@@ -2,17 +2,13 @@ from types import SimpleNamespace
 
 import pytest
 import torch
-from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 from torch.utils.data import DataLoader, TensorDataset
 
 from model.model import NonNegConv1x1
 from train.test_step import eval
-from utils.run_context import RunContext
 
 
-def test_eval_logs_sparsity_and_abstained(tmp_path, monkeypatch):
-    import utils.run_context as run_context
-
+def test_eval_returns_sparsity_and_abstained_without_logging_scalars(mock_run_context):
     classifier = NonNegConv1x1(4, 2, bias=False)
     with torch.no_grad():
         classifier.weight.fill_(-1)
@@ -35,20 +31,9 @@ def test_eval_logs_sparsity_and_abstained(tmp_path, monkeypatch):
     xs = torch.tensor([[[[0.0, 0.0]], [[1.0, 0.0]]], [[[0.0, 0.0]], [[1.0, 1.0]]]])
     ys = torch.zeros((2, 1, 1, 2), dtype=torch.long)
     loader = DataLoader(TensorDataset(xs, ys), batch_size=1)
-    run = RunContext(tmp_path)
-    monkeypatch.setattr(run_context, "_run_context", run)
-    try:
-        info = eval(cfg, EvalNet(), loader, epoch=7)
-    finally:
-        run.close()
+    info = eval(cfg, EvalNet(), loader, epoch=7)
 
     assert info.num_non_zero_concepts == 2
     assert info.abstained == pytest.approx(0.25)
-    events = EventAccumulator(str(run.tensorboard_dir)).Reload()
-    for tag, expected in [
-        ("sparsity/eval-epochs", classifier.sparsity),
-        ("abstained/eval-epochs", info.abstained),
-    ]:
-        (scalar,) = events.Scalars(tag)
-        assert scalar.step == 7
-        assert scalar.value == pytest.approx(expected)
+    assert info.sparsity == classifier.sparsity
+    mock_run_context.tb_scalar.assert_not_called()
