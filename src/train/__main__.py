@@ -4,6 +4,7 @@ Produces checkpoints under the run's log directory. Visualize or evaluate a
 trained checkpoint separately via `python -m visualize` / `python -m evaluate`.
 """
 
+import gc
 import logging
 import os
 import socket
@@ -52,11 +53,32 @@ def main(cfg_dict: DictConfig) -> None:
 
     train_subset, valid_subset = get_train_val_split(cfg)
 
-    net = ReProSeg(cfg=cfg).to(device=cfg.env.device)
-
-    train_model(net, train_subset, valid_subset, cfg)
+    train_with_oom_retry(train_subset, valid_subset, cfg)
 
     get_run_context().close()
+
+
+def train_with_oom_retry(train_subset, valid_subset, cfg: TrainConfig) -> None:
+    """Train, halving `data.batch_size` and restarting on CUDA OOM when `training.oom_retry` is set."""
+    while True:
+        net = None
+        try:
+            net = ReProSeg(cfg=cfg).to(device=cfg.env.device)
+            train_model(net, train_subset, valid_subset, cfg)
+            return
+        except torch.cuda.OutOfMemoryError:
+            new_batch_size = cfg.data.batch_size // 2
+            if not cfg.training.oom_retry or new_batch_size < 2:
+                raise
+            logger.warning(
+                f"CUDA out of memory with batch size {cfg.data.batch_size}; "
+                f"restarting training from scratch with batch size {new_batch_size}"
+            )
+            cfg.data.batch_size = new_batch_size
+        finally:
+            del net
+            gc.collect()
+            torch.cuda.empty_cache()
 
 
 if __name__ == "__main__":
