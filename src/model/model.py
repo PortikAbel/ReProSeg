@@ -233,3 +233,8 @@ class NonNegConv1x1(nn.Module):
     def used_concepts(self) -> torch.Tensor:
         concept_mask = (self.weight >= self.MIN_CLASSIFICATION_WEIGHT).any(dim=0).flatten()
         return concept_mask.nonzero(as_tuple=False).flatten()
+
+    @property
+    def sparsity(self) -> float:
+        """Fraction of concepts with no class weight at or above MIN_CLASSIFICATION_WEIGHT."""
+        return 1.0 - self.used_concepts.numel() / self.in_channels

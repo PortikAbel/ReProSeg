@@ -3,7 +3,6 @@ from dataclasses import dataclass
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -19,6 +18,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class EvalInfo:
     abstained: float
+    sparsity: float
     num_non_zero_concepts: int
     confusion_matrix: np.ndarray
     accuracy: float
@@ -71,12 +71,14 @@ def eval(
     abstained /= len(test_iter)
     logger.info(f"model abstained from a decision for {abstained * 100}% of images")
 
-    num_nonzero_concepts = int(torch.count_nonzero(F.relu(net.layers.classification_layer.weight - 1e-3)).item())
-    num_concepts = torch.numel(net.layers.classification_layer.weight)
-    logger.info(f"sparsity ratio: {(num_concepts - num_nonzero_concepts) / num_concepts}")
+    classifier = net.layers.classification_layer
+    num_nonzero_concepts = classifier.used_concepts.numel()
+    sparsity = classifier.sparsity
+    logger.info(f"sparsity ratio: {sparsity}")
 
     return EvalInfo(
         abstained=abstained,
+        sparsity=sparsity,
         num_non_zero_concepts=num_nonzero_concepts,
         confusion_matrix=cm.detach().cpu().numpy(),
         accuracy=acc_from_cm(cm),

@@ -211,6 +211,26 @@ class TestNonNegConv1x1:
         assert used_concepts.shape == expected_index.shape
         assert torch.allclose(used_concepts, expected_index)
 
+    @pytest.mark.parametrize("threshold", [0.0, 0.5])
+    def test_sparsity_counts_concepts_at_threshold(self, threshold, monkeypatch):
+        monkeypatch.setattr(NonNegConv1x1, "MIN_CLASSIFICATION_WEIGHT", threshold)
+        layer = NonNegConv1x1(4, 2, bias=False)
+        with torch.no_grad():
+            layer.weight.fill_(threshold - 1)
+            layer.weight[0, 0] = threshold
+            layer.weight[:, 1] = threshold + 0.0001
+
+        assert layer.used_concepts.tolist() == [0, 1]
+        assert layer.sparsity == 0.5
+
+    @pytest.mark.parametrize("used", [False, True])
+    def test_sparsity_all_or_no_concepts_used(self, used):
+        layer = NonNegConv1x1(4, 2, bias=False)
+        with torch.no_grad():
+            layer.weight.fill_(layer.MIN_CLASSIFICATION_WEIGHT + (1 if used else -1))
+
+        assert layer.sparsity == (0.0 if used else 1.0)
+
     def test_weight_parameter_shape_consistency(self):
         """Test that weight parameter maintains correct shape throughout operations."""
         layer = NonNegConv1x1(self.in_channels, self.out_channels, bias=False)
