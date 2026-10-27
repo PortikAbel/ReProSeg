@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+import numpy as np
 import pytest
 import torch
 from torch.utils.data import DataLoader, TensorDataset
@@ -8,7 +9,7 @@ from model.model import NonNegConv1x1
 from train.test_step import eval
 
 
-def test_eval_returns_sparsity_and_abstained_without_logging_scalars(mock_run_context):
+def test_eval_returns_eval_info():
     classifier = NonNegConv1x1(4, 2, bias=False)
     with torch.no_grad():
         classifier.weight.fill_(-1)
@@ -35,5 +36,7 @@ def test_eval_returns_sparsity_and_abstained_without_logging_scalars(mock_run_co
 
     assert info.num_non_zero_concepts == 2
     assert info.abstained == pytest.approx(0.25)
-    assert info.sparsity == classifier.sparsity
-    mock_run_context.tb_scalar.assert_not_called()
+    assert info.sparsity == pytest.approx(0.5)
+    np.testing.assert_array_equal(info.confusion_matrix, np.zeros((1, 1), dtype=np.int32))
+    assert info.accuracy == pytest.approx(1.0)
+    assert info.miou == pytest.approx(0.0)
