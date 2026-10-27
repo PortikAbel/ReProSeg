@@ -7,7 +7,7 @@ import torch.nn as nn
 from tqdm import tqdm
 
 from config import TrainConfig
-from model.model import ReProSeg
+from model.model import ReProSeg, TrainPhase
 from train.eval import acc_from_cm, compute_cm, intersection_and_union_from_cm
 from train.loss import Loss, calculate_loss
 from train.optim.manager import OptimizerSchedulerManager
@@ -37,6 +37,8 @@ def train(
 ) -> TrainInfo:
     # Make sure the model is in train mode
     net.train()
+    if net.train_phase is TrainPhase.FINETUNE:
+        net.freeze_backbone_batchnorm()
 
     loss_epoch: Loss = Loss.on_device(cfg.env.device)
     total_acc = 0.0
