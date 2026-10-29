@@ -81,6 +81,9 @@ def _register_legacy_checkpoint_modules() -> None:
     classes at their new canonical locations.
     """
 
+    # Some ProtoSeg runs pickled PPNet from the top-level ``model`` module;
+    # other runs used ``proto_segmentation.model``.
+    importlib.import_module("model").PPNet = PPNet
     legacy_root = sys.modules.setdefault("proto_segmentation", ModuleType("proto_segmentation"))
     legacy_root.__path__ = []
 
@@ -90,7 +93,6 @@ def _register_legacy_checkpoint_modules() -> None:
     legacy_root.__dict__["model"] = model_module
 
     current_package = "model.segmentation_features.deeplab_pytorch"
-    legacy_package = "proto_segmentation.deeplab_pytorch"
     module_suffixes = (
         "",
         ".libs",
@@ -103,11 +105,13 @@ def _register_legacy_checkpoint_modules() -> None:
         ".libs.models.resnet",
     )
 
-    for suffix in module_suffixes:
-        alias = legacy_package + suffix
-        module = sys.modules.setdefault(alias, importlib.import_module(current_package + suffix))
-        parent_name, _, child_name = alias.rpartition(".")
-        setattr(sys.modules[parent_name], child_name, module)
+    for legacy_package in ("proto_segmentation.deeplab_pytorch", "deeplab_pytorch"):
+        for suffix in module_suffixes:
+            alias = legacy_package + suffix
+            module = sys.modules.setdefault(alias, importlib.import_module(current_package + suffix))
+            parent_name, _, child_name = alias.rpartition(".")
+            if parent_name in sys.modules:
+                setattr(sys.modules[parent_name], child_name, module)
 
     legacy_segmentation = sys.modules.setdefault(
         "proto_segmentation.segmentation", ModuleType("proto_segmentation.segmentation")
@@ -118,3 +122,8 @@ def _register_legacy_checkpoint_modules() -> None:
         "proto_segmentation.segmentation.utils", importlib.import_module("model.utils")
     )
     legacy_segmentation.__dict__["utils"] = legacy_utils
+
+    # Older Pascal checkpoints refer to ``segmentation.utils.MSC`` directly.
+    old_segmentation = sys.modules.setdefault("segmentation", ModuleType("segmentation"))
+    old_segmentation.__path__ = []
+    old_segmentation.__dict__["utils"] = sys.modules.setdefault("segmentation.utils", legacy_utils)

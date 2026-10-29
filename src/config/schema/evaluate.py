@@ -34,12 +34,21 @@ class ConsistencyEvalConfig(BaseConfig):
 
 
 class StabilityEvalConfig(BaseConfig):
-    """Clean/noisy part agreement for PPNet and ReProSeg on Cityscapes."""
+    """Clean/noisy part agreement for PPNet and ReProSeg on Cityscapes or Pascal VOC."""
 
     quantile: float = Field(default=0.8, ge=0.0, le=1.0, description="Activation quantile for this evaluation run")
     std_dev: float = Field(default=0.2, ge=0.0, allow_inf_nan=False)
     seed: int = Field(default=0, ge=0, le=2**63 - 1)
     max_images: int | None = Field(default=None, ge=1, description="Evaluate the first N images; null uses all images")
+    parts_path: Optional[Path] = Field(
+        default=None, description="Pascal part TIFF directory; defaults to VOC2012/labels/val"
+    )
+    parts_spec: Optional[Path] = Field(
+        default=None, description="Pascal part specification; defaults to VOC2012/parts.yaml"
+    )
+    image_shape: Optional[tuple[int, int]] = Field(
+        default=None, description="Optional Pascal center crop; null uses native size"
+    )
     official_parts_only: bool = False
     batch_size: int = Field(default=1, ge=1)
     num_workers: int = Field(default=0, ge=0)

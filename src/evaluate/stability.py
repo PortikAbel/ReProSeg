@@ -1,4 +1,4 @@
-"""Part stability for PPNet and ReProSeg on clean and noisy Cityscapes images.
+"""Part stability for PPNet and ReProSeg on clean and noisy validation images.
 
 ReProSeg uses consistency's active concept-to-class connections, multi-scale
 concept maps, class-masked thresholds, and part centres. Each annotated
@@ -26,7 +26,9 @@ from config import EvaluateConfig
 from config.schema.data import DatasetType
 from config.schema.evaluate import StabilityEvalConfig
 from config.schema.model import ModelConfig
+from data.dataset.pascal_parts import PascalPartsDataset
 from evaluate.checkpoint import SupportedModel, _build_supported_model, _load_checkpoint
+from evaluate.consistency import _pascal_class_offset
 from evaluate.data import create_cityscapes_parts_dataloader
 from evaluate.parts import PartObservationExtractor, PartPresence
 from evaluate.registry import register
@@ -39,26 +41,50 @@ logger = logging.getLogger(__name__)
 
 
 def create_stability_dataloader(cfg: EvaluateConfig) -> DataLoader:
-    """Load native-resolution Cityscapes validation images and part annotations.
+    """Load Cityscapes or Pascal VOC validation images with part annotations.
 
     Uses data.path, data.mean/std, and evaluate.stability's part mode, batch
-    size, worker count, and seed. Batches contain normalized RGB images
-    (B, 3, 1024, 2048), semantic masks (B, 1, H, W), and encoded part masks
-    (B, 1, H, W), with the same transforms as consistency evaluation.
+    size, worker count, and seed. Cityscapes uses native resolution. Pascal
+    uses the same annotated-image intersection and normalization as consistency.
 
-    Images are ordered by path in both part modes, without shuffling or dropping
-    the final batch. Missing annotations raise an error when their image is read.
-    The returned dataset's _get_image_path(index) identifies each image for audits.
+    Images are ordered without shuffling or dropping the final batch. Cityscapes
+    is sorted by image path; Pascal follows the official validation split order.
     """
     settings = cfg.evaluate.stability
-    return create_cityscapes_parts_dataloader(
-        cfg.data,
-        batch_size=settings.batch_size,
-        num_workers=settings.num_workers,
+    dataset = DatasetType(cfg.data.dataset)
+    if dataset == DatasetType.CITYSCAPES:
+        return create_cityscapes_parts_dataloader(
+            cfg.data,
+            batch_size=settings.batch_size,
+            num_workers=settings.num_workers,
+            official_parts_only=settings.official_parts_only,
+            device=cfg.env.device,
+            sort_images=True,
+            seed=settings.seed,
+        )
+    if settings.image_shape is None and settings.batch_size != 1:
+        raise ValueError("Native Pascal images vary in size; set stability.batch_size=1 or stability.image_shape.")
+    parts_data = PascalPartsDataset(
+        cfg.data.path,
+        parts_path=settings.parts_path,
+        parts_spec=settings.parts_spec,
+        image_shape=settings.image_shape,
         official_parts_only=settings.official_parts_only,
-        device=cfg.env.device,
-        sort_images=True,
-        seed=settings.seed,
+        mean=cfg.data.mean,
+        std=cfg.data.std,
+    )
+    logger.info(
+        "Pascal validation: %d images with parts; %d without TIFFs.",
+        len(parts_data), parts_data.num_missing_parts,
+    )
+    return DataLoader(
+        parts_data,
+        batch_size=settings.batch_size,
+        shuffle=False,
+        drop_last=False,
+        num_workers=settings.num_workers,
+        pin_memory=torch.device(cfg.env.device).type == "cuda",
+        generator=torch.Generator().manual_seed(settings.seed),
     )
 
 
@@ -175,6 +201,7 @@ def run_stability(
     std_dev: float = 0.2,
     seed: int = 0,
     max_images: int | None = None,
+    semantic_class_offset: int | None = None,
     device: torch.device | str | None = None,
     show_progress: bool = True,
 ) -> StabilityResult:
@@ -188,7 +215,9 @@ def run_stability(
     matching all-zero vectors; images may contribute different numbers of pairs.
     max_images optionally limits processing to the first N images in loader order.
     """
-    semantic_class_offset = _validate_stability_model(model)
+    inferred_offset = _validate_stability_model(model)
+    if semantic_class_offset is None:
+        semantic_class_offset = inferred_offset
     settings = StabilityEvalConfig(quantile=quantile, std_dev=std_dev, seed=seed, max_images=max_images)
     observer = StabilityObserver(
         model, activation_quantile=settings.quantile, device=device, semantic_class_offset=semantic_class_offset
@@ -230,12 +259,14 @@ def run_stability(
 
 @register("stability")
 def run_stability_evaluation(cfg: EvaluateConfig) -> StabilityResult:
-    """Load the configured PPNet/ReProSeg and Cityscapes data, then evaluate one quantile."""
+    """Load the configured model and annotated validation data, then evaluate one quantile."""
     checkpoint_path = cfg.model.checkpoint
     if checkpoint_path is None:
         raise ValueError("model.checkpoint must be set to the checkpoint to evaluate.")
     model = _build_supported_model(_load_checkpoint(checkpoint_path), checkpoint_path, model_cfg=cfg.model)
-    _validate_stability_model(model, cityscapes=True)
+    dataset = DatasetType(cfg.data.dataset)
+    _validate_stability_model(model, cityscapes=dataset == DatasetType.CITYSCAPES)
+    semantic_class_offset = _pascal_class_offset(model) if dataset == DatasetType.VOC_SEGMENTATION else None
     data_loader = create_stability_dataloader(cfg)
     settings = cfg.evaluate.stability
     result = run_stability(
@@ -246,6 +277,7 @@ def run_stability_evaluation(cfg: EvaluateConfig) -> StabilityResult:
         seed=settings.seed,
         device=cfg.env.device,
         max_images=settings.max_images,
+        semantic_class_offset=semantic_class_offset,
     )
     output_dir = get_run_context().stability_dir(
         model_name="protoseg" if isinstance(model, PPNet) else "reproseg",
@@ -255,6 +287,27 @@ def run_stability_evaluation(cfg: EvaluateConfig) -> StabilityResult:
     if settings.max_images is not None:
         output_dir = output_dir / f"first_{settings.max_images}_images"
     result.save(output_dir)
+    if dataset == DatasetType.VOC_SEGMENTATION:
+        parts_data = data_loader.dataset
+        (output_dir / "image_ids.txt").write_text("\n".join(parts_data.image_ids[:result.num_images]) + "\n")
+        (output_dir / "pascal_evaluation.json").write_text(
+            json.dumps(
+                {
+                    "dataset": "pascal_voc",
+                    "checkpoint": str(checkpoint_path.resolve()),
+                    "voc_root": str(parts_data.voc_root.resolve()),
+                    "parts_path": str(parts_data.parts_path.resolve()),
+                    "parts_spec": str(parts_data.parts_spec.resolve()),
+                    "num_images": result.num_images,
+                    "num_missing_parts": parts_data.num_missing_parts,
+                    "image_shape": settings.image_shape,
+                    "semantic_class_offset": semantic_class_offset,
+                    "official_parts_only": settings.official_parts_only,
+                    "part_names": {f"{sid}:{pid}": name for (sid, pid), name in parts_data.part_names.items()},
+                },
+                indent=2,
+            ) + "\n"
+        )
     logger.info(
         "Stability score: %.6f (%d/%d pairs)",
         result.summary.score,

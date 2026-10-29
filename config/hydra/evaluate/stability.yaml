@@ -1,10 +1,13 @@
-# PPNet/ReProSeg stability on native-resolution Cityscapes validation images.
+# PPNet/ReProSeg stability on validation images with part annotations.
 metric_name: stability
 stability:
   quantile: 0.8
   std_dev: 0.2
   seed: 0
   max_images: null
+  parts_path: null
+  parts_spec: null
+  image_shape: null
   official_parts_only: false
   batch_size: 1
   num_workers: 0

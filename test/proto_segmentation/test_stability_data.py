@@ -6,6 +6,13 @@ from PIL import Image
 from config import EvaluateConfig
 from config.schema.data import DatasetType
 from evaluate.stability import create_stability_dataloader
+from test.data.dataset import test_pascal_parts as pascal_test_data
+from test.proto_segmentation.test_consistency import DummyPPNet
+
+
+@pytest.fixture
+def stability_voc_root(tmp_path):
+    return pascal_test_data.voc_root.__wrapped__(tmp_path)
 
 
 @pytest.fixture
@@ -71,10 +78,10 @@ def test_loader_honors_batch_size_keeps_final_batch_and_does_not_consume_global_
     assert next(iterator)[0].shape[0] == 2
 
 
-def test_stability_loader_rejects_other_datasets():
+def test_stability_loader_reports_missing_pascal_data():
     cfg = EvaluateConfig()
     cfg.data.dataset = DatasetType.VOC_SEGMENTATION
-    with pytest.raises(ValueError, match="Cityscapes only"):
+    with pytest.raises(FileNotFoundError, match="Cannot find VOC2012"):
         create_stability_dataloader(cfg)
 
 
@@ -84,6 +91,55 @@ def test_missing_part_annotations_raise_instead_of_silently_skipping(cityscapes_
     part_path.unlink()
     with pytest.raises(FileNotFoundError):
         next(iter(create_stability_dataloader(cfg)))
+
+
+@pytest.mark.parametrize("num_classes", [20, 21])
+@pytest.mark.parametrize("official_parts_only", [False, True])
+def test_pascal_stability_uses_consistency_annotations_and_saves_manifest(
+    stability_voc_root, temp_dir, num_classes, official_parts_only
+):
+    import json
+
+    from evaluate.registry import run
+
+    model = DummyPPNet()
+    model.prototype_class_identity = torch.zeros(2, num_classes)
+    model.prototype_class_identity[0, 7 - (21 - num_classes)] = 1
+    model.last_layer = torch.nn.Linear(2, num_classes, bias=False)
+    checkpoint = temp_dir / "pascal_checkpoint.pth"
+    torch.save(model, checkpoint)
+
+    cfg = EvaluateConfig()
+    cfg.data.dataset = DatasetType.VOC_SEGMENTATION
+    cfg.data.path = stability_voc_root
+    cfg.env.device = torch.device("cpu")
+    cfg.model.checkpoint = checkpoint
+    cfg.evaluate.metric_name = "stability"
+    cfg.evaluate.stability.std_dev = 0
+    cfg.evaluate.stability.official_parts_only = official_parts_only
+    result = run(cfg)
+
+    assert result.num_images == 1
+    assert result.summary.num_evaluated_pairs == 1
+    assert result.summary.score == 1
+    assert result.comparisons[0].class_id == 7
+    assert result.comparisons[0].part_ids == ((1, 2) if official_parts_only else (1, 2, 99))
+    mode = "official_parts" if official_parts_only else "all_parts"
+    output = temp_dir / f"stability_protoseg_pascalvoc_{mode}"
+    assert (output / "image_ids.txt").read_text() == "with_parts\n"
+    metadata = json.loads((output / "pascal_evaluation.json").read_text())
+    assert metadata["semantic_class_offset"] == 21 - num_classes
+    assert metadata["num_missing_parts"] == 1
+    assert (output / "stability_score_qt_0.8_std_0_seed_0.txt").read_text() == "1.0\n"
+
+
+def test_pascal_native_images_require_batch_size_one(stability_voc_root):
+    cfg = EvaluateConfig()
+    cfg.data.dataset = DatasetType.VOC_SEGMENTATION
+    cfg.data.path = stability_voc_root
+    cfg.evaluate.stability.batch_size = 2
+    with pytest.raises(ValueError, match="vary in size"):
+        create_stability_dataloader(cfg)
 
 
 @pytest.mark.parametrize("official_parts_only,expected_parts", [(False, [1, 5]), (True, [1])])

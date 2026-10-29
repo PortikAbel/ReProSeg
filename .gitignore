@@ -169,3 +169,4 @@ logs/
 class_distribution/
 
 consistency_results*
+/stability_runs/
